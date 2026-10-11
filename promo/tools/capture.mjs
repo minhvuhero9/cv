@@ -86,7 +86,7 @@ async function slowDrag(pts, pxPerSec) {
   await page.mouse.up();
 }
 async function begIfNeeded() {
-  if (await has('[data-testid=beg]')) { await page.click('[data-testid=beg]'); mark('beg'); await page.waitForTimeout(600); }
+  if (await has('[data-testid=beg]')) { await page.click('[data-testid=beg]').catch(() => {}); mark('beg'); }
 }
 
 try {
@@ -112,8 +112,9 @@ try {
   const pts = mid.length >= 2 ? [mid[0], mid[Math.floor(mid.length / 2)], mid[mid.length - 1]] : [[head.cx - STRIP / 2, head.cy - head.ry * 0.7], [head.cx + STRIP / 2, head.cy - head.ry * 0.7]];
   mark('clip');
   await slowDrag(pts, SPEED);
+  await page.mouse.move(5, 5);
   mark('bald', await st());
-  await page.waitForTimeout(1600); // customer reaction
+  await page.waitForTimeout(2000); // customer reaction
   await begIfNeeded();
   mark('react', await st());
 
@@ -130,8 +131,10 @@ try {
       await page.waitForFunction((p) => window.__tctbo.state().persona === p, PERSONA, { timeout: 3000 }).catch(() => warn('persona not applied'));
       mark('transform', await st());
       await page.mouse.move(5, 5);
-      await page.waitForTimeout(2600);
-      await begIfNeeded();
+      // Hold on the transformed customer; if chaos makes them reach for the cape, beg at once
+      // so the walkout overlay does not hide the new look.
+      const until = Date.now() + 2600;
+      while (Date.now() < until) { await begIfNeeded(); await page.waitForTimeout(60); }
     } else warn(`persona ${PERSONA} missing`);
   }
 
