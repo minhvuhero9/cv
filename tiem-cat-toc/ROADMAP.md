@@ -22,22 +22,22 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] Cậu Vàng: hình con chó, sợ tông đơ, thích máy sấy, rũ lông làm bừa tiệm, ngửi mùi đồ ăn, kiểu lông riêng, sủa (63 test logic, 62 kiểm tra trình duyệt)
 
 ## 3. Vòng lặp ngày, tiền, lưu tiến trình
-- [ ] CareerState: ngày, tiền, uy tín, viral, đồ nghề, vật phẩm, độ bền, lịch sử khách, khách hẹn quay lại, sự kiện
-- [ ] Sáng mở tiệm, hàng khách, tổng kết cuối ngày (doanh thu, chi phí, phạt)
-- [ ] localStorage có kiểm tra phiên bản, bản sao lưu, nút reset rõ ràng
-- [ ] Giữ chế độ "Cắt tự do" như bản cũ
+- [x] CareerState (`career.ts`): ngày, tiền, uy tín, viral, đồ nghề, vật phẩm, độ bền, lịch sử khách, khách hẹn quay lại, sự kiện
+- [x] Sáng mở tiệm, hàng khách, tổng kết cuối ngày (doanh thu, chi phí, phạt)
+- [x] localStorage có kiểm tra phiên bản, bản sao lưu, nút reset có xác nhận
+- [x] Giữ chế độ "Cắt tự do" như bản cũ (`?mode=free`)
 
 ## 4. Shop và nâng cấp
-- [ ] Danh mục vật phẩm có giá, điều kiện mở khóa, tác động gameplay
-- [ ] Mua thì thay đổi gameplay thật (dụng cụ mới, ít quay đầu hơn, tông đơ an toàn hơn, thêm khách, ...)
+- [x] Danh mục vật phẩm (`shop.ts`) có giá, điều kiện mở khóa, tác động gameplay
+- [x] Mua thì thay đổi gameplay thật (dụng cụ mới, ít quay đầu hơn, tông đơ an toàn hơn, thêm khách, ...)
 
 ## 5. Tương tác và tình huống phát sinh
-- [ ] Thuốc mọc tóc + tông đơ, keo vĩnh cửu + máy sấy bão, dụng cụ mạnh + khách nhạy cảm, độ bền thấp gây trục trặc
+- [x] Thuốc mọc tóc + tông đơ, keo vĩnh cửu + máy sấy bão, máy tạo kiểu nghe nhầm khi Chaos cao, dụng cụ mạnh + khách nhạy cảm, độ bền thấp gây trục trặc
 
 ## 6. Danh tiếng, viral, khách quay lại, sự kiện ngày
-- [ ] Uy tín và viral tách riêng, đều thay đổi theo kết quả
-- [ ] Khách quay lại đòi sửa (mang theo mái tóc hôm trước), khách bắt chước kiểu viral
-- [ ] Sự kiện ngày có nguyên nhân hiển thị
+- [x] Uy tín và viral tách riêng, đều thay đổi theo kết quả
+- [x] Khách quay lại đòi sửa (mang theo mái tóc hôm trước), khách bắt chước kiểu viral
+- [x] Sự kiện ngày có nguyên nhân hiển thị (chợ phiên, cắt điện, clip viral, kiểm tra vệ sinh, báo khen, đánh giá 1 sao)
 
 ## 7. TTS miễn phí và pipeline
 - [ ] Xuất danh sách thoại từ dữ liệu, script batch tạo file, kiểm tra file, manifest, danh sách thiếu

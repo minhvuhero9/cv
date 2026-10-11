@@ -7,6 +7,7 @@ import {
   CutResult,
   HairState,
   Zone,
+  BALD_DWELL,
   clipperDwell,
   clipperSweep,
   cloneHair,
@@ -220,6 +221,13 @@ export interface RoundState {
   wantStyle: string | null;
   /** Context from the shop (career mode). */
   ctx: RoundContext;
+  /** Consumables left / used this round. */
+  stock: Record<string, number>;
+  consumed: Record<string, number>;
+  /** Seconds each tool was in use (wear and electricity). */
+  usage: Partial<Record<Tool, number>>;
+  growCut: number;
+  malfunctionT: number;
 }
 
 export interface RoundContext {
@@ -232,6 +240,12 @@ export interface RoundContext {
   wantStyle?: string | null;
   /** Machines with low condition (0..100) behave badly. */
   condition?: Partial<Record<Tool, number>>;
+  /** Consumable stock (potion, gel, sausage…). */
+  stock?: Record<string, number>;
+  /** Tools that cannot be used today (power cut). */
+  blocked?: Tool[];
+  /** Price multiplier from reputation and decor. */
+  payMultiplier?: number;
 }
 
 export interface RoundOptions {
@@ -318,7 +332,22 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     wear: {},
     wantStyle: ctx.wantStyle ?? null,
     ctx,
+    stock: { ...(ctx.stock ?? {}) },
+    consumed: {},
+    usage: {},
+    growCut: 0,
+    malfunctionT: 0,
   };
+}
+
+const hasItem = (s: RoundState, id: string) => s.ctx.items.includes(id);
+
+/** Uses one unit of a consumable; returns false when out of stock. */
+export function consume(s: RoundState, id: string): boolean {
+  if ((s.stock[id] ?? 0) <= 0) return false;
+  s.stock[id]--;
+  s.consumed[id] = (s.consumed[id] ?? 0) + 1;
+  return true;
 }
 
 /* ------------------------------------------------------------------ helpers */
@@ -346,6 +375,7 @@ export function has(s: RoundState, b: BehaviorId) {
 
 /** Records an incident: adds to the event log, chaos, and shows a toast. */
 export function incident(s: RoundState, id: EventId, chaos: number, toast = true) {
+  if (hasItem(s, 'plant')) chaos *= 0.85;
   s.events[id] = (s.events[id] ?? 0) + 1;
   if (toast) s.log.push({ id, t: s.time });
   s.incident = clamp(s.incident + chaos, 0, 100);
@@ -398,6 +428,12 @@ export function startCutting(s: RoundState) {
 export function setTool(s: RoundState, tool: Tool): boolean {
   if (!s.unlocked.includes(tool)) {
     s.deniedAt = s.time;
+    return false;
+  }
+  if (s.ctx.blocked?.includes(tool)) {
+    s.deniedAt = s.time;
+    s.sfx.push('deny');
+    s.toasts.push({ id: s.toastSeq++, title: 'Mất điện — máy này không chạy được', until: s.time + 2 });
     return false;
   }
   if (s.pointer.down) {
@@ -483,6 +519,14 @@ export function handleCut(s: RoundState, r: CutResult) {
   for (const t of r.cut) ptr.zones.add(t.zone);
   s.clippings = Math.min(60, s.clippings + r.removed / 8);
   spawnClippings(s, r);
+  // Thuốc mọc tóc + tông đơ: the hair grows back while you cut it.
+  if (s.tool === 'clipper') {
+    s.growCut += r.cut.filter((t) => t.grow > 0).length;
+    if (s.growCut >= 15 && !s.events.growRace) {
+      incident(s, 'growRace', 10);
+      say(s, line(s, 'growRace'), 'shocked', { shout: true });
+    }
+  }
   if (r.newlyBald.length) onBald(s);
 }
 
@@ -643,7 +687,7 @@ export function finish(s: RoundState, reason: EndReason) {
       timeLimit: s.timeLimit,
       viewers: s.viewers,
       wantStyle: s.wantStyle,
-      payBonus: s.ctx.items.includes('ringLight') ? 1.2 : 1,
+      payBonus: s.ctx.payMultiplier ?? 1,
     },
     s.rng,
   );
@@ -843,6 +887,8 @@ const RULES: Rule[] = [
       if (s.motion || s.time < s.nextTurnCheck) return false;
       s.nextTurnCheck = s.time + between(s.rng, 3, 5.5);
       const restless = s.patience < 40 || s.chaos >= 50;
+      // The massage chair keeps half of them seated.
+      if (restless && hasItem(s, 'chair') && s.rng() < 0.5) return false;
       return restless && s.rng() < 0.4 + s.chaos / 250;
     },
     fire: (s) => startMotion(s, 'turn'),
@@ -918,15 +964,20 @@ export function tick(s: RoundState, dt: number) {
   const ptr = s.pointer;
   const local = ptr.stage ? toLocal(s, ptr.stage) : null;
   if (ptr.down && local && s.tool === 'clipper') {
-    handleCut(s, clipperDwell(s.hair, local, dt, ptr.stroke));
+    handleCut(s, clipperDwell(s.hair, local, dt, ptr.stroke, hasItem(s, 'japanClipper') ? 0.85 : BALD_DWELL));
   } else {
     decayDwell(s.hair, dt);
   }
   if (ptr.down && local && s.tool === 'dryer') blow(s, local, dt);
   gearTick(s, dt, ptr.down && local ? local : null);
   behaviorTick(s, dt, ptr.down && local ? local : null);
+  if (ptr.down && local) {
+    s.usage[s.tool] = (s.usage[s.tool] ?? 0) + dt;
+    malfunction(s, local, dt);
+  }
 
-  s.patience = clamp(s.patience - s.customer.patienceDecay * dt * (1 + chaosTier(s.chaos) * 0.35), 0, 100);
+  const comfort = (hasItem(s, 'chair') ? 0.8 : 1) * (hasItem(s, 'aircon') ? 0.75 : 1);
+  s.patience = clamp(s.patience - s.customer.patienceDecay * comfort * dt * (1 + chaosTier(s.chaos) * 0.35), 0, 100);
   s.nerves = clamp(s.nerves - 9 * dt, 0, 100);
   if (s.time - s.lastIncidentAt > 5) s.incident = clamp(s.incident - 0.8 * dt, 0, 100);
 
@@ -946,6 +997,27 @@ export function tick(s: RoundState, dt: number) {
     return;
   }
   if (s.time >= s.timeLimit) finish(s, 'timeout');
+}
+
+/**
+ * A worn-out machine (condition < 25%, shown in the tool info) misbehaves every few seconds
+ * of use: the clipper jerks into the scalp, dryers spit a hot blast.
+ */
+function malfunction(s: RoundState, local: Vec, dt: number) {
+  const cond = s.ctx.condition?.[s.tool];
+  if (cond === undefined || cond >= 25) return;
+  s.malfunctionT += dt;
+  if (s.malfunctionT < 4) return;
+  s.malfunctionT = 0;
+  if (s.tool === 'clipper') {
+    handleCut(s, clipperSweep(s.hair, local, { x: local.x + 6, y: local.y + 4 }, s.pointer.stroke, true));
+  } else {
+    for (const t of s.hair.tufts) if (dist(t.root, local) < 90) t.fluff = clamp(t.fluff + 0.5, 0, 1);
+    s.patience = clamp(s.patience - 6, 0, 100);
+  }
+  incident(s, 'malfunction', 6);
+  s.sfx.push('overheat');
+  say(s, line(s, 'malfunction'), 'shocked', { shout: true, dur: 1.6 });
 }
 
 function blow(s: RoundState, local: Vec, dt: number) {

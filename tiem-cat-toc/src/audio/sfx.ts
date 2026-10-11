@@ -13,16 +13,24 @@ function ac(): AudioContext | null {
     if (!C) return null;
     ctx = new C();
     master = ctx.createGain();
-    master.gain.value = 0.5;
+    master.gain.value = muted ? 0 : level;
     master.connect(ctx.destination);
   }
   if (ctx.state === 'suspended') void ctx.resume();
   return ctx;
 }
 
+let level = 0.5;
+
+/** Effects volume = master × sfx (0..1 each). */
+export function setSfxVolume(masterVol: number, sfxVol: number) {
+  level = 0.5 * masterVol * sfxVol;
+  if (master) master.gain.value = muted ? 0 : level;
+}
+
 export function setMuted(m: boolean) {
   muted = m;
-  if (master) master.gain.value = m ? 0 : 0.5;
+  if (master) master.gain.value = m ? 0 : level;
   if (m) stopLoop();
 }
 

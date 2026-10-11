@@ -28,7 +28,8 @@ export type EventId =
   | 'baldPanic'
   | 'growRace'
   | 'concreteSpikes'
-  | 'malfunction';
+  | 'malfunction'
+  | 'autoMisread';
 
 /** Human-readable names for the incident log / result screen. */
 export const EVENT_TITLES: Record<EventId, string> = {
@@ -58,6 +59,7 @@ export const EVENT_TITLES: Record<EventId, string> = {
   growRace: 'Mọc Nhanh Hơn Cắt',
   concreteSpikes: 'Ăng-ten Bê Tông',
   malfunction: 'Máy Trục Trặc',
+  autoMisread: 'Máy Nghe Nhầm Yêu Cầu',
 };
 
 export interface RoundFacts {
@@ -478,6 +480,11 @@ function caption(f: RoundFacts, sat: number): string {
   if (e.comboSculpt) return 'Bắn màu bằng Súng Tóc, chải bằng Lược Rồng. Khách mọc sừng.';
   if (e.comboStormLong) return 'Kéo tóc dài gấp ba bằng Gậy Như Ý, rồi bật Máy Sấy Bão.';
   if (e.vacuumGulp) return 'Giữ máy hút hơi lâu. Máy hút hơi nhiều.';
+  if (e.concreteSpikes) return 'Keo vĩnh cửu gặp Máy Sấy Bão. Đầu khách thành trạm phát sóng.';
+  if (e.growRace) return 'Xịt thuốc mọc tóc rồi cầm tông đơ. Tóc thắng.';
+  if (e.autoMisread) return 'Tiệm ồn quá, máy tạo kiểu tự động nghe nhầm yêu cầu.';
+  if (e.karateChop) return 'Làm võ sư giật mình. Dụng cụ bay qua cửa sổ.';
+  if (e.dogShake) return 'Cậu Vàng sợ tông đơ, rũ lông khắp tiệm.';
   if (e.strayCut && f.metrics.baldCount > 0) return 'Khách quay đầu đúng lúc tông đơ đang chạy.';
   if (e.fixLoop) return `Sửa đi sửa lại một chỗ ${f.maxZoneStrokes} lần. Càng sửa càng sai.`;
   if (e.combOver) return 'Cố che chỗ trọc bằng máy sấy. Tóc quyết định bỏ trốn.';

@@ -162,6 +162,10 @@ const GENERIC: Record<string, string[]> = {
   dogHappy: ['Gâu!'],
   deadline: ['Nhanh lên em ơi!'],
   boring: ['Chán quá…'],
+  growRace: ['Sao càng cắt càng dài thế?!', 'Tóc tôi chứ có phải cỏ đâu mà mọc nhanh vậy!'],
+  concreteSpikes: ['Tóc tôi chứ có phải cột ăng-ten đâu!', 'Gõ vào đầu nghe cốc cốc luôn!'],
+  autoMisread: ['Ơ, tôi đâu có yêu cầu kiểu này?!', 'Cái máy nghe ai nói thế?!'],
+  malfunction: ['Ối! Cái máy bị làm sao thế?!', 'Máy giật! Máy giật!'],
 };
 
 export function eventLine(rng: Rng, key: EventLineKey | string, p: Personality): string {

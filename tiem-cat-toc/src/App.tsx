@@ -1,8 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { playSfx, setMuted, setToolLoop, unlockAudio, isMuted } from './audio/sfx';
+import { playSfx, setMuted, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
+import { voice } from './audio/voice';
+import { AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
 import { ResultPanel } from './components/ResultPanel';
 import { Stage } from './components/Stage';
+import {
+  CareerState,
+  Served,
+  applyRound,
+  buy,
+  careerTools,
+  endDay,
+  loadCareer,
+  newCareer,
+  nextDay,
+  repair,
+  resetCareer,
+  roundContext,
+  saveCareer,
+} from './game/career';
 import { CUSTOMERS, CustomerId } from './game/customers';
 import {
   RoundState,
@@ -22,49 +39,99 @@ import {
 import { loadProgress, recordRound, saveProgress } from './game/progress';
 import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
 
+type Mode = 'career' | 'free';
+type Overlay = 'shop' | 'settings' | null;
+
+const params = new URLSearchParams(location.search);
 /** `?unlock=all` opens the whole Bộ Đồ Nghề without earning it (for trying things out). */
-function unlockAllFromUrl(): boolean {
-  return new URLSearchParams(location.search).get('unlock') === 'all';
+const unlockAll = params.get('unlock') === 'all';
+const seedParam = params.get('seed') ? Number(params.get('seed')) || undefined : undefined;
+
+function initialMode(): Mode {
+  const m = params.get('mode');
+  if (m === 'free' || m === 'career') return m;
+  try {
+    const saved = localStorage.getItem('tctbo-mode');
+    if (saved === 'free' || saved === 'career') return saved;
+  } catch {
+    /* ignore */
+  }
+  return 'career';
 }
 
-function toolsFor(p: Progress): ToolId[] {
-  return unlockedTools(p, unlockAllFromUrl());
+function loadAudio(): AudioSettings {
+  try {
+    const v = JSON.parse(localStorage.getItem('tctbo-audio') ?? 'null');
+    if (v && typeof v.master === 'number') return v;
+  } catch {
+    /* ignore */
+  }
+  return { master: 1, voice: 1, sfx: 0.8, muted: false };
 }
 
-function seedFromUrl(): number | undefined {
-  const v = new URLSearchParams(location.search).get('seed');
-  return v ? Number(v) || undefined : undefined;
+function freeTools(p: Progress): ToolId[] {
+  return unlockedTools(p, unlockAll);
 }
 
 declare global {
   interface Window {
-    __tctbo?: { state: () => RoundState };
+    __tctbo?: { state: () => RoundState; career: () => CareerState; voice: typeof voice };
   }
 }
 
+function careerRound(c: CareerState): RoundState {
+  const q = c.today.queue[Math.min(c.today.index, c.today.queue.length - 1)];
+  const unlocked = unlockAll ? [...new Set([...careerTools(c), ...unlockedTools({ rounds: 0, styles: [], events: [] }, true)])] : careerTools(c);
+  return createRound(q?.customer ?? 'tuan', seedParam ?? (c.day * 1000 + c.today.index), { unlocked, ctx: roundContext(c) });
+}
+
 export default function App() {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [progress, setProgress] = useState<Progress>(loadProgress);
   const progressRef = useRef(progress);
   progressRef.current = progress;
+  const [careerRef] = useState<{ current: CareerState }>(() => {
+    const c = params.get('fresh') === '1' ? null : loadCareer();
+    return { current: c ?? newCareer() };
+  });
   const [newTools, setNewTools] = useState<ToolId[]>([]);
+  const [served, setServed] = useState<Served | null>(null);
+  const [overlay, setOverlay] = useState<Overlay>(null);
+  const [audio, setAudio] = useState<AudioSettings>(loadAudio);
   const [roundRef] = useState<{ current: RoundState }>(() => ({
-    current: createRound('tuan', seedFromUrl(), { unlocked: toolsFor(progressRef.current) }),
+    current: mode === 'career' ? careerRound(careerRef.current) : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
   }));
   const [, setFrame] = useState(0);
   const [now, setNow] = useState(0);
-  const [muted, setMutedState] = useState(isMuted());
   const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 520px)').matches);
+  const recorded = useRef<RoundState | null>(null);
+  const s = roundRef.current;
+  const c = careerRef.current;
+  const rerender = () => setFrame((f) => f + 1);
+
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 520px)');
     const on = () => setNarrow(mq.matches);
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
   }, []);
-  const recorded = useRef<RoundState | null>(null);
-  const s = roundRef.current;
+
+  // Audio settings apply to effects and voice, and persist.
+  useEffect(() => {
+    setSfxVolume(audio.master, audio.sfx);
+    setMuted(audio.muted);
+    voice.setVolume(audio.master * audio.voice);
+    voice.setMuted(audio.muted);
+    try {
+      localStorage.setItem('tctbo-audio', JSON.stringify(audio));
+    } catch {
+      /* ignore */
+    }
+  }, [audio]);
 
   useEffect(() => {
-    window.__tctbo = { state: () => roundRef.current };
+    window.__tctbo = { state: () => roundRef.current, career: () => careerRef.current, voice };
+    voice.init();
     let raf = 0;
     let last = performance.now();
     const loop = (t: number) => {
@@ -75,6 +142,7 @@ export default function App() {
         for (const fx of st.sfx) playSfx(fx);
         st.sfx.length = 0;
       }
+      voice.update(st);
       setToolLoop(st.phase === 'cutting' && st.pointer.down ? st.tool : null);
       setNow(t);
       setFrame((f) => (f + 1) % 1_000_000);
@@ -84,33 +152,68 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Record the finished round once: collection, rounds played, events seen -> tool unlocks.
+  // A round just ended: record it once (collection, unlocks; in career also money/rep/viral).
   useEffect(() => {
-    if (s.result && recorded.current !== s) {
-      recorded.current = s;
-      const before = unlockedTools(progressRef.current);
-      const next = recordRound(progressRef.current, s.result.style.id, Object.keys(s.events));
-      saveProgress(next);
-      progressRef.current = next;
-      setProgress(next);
+    if (!s.result || recorded.current === s) return;
+    recorded.current = s;
+    const before = unlockedTools(progressRef.current);
+    const next = recordRound(progressRef.current, s.result.style.id, Object.keys(s.events));
+    saveProgress(next);
+    progressRef.current = next;
+    setProgress(next);
+    if (mode === 'career') {
+      setServed(applyRound(c, s));
+      setNewTools([]);
+      saveCareer(c);
+      playSfx('cash');
+    } else {
       setNewTools(unlockedTools(next).filter((t) => !before.includes(t)));
     }
   });
 
-  const newRound = useCallback((id: CustomerId, start = false) => {
+  const replaceRound = useCallback((r: RoundState, start = false) => {
     setToolLoop(null);
-    const r = createRound(id, seedFromUrl(), { unlocked: toolsFor(progressRef.current) });
-    setNewTools([]);
+    voice.stop();
     if (start) startCutting(r);
     roundRef.current = r;
-    setFrame((f) => f + 1);
+    setServed(null);
+    setNewTools([]);
+    rerender();
   }, []);
+
+  const newFreeRound = (id: CustomerId, start = false) =>
+    replaceRound(createRound(id, seedParam, { unlocked: freeTools(progressRef.current), ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }), start);
 
   const onTool = useCallback((t: Tool) => setTool(roundRef.current, t), []);
   const onFinish = useCallback(() => finish(roundRef.current, 'done'), []);
-  const nextCustomer = () => {
-    const i = CUSTOMERS.findIndex((c) => c.id === s.customer.id);
-    newRound(CUSTOMERS[(i + 1) % CUSTOMERS.length].id);
+
+  const nextFree = () => {
+    const list = CUSTOMERS.filter((x) => x.appear.weight > 0);
+    const i = list.findIndex((x) => x.id === s.customer.id);
+    newFreeRound(list[(i + 1) % list.length].id);
+  };
+
+  const nextCareer = () => {
+    if (c.today.phase === 'closed') {
+      endDay(c);
+      saveCareer(c);
+      voice.say('narrator', 'endDay');
+    } else {
+      replaceRound(careerRound(c));
+    }
+    rerender();
+  };
+
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    try {
+      localStorage.setItem('tctbo-mode', m);
+    } catch {
+      /* ignore */
+    }
+    setOverlay(null);
+    if (m === 'career') replaceRound(careerRound(c));
+    else newFreeRound('tuan');
   };
 
   useEffect(() => {
@@ -125,25 +228,37 @@ export default function App() {
   }, []);
 
   const bubble = s.bubble;
+  const career = mode === 'career';
+  const showMorning = career && c.today.phase === 'morning' && !overlay;
+  const showSummary = career && c.today.phase === 'closed' && c.lastSummary?.day === c.day && !overlay;
+  const q = c.today.queue[c.today.index];
+  const introNote = career && q ? `Khách ${c.today.index + 1}/${c.today.queue.length} · ${q.reason === 'walkin' ? 'Khách vãng lai' : q.note}` : undefined;
 
   return (
-    <div className={`app customer-${s.customer.id} phase-${s.phase}`}>
+    <div className={`app customer-${s.customer.id} phase-${s.phase} mode-${mode}`}>
       <header className="sign">
         <div className="sign-board">
           <span className="sign-pole" aria-hidden />
           <h1>TIỆM CẮT TÓC BẤT ỔN</h1>
           <span className="sign-pole" aria-hidden />
         </div>
-        <div className="sign-sub">Cắt tóc nam · Gội đầu · Ráy tai · Không bảo hành</div>
+        {career ? (
+          <CareerHud c={c} onSettings={() => setOverlay('settings')} onShop={() => setOverlay('shop')} />
+        ) : (
+          <div className="sign-sub">
+            Chế độ cắt tự do ·{' '}
+            <button className="link-btn light" onClick={() => switchMode('career')} data-testid="to-career">
+              Mở tiệm thật
+            </button>
+          </div>
+        )}
         <button
           className="mute-btn"
-          onClick={() => {
-            setMuted(!muted);
-            setMutedState(!muted);
-          }}
-          aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+          onClick={() => (career ? setOverlay('settings') : setAudio({ ...audio, muted: !audio.muted }))}
+          aria-label={audio.muted ? 'Bật âm thanh' : 'Âm thanh'}
+          data-testid="mute-btn"
         >
-          {muted ? '🔇' : '🔊'}
+          {audio.muted ? '🔇' : '🔊'}
         </button>
       </header>
 
@@ -161,6 +276,7 @@ export default function App() {
               now={now}
               onDown={(p) => {
                 unlockAudio();
+                voice.unlock();
                 pointerDown(roundRef.current, p);
               }}
               onMove={(p) => pointerMove(roundRef.current, p)}
@@ -169,7 +285,7 @@ export default function App() {
             />
           </div>
           {bubble && (
-            <div className={`bubble ${bubble.shout ? 'is-shout' : ''}`} data-testid="bubble">
+            <div className={`bubble ${bubble.shout ? 'is-shout' : ''} ${voice.speaking ? 'is-speaking' : ''}`} data-testid="bubble">
               {bubble.text}
             </div>
           )}
@@ -181,6 +297,11 @@ export default function App() {
             ))}
           </div>
           {s.phase === 'cutting' && <Clock s={s} />}
+          {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && (
+            <div className="viewers" data-testid="viewers">
+              🔴 LIVE · {Math.round(s.viewers).toLocaleString('vi-VN')} người xem
+            </div>
+          )}
           {s.walkout && (
             <div className="walkout" data-testid="walkout">
               <div>Khách đang cởi khăn choàng…</div>
@@ -228,18 +349,99 @@ export default function App() {
 
       <Toolbar s={s} onTool={onTool} onFinish={onFinish} />
 
-      {s.phase === 'intro' && (
+      {s.phase === 'intro' && !showMorning && !showSummary && !overlay && (
         <IntroCard
           s={s}
+          note={introNote}
           onStart={() => {
             unlockAudio();
+            voice.unlock();
             startCutting(roundRef.current);
+            if (career && c.today.phase === 'morning') c.today.phase = 'open';
           }}
-          onPick={(c) => newRound(c.id)}
+          onPick={career ? undefined : (o) => newFreeRound(o.id)}
         />
       )}
-      {s.phase === 'result' && s.result && (
-        <ResultPanel s={s} unlocked={progress.styles} newTools={newTools} onReplay={() => newRound(s.customer.id, true)} onNext={nextCustomer} />
+      {s.phase === 'result' && s.result && !showSummary && !overlay && (
+        <ResultPanel
+          s={s}
+          unlocked={career ? c.styles : progress.styles}
+          newTools={newTools}
+          onReplay={() => newFreeRound(s.customer.id, true)}
+          onNext={career ? nextCareer : nextFree}
+          career={career && served ? { served, nextLabel: c.today.phase === 'closed' ? 'Đóng cửa, tổng kết ngày →' : `Khách tiếp theo (${c.today.index + 1}/${c.today.queue.length}) →` } : null}
+        />
+      )}
+      {showMorning && (
+        <MorningPanel
+          c={c}
+          onOpen={() => {
+            unlockAudio();
+            voice.unlock();
+            c.today.phase = 'open';
+            saveCareer(c);
+            replaceRound(careerRound(c));
+            voice.say('narrator', 'openDay');
+          }}
+          onShop={() => setOverlay('shop')}
+          onFree={() => switchMode('free')}
+        />
+      )}
+      {showSummary && c.lastSummary && (
+        <SummaryPanel
+          c={c}
+          sum={c.lastSummary}
+          onShop={() => setOverlay('shop')}
+          onNext={() => {
+            nextDay(c);
+            saveCareer(c);
+            replaceRound(careerRound(c));
+          }}
+        />
+      )}
+      {overlay === 'shop' && (
+        <ShopPanel
+          c={c}
+          onBuy={(id) => {
+            const r = buy(c, id);
+            if (r.ok) {
+              saveCareer(c);
+              playSfx('cash');
+              // New tools are usable from the next customer on.
+              if (s.phase === 'intro') replaceRound(careerRound(c));
+              rerender();
+              return 'Đã mua! Món mới dùng được từ khách tiếp theo.';
+            }
+            return r.reason;
+          }}
+          onRepair={() => {
+            const r = repair(c);
+            if (r.ok) {
+              saveCareer(c);
+              rerender();
+              return 'Máy móc đã được bảo dưỡng.';
+            }
+            return r.reason;
+          }}
+          onClose={() => setOverlay(null)}
+        />
+      )}
+      {overlay === 'settings' && (
+        <SettingsPanel
+          audio={audio}
+          onAudio={setAudio}
+          mode={mode}
+          onMode={switchMode}
+          onClose={() => setOverlay(null)}
+          onReset={() => {
+            resetCareer();
+            careerRef.current = newCareer();
+            saveCareer(careerRef.current);
+            setOverlay(null);
+            if (mode === 'career') replaceRound(careerRound(careerRef.current));
+            rerender();
+          }}
+        />
       )}
     </div>
   );

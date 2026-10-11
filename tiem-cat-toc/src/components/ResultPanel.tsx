@@ -3,6 +3,7 @@ import { cardFileName, downloadBlob, shareText } from '../game/share';
 import { EVENT_TITLES, STYLE_RULES } from '../game/evaluate';
 import { RoundState } from '../game/session';
 import { ToolId, toolDef } from '../game/tools';
+import { Served, vnd } from '../game/career';
 import { ToolIcon } from './ToolIcons';
 
 interface Props {
@@ -12,11 +13,13 @@ interface Props {
   newTools: ToolId[];
   onReplay(): void;
   onNext(): void;
+  /** Career mode: what this customer did to the shop, and the next step's label. */
+  career?: { served: Served; nextLabel: string } | null;
 }
 
 const TIER_LABEL = { love: 'Mê tít', ok: 'Tạm hài lòng', meh: 'Lấn cấn', bad: 'Bực mình', disaster: 'Thảm họa' } as const;
 
-export function ResultPanel({ s, unlocked, newTools, onReplay, onNext }: Props) {
+export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career }: Props) {
   const r = s.result!;
   const [card, setCard] = useState<{ url: string; blob: Blob } | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
@@ -85,6 +88,16 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext }: Props) 
           )}
         </div>
         <div className="result-info">
+          {career && (
+            <div className="career-deltas" data-testid="career-deltas">
+              <span className="up">💰 +{vnd(career.served.paid + career.served.tip)}</span>
+              <span className={career.served.repDelta >= 0 ? 'up' : 'down'}>
+                ⭐ Uy tín {career.served.repDelta >= 0 ? '+' : ''}
+                {career.served.repDelta}
+              </span>
+              <span className="up">🔥 Viral +{career.served.viralDelta}</span>
+            </div>
+          )}
           {newTools.length > 0 && (
             <div className="new-tools" data-testid="new-tools">
               {newTools.map((id) => (
@@ -156,11 +169,13 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext }: Props) 
           </div>
           <div className="actions">
             <button className="primary-btn" onClick={onNext} data-testid="next" autoFocus>
-              Khách tiếp theo →
+              {career ? career.nextLabel : 'Khách tiếp theo →'}
             </button>
-            <button className="secondary-btn" onClick={onReplay} data-testid="replay">
-              ↻ Cắt lại khách này
-            </button>
+            {!career && (
+              <button className="secondary-btn" onClick={onReplay} data-testid="replay">
+                ↻ Cắt lại khách này
+              </button>
+            )}
           </div>
           <div className="actions share">
             <button className="secondary-btn" onClick={download} disabled={!card} data-testid="download">

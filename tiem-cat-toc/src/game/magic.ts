@@ -209,3 +209,69 @@ export function cookerSteam(h: HairState): Tuft[] {
 export function decaySteam(h: HairState, dt: number) {
   for (const t of h.tufts) if (t.steamed > 0) t.steamed = Math.max(0, t.steamed - dt * 0.02);
 }
+
+export const SPRAY_RADIUS = 55;
+
+/** Thuốc Mọc Tóc: hair around the spray grows fast for a few seconds; bald roots sprout again. */
+export function potionSpray(h: HairState, p: Vec): Tuft[] {
+  const hit = h.tufts.filter((t) => dist(t.root, p) < SPRAY_RADIUS || (!t.bald && reach(t, p) < SPRAY_RADIUS * 0.5));
+  for (const t of hit) {
+    t.grow = 6;
+    if (t.bald) {
+      t.bald = false;
+      t.len = 2;
+      t.curl = 0.2;
+    }
+  }
+  return hit;
+}
+
+export function growTick(h: HairState, dt: number): number {
+  let growing = 0;
+  for (const t of h.tufts) {
+    if (t.grow <= 0) continue;
+    t.grow = Math.max(0, t.grow - dt);
+    if (t.bald) continue;
+    t.len = Math.min(t.len + 22 * dt, t.origLen * 1.6);
+    growing++;
+  }
+  return growing;
+}
+
+/** Keo Vĩnh Cửu: maximum gel that never softens. */
+export function gelApply(h: HairState, p: Vec): Tuft[] {
+  const hit = h.tufts.filter((t) => !t.bald && (dist(t.root, p) < SPRAY_RADIUS || reach(t, p) < SPRAY_RADIUS * 0.5));
+  for (const t of hit) {
+    t.gel = 1;
+    t.eternal = true;
+  }
+  return hit;
+}
+
+/** Storm meets eternal gel: the tufts set like concrete, straight up and longer. */
+export function concreteSpikes(h: HairState): Tuft[] {
+  const set = h.tufts.filter((t) => !t.bald && t.eternal && t.len > 3);
+  for (const t of set) {
+    t.spiked = true;
+    t.spike = 1;
+    t.sculpt = null;
+    t.lean = 0;
+    t.len = Math.min(t.len * 1.5, t.origLen * MAX_GROWTH);
+  }
+  return set;
+}
+
+/** Máy Tạo Kiểu Tự Động: pulls every zone towards a target and tidies up. */
+export function autoStyle(h: HairState, target: Partial<Record<Tuft['zone'], number>>): Tuft[] {
+  const done: Tuft[] = [];
+  for (const t of h.tufts) {
+    if (t.bald) continue;
+    const ratio = target[t.zone] ?? 0.7;
+    t.len = Math.max(2, t.len + (t.origLen * ratio - t.len) * 0.75);
+    t.lean *= 0.3;
+    t.fluff *= 0.5;
+    t.curl *= 0.5;
+    done.push(t);
+  }
+  return done;
+}

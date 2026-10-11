@@ -41,6 +41,10 @@ export interface Tuft {
   sculpt: Vec | null;
   /** 0..1 steam-puffed by the Nồi Cơm Điện (decays slowly). */
   steamed: number;
+  /** Seconds of super-fast growth left (Thuốc Mọc Tóc). */
+  grow: number;
+  /** Keo Vĩnh Cửu: gel that never softens. */
+  eternal: boolean;
 }
 
 export interface HairStyleInit {
@@ -106,7 +110,7 @@ export function createHair(init: HairStyleInit): HairState {
   const push = (
     t: Omit<
       Tuft,
-      'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke' | 'tint' | 'thick' | 'curl' | 'sculpt' | 'steamed'
+      'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke' | 'tint' | 'thick' | 'curl' | 'sculpt' | 'steamed' | 'grow' | 'eternal'
     >,
   ) => {
     const variance = 1 + (noise(id) - 0.5) * 2 * mess;
@@ -129,6 +133,8 @@ export function createHair(init: HairStyleInit): HairState {
       curl: 0,
       sculpt: null,
       steamed: 0,
+      grow: 0,
+      eternal: false,
     });
     id++;
   };
@@ -337,13 +343,13 @@ export function clipperSweep(h: HairState, a: Vec, b: Vec, stroke: number, force
 }
 
 /** Clipper sitting still: roots under it accumulate dwell and eventually go bald. */
-export function clipperDwell(h: HairState, p: Vec, dt: number, stroke: number): CutResult {
+export function clipperDwell(h: HairState, p: Vec, dt: number, stroke: number, baldAfter = BALD_DWELL): CutResult {
   const res = emptyCut();
   for (const t of h.tufts) {
     const near = dist(t.root, p) < CLIPPER_RADIUS + 3;
     if (near && !t.bald) {
       t.dwell += dt;
-      if (t.dwell >= BALD_DWELL) makeBald(t, stroke, res);
+      if (t.dwell >= baldAfter) makeBald(t, stroke, res);
     } else if (t.dwell > 0) {
       t.dwell = Math.max(0, t.dwell - dt * 0.8);
     }
@@ -403,7 +409,7 @@ export function dryerBlow(h: HairState, p: Vec, dt: number, invert = false): Dry
     if (t.len < 3) continue;
     out.power += s;
     if (t.gel > 0.05 && !t.spiked) {
-      t.spike += s * 2.4 * t.gel;
+      t.spike += s * 2.4 * t.gel * (t.eternal ? 4 : 1);
       if (t.spike >= 1) {
         t.spiked = true;
         out.newlySpiked.push(t);
