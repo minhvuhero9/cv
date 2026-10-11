@@ -1,10 +1,34 @@
 import { useState } from 'react';
-import { CareerState, DaySummary, canBuy, repairCost, vnd } from '../game/career';
+import { CareerState, DaySummary, canBuy, repairCost, shopLevel, vnd } from '../game/career';
 import { customerById } from '../game/customers';
 import { CATEGORY_LABEL, MACHINES, SHOP, ShopCategory } from '../game/shop';
 import { TOOLS } from '../game/tools';
 import { ToolIcon } from './ToolIcons';
 import type { Quest } from '../game/quests';
+import { levelProgress, nextLevel } from '../game/level';
+
+/** Cấp tiệm: where the shop is and what the next level brings. */
+export function LevelCard({ c }: { c: CareerState }) {
+  const cur = shopLevel(c);
+  const nx = nextLevel(c.xp ?? 0);
+  return (
+    <div className="level-card" data-testid="level-card">
+      <div className="level-head">
+        <span className="level-num">{cur.level}</span>
+        <div>
+          <b>{cur.name}</b>
+          <small>
+            {nx ? `${c.xp ?? 0}/${nx.xp} kinh nghiệm — lên “${nx.name}”` : 'Cấp cao nhất!'}
+          </small>
+        </div>
+      </div>
+      <div className="level-track">
+        <span style={{ width: `${Math.round(levelProgress(c.xp ?? 0) * 100)}%` }} />
+      </div>
+      {nx && <div className="level-next">Cấp sau mở: {nx.unlocks.join(' · ')}</div>}
+    </div>
+  );
+}
 
 /** Today's goals with progress and rewards. */
 export function QuestList({ quests, compact = false }: { quests: Quest[]; compact?: boolean }) {
@@ -40,6 +64,12 @@ export function QuestList({ quests, compact = false }: { quests: Quest[]; compac
 export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSettings(): void; onShop(): void }) {
   return (
     <div className="career-hud" data-testid="career-hud">
+      <span className="chip-stat level" title={`Cấp tiệm ${shopLevel(c).level}: ${shopLevel(c).name}`} data-testid="hud-level" data-value={shopLevel(c).level}>
+        🏠 <b>Cấp {shopLevel(c).level}</b>
+        <span className="level-bar">
+          <span style={{ width: `${Math.round(levelProgress(c.xp ?? 0) * 100)}%` }} />
+        </span>
+      </span>
       <span className="chip-stat" data-testid="hud-day">
         Ngày <b>{c.day}</b>
       </span>
@@ -95,6 +125,7 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
             ))}
           </div>
         )}
+        <LevelCard c={c} />
         {(c.today.quests?.length ?? 0) > 0 && (
           <div className="quest-box">
             <div className="intro-label">Nhiệm vụ hôm nay</div>

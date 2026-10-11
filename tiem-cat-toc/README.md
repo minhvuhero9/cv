@@ -177,10 +177,38 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
 - **Xem lại 5 giây** ở màn kết quả và **Tải video** (WebM hoặc MP4 tùy trình duyệt, quay bằng MediaRecorder ngay trong trình duyệt).
 - Hiệu năng: đo bằng Chromium giả lập CPU chậm trên khung điện thoại 390×844: ~60 fps ở tốc độ thường, ~35 fps khi chậm 4×, ~21 fps khi chậm 6×. Đã cache đường vẽ từng lọn tóc, cô lập vùng vẽ sân khấu và ghi nhớ ảnh mẫu; phần lớn thời gian còn lại là trình duyệt tô SVG.
 
+## Cấp tiệm và mẫu để vẽ theo
+
+**Cấp tiệm:** Tiệm Hẻm → Tiệm Mặt Phố → Salon Có Tiếng → Salon Nghệ Thuật → Học Viện Bất Ổn.
+
+- **Kinh nghiệm** đến từ kết quả thật: độ hài lòng, làm đúng mẫu, dùng nghệ thuật, nhiệm vụ, khách trùm.
+- **Mỗi cấp mở thêm:**
+  - Đồ nghề trong cửa hàng: Cọ Nhuộm ở cấp 2; Khuôn Cạo và Gương Thần ở cấp 3; Bảng Màu Mở Rộng ở cấp 4; Khuôn Cạo Cao Cấp ở cấp 5.
+  - Mẫu khó hơn.
+  - Thêm khách mỗi ngày.
+  - Giá cắt cao hơn (đến +30%).
+- **Hiển thị:** buổi sáng có thẻ cấp tiệm cho biết cấp sau mở gì; thanh trạng thái có thanh tiến độ; màn kết quả báo +kinh nghiệm và chúc mừng khi lên cấp.
+
+**Mẫu có sẵn để vẽ theo:** 12 mẫu, 1–3 sao, chia theo cấp.
+
+| Cấp | Mẫu |
+|---|---|
+| 1 (chỉ kéo, tông đơ) | Đầu Đinh Gọn Gàng, Học Sinh Ngoan, Undercut Phố Cổ |
+| 2 (nhuộm) | Highlight Kẹo Hồng, Mái Xanh Biển, Chanh Leo Tươi Mát |
+| 3 (cạo hình) | Tia Sét Đánh Ngang, Ngôi Sao Sân Cỏ, Sọc Ngựa Vằn |
+| 4 (loang) | Hoàng Hôn Phố Biển |
+| 5 (bậc thầy) | Trái Tim Tan Vỡ, Chữ Ký Bất Ổn |
+
+- Mỗi ngày có một khách đặt một mẫu tiệm làm được ở cấp hiện tại; ngày chẵn thay bằng mẫu bạn tự tạo.
+- Khi cắt theo mẫu:
+  - Đầu khách có hướng dẫn: viền xanh cho độ dài, chấm màu ở chỗ còn phải nhuộm, nét tím đứt ở chỗ còn phải cạo.
+  - Góc màn hình có ô **“📐 Giống mẫu X%”** cập nhật liên tục.
+- **Luyện trong Xưởng:** chọn “📐 Vẽ theo mẫu” để có hướng dẫn và các bước. Đạt 90% thì hiện “HOÀN THÀNH MẪU!” và mẫu được đánh dấu ✓.
+
 ## Sáng tạo là vòng chơi chính (Mở Tiệm)
 
 1. **Mua đồ nghề sáng tạo ở Cửa hàng:**
-   - **Cọ Nhuộm** (160k, 4 màu cơ bản) và **Khuôn Cạo Hình** (200k, tia sét, ngôi sao, sọc).
+   - **Cọ Nhuộm** (160k, 4 màu cơ bản, từ cấp 2) và **Khuôn Cạo Hình** (200k, tia sét, ngôi sao, sọc, từ cấp 3).
    - Nâng cấp **Bảng Màu Mở Rộng** (10 màu, màu tự chọn, nhuộm loang; Súng Tóc cũng bắn màu bạn chọn).
    - Nâng cấp **Khuôn Cạo Cao Cấp** (trái tim, răng cưa, chữ tự gõ, chỉnh cỡ).
 2. **Dùng ngay khi cắt cho khách thật.** Mỗi khách có gu riêng về hình cạo:
@@ -236,6 +264,8 @@ src/game/daily.ts      thử thách hằng ngày + bảng xếp hạng trên má
 src/game/art.ts        Cọ Nhuộm, Khuôn Cạo Hình, bộ đồ nghề theo đồ đã mua
 src/game/studio.ts     Xưởng Tạo Kiểu: hoàn tác, sổ kiểu tóc; creation.ts lưu tác phẩm; photoExport.ts xuất ảnh
 src/game/design.ts     cuốn mẫu: khách đặt theo mẫu, chấm độ giống mẫu
+src/game/templates.ts  12 mẫu có sẵn (công thức dựng trên đầu bất kỳ khách nào)
+src/game/level.ts      cấp tiệm, kinh nghiệm, mở khóa
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
                        MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, StudioPanels, PhotoComposition

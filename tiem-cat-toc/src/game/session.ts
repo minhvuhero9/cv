@@ -23,7 +23,8 @@ import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown,
 import { ToolId } from './tools';
 import { checkSheet, requestSheet } from './request';
 import type { Creation } from './creation';
-import { DesignOrder, designCustomer, designOrder } from './design';
+import { DesignOrder, designCustomer, designOrder, designScore, templateOrder } from './design';
+import { templateById } from './templates';
 import type { StudioState } from './studio';
 import { ArtKit, ArtSettings, brushHair, carveHair, fullKit, newArt } from './art';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
@@ -304,6 +305,8 @@ export interface RoundContext {
   wantPersona?: PersonaId | null;
   /** A design from the shop's catalog this customer ordered. */
   design?: Creation | null;
+  /** …or a built-in template (mẫu có sẵn). */
+  designTemplate?: string | null;
 }
 
 export interface RoundOptions {
@@ -321,7 +324,8 @@ export interface RoundOptions {
 
 export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, opts: RoundOptions = {}): RoundState {
   const baseDef = customerById(customerId);
-  const design = opts.ctx?.design ? designOrder(opts.ctx.design, baseDef.id) : null;
+  const tpl = templateById(opts.ctx?.designTemplate);
+  const design = opts.ctx?.design ? designOrder(opts.ctx.design, baseDef.id) : tpl ? templateOrder(tpl, baseDef.id) : null;
   const customer = design ? designCustomer(baseDef, design) : baseDef;
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
@@ -1212,6 +1216,15 @@ export function tick(s: RoundState, dt: number) {
     if (s.ruleTimer >= 0.25) {
       s.ruleTimer = 0;
       refreshMetrics(s);
+      // Vẽ theo mẫu: celebrate the first time the copy reaches 90 %.
+      if (s.design && !s.studio.traceDone && designScore(s.design, s.hair) >= 90) {
+        s.studio.traceDone = true;
+        s.sfx.push('good');
+        s.flashUntil = s.time + 0.2;
+        const h = s.hair.head;
+        s.fx.push({ id: s.fxSeq++, kind: 'banner', x: 200, y: 330, t0: s.time, dur: 1.8, text: 'HOÀN THÀNH MẪU!' });
+        s.fx.push({ id: s.fxSeq++, kind: 'sparkle', x: h.cx, y: h.cy - h.ry, t0: s.time, dur: 0.8, color: '#ffd23f' });
+      }
     }
     return;
   }

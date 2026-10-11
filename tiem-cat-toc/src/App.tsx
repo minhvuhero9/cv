@@ -6,9 +6,11 @@ import { Coach } from './components/Coach';
 import { AirCon, StageDecor, WallDecor } from './components/Decor';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
-import { Creation, StudioOptions, deleteFromBook, loadBook, openCreation, pushUndo, redo, resetHair, saveToBook, studioRound, undo } from './game/studio';
+import { Creation, StudioOptions, addMastered, loadMastered, setTrace, deleteFromBook, loadBook, openCreation, pushUndo, redo, resetHair, saveToBook, studioRound, undo } from './game/studio';
 import { BookPanel, PhotoPanel, STUDIO_MODELS, StudioPanel } from './components/StudioPanels';
 import { careerKit, fullKit } from './game/art';
+import { TEMPLATES, templateReady } from './game/templates';
+import { designScore } from './game/design';
 import { DailyChallenge, dailyFor, dailyOptions, dailyScore, loadBoard, recordDaily, streak, todayKey } from './game/daily';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
 import { ResultPanel } from './components/ResultPanel';
@@ -27,6 +29,7 @@ import {
   resetCareer,
   roundContext,
   saveCareer,
+  shopLevel,
 } from './game/career';
 import { CUSTOMERS, CustomerId } from './game/customers';
 import {
@@ -100,7 +103,7 @@ function careerRound(c: CareerState): RoundState {
     unlocked,
     mirror: unlockAll,
     kit: unlockAll ? fullKit() : careerKit(c.owned),
-    ctx: { ...roundContext(c), design },
+    ctx: { ...roundContext(c), design, designTemplate: q?.templateId ?? null },
   });
 }
 
@@ -221,6 +224,15 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // Vẽ theo mẫu: remember templates mastered in the Xưởng.
+  useEffect(() => {
+    const id = s.design?.template?.id;
+    if (s.studio?.traceDone && id && !mastered.includes(id)) {
+      addMastered(id);
+      setMastered(loadMastered());
+    }
+  });
+
   // A round just ended: record it once (collection, unlocks; in career also money/rep/viral).
   useEffect(() => {
     if (!s.result || recorded.current === s) return;
@@ -332,6 +344,17 @@ export default function App() {
 
   /* Xưởng Tạo Kiểu */
   const [editing, setEditing] = useState<Creation | null>(null);
+  const [traceId, setTraceId] = useState<string | null>(null);
+  const [mastered, setMastered] = useState<string[]>(() => loadMastered());
+  const studioTemplates = () =>
+    TEMPLATES.map((t) => ({
+      t,
+      ready: s.studio?.from !== 'career' || unlockAll || templateReady(t, shopLevel(c).level, careerTools(c), c.owned),
+    }));
+  const withTrace = (r: RoundState) => {
+    if (traceId) setTrace(r, traceId);
+    return r;
+  };
   const studio = mode === 'studio' && !!s.studio;
 
 
@@ -409,9 +432,15 @@ export default function App() {
             <StudioPanel
               s={s}
               models={s.studio?.from === 'career' ? careerModels() : STUDIO_MODELS}
+              templates={studioTemplates()}
+              mastered={mastered}
+              onTrace={(id) => {
+                setTraceId(id);
+                setTrace(roundRef.current, id);
+              }}
               onModel={(id) => {
                 setEditing(null);
-                replaceRound(studioRound(id, 7, studioOpts()));
+                replaceRound(withTrace(studioRound(id, 7, studioOpts())));
               }}
               onUndo={() => undo(roundRef.current)}
               onRedo={() => redo(roundRef.current)}
@@ -459,6 +488,12 @@ export default function App() {
             ))}
           </div>
           {s.phase === 'cutting' && !studio && <Clock s={s} />}
+          {s.phase === 'cutting' && s.design && (
+            <div className="design-score" data-testid="design-score" data-value={Math.round(designScore(s.design, s.hair))}>
+              📐 Giống mẫu <b>{Math.round(designScore(s.design, s.hair))}%</b>
+              <small>{s.design.name}</small>
+            </div>
+          )}
           {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && !studio && (
             <div className="viewers" data-testid="viewers">
               🔴 LIVE · {Math.round(s.viewers).toLocaleString('vi-VN')} người xem

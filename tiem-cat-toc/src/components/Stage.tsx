@@ -4,7 +4,8 @@ import type { Vec } from '../game/geometry';
 import { RoundState, Tool, currentMood } from '../game/session';
 import { Character } from './Character';
 import { requestSheet } from '../game/request';
-import { BRUSH_RADIUS, carvingAt, carvingLines } from '../game/art';
+import { BRUSH_RADIUS, carvingAt, carvingLines, colorDistance } from '../game/art';
+import { carvingsMatched } from '../game/design';
 import { FxLayer, MagicCursor } from './MagicLayer';
 import { isMagic } from '../game/gear';
 
@@ -136,6 +137,39 @@ function ArtCursor({ s, p }: { s: RoundState; p: Vec }) {
   );
 }
 
+/** Vẽ theo mẫu: colour still missing (dots in the design colour) and patterns still to cut (dashed). */
+function DesignGuides({ s }: { s: RoundState }) {
+  const o = s.design!;
+  const dots: { x: number; y: number; c: string }[] = [];
+  o.hair.tufts.forEach((d, i) => {
+    const t = s.hair.tufts[i];
+    if (!d.tint || !t || t.bald) return;
+    if (t.tint && colorDistance(t.tint, d.tint) < 110) return;
+    dots.push({ x: t.root.x, y: t.root.y, c: d.tint });
+  });
+  const matched = carvingsMatched(s.hair, o.hair).matched;
+  return (
+    <g pointerEvents="none" transform={`translate(${s.headOffset.x.toFixed(1)},${s.headOffset.y.toFixed(1)})`} data-testid="design-guides">
+      {dots.map((d, i) => (
+        <circle key={i} cx={d.x} cy={d.y} r={4.5} fill={d.c} stroke="#fff" strokeWidth={1.5} opacity={0.85} />
+      ))}
+      {(o.hair.carvings ?? []).map((c, i) =>
+        matched[i] ? null : c.kind === 'text' ? (
+          <text key={i} x={c.x} y={c.y + 9 * c.s} textAnchor="middle" fontSize={26 * c.s} fontWeight={900} fill="none" stroke="#8a4dff" strokeWidth={1.6} strokeDasharray="3 2" transform={`rotate(${c.r.toFixed(1)} ${c.x} ${c.y})`}>
+            {c.text}
+          </text>
+        ) : (
+          <g key={i} fill="none" stroke="#8a4dff" strokeWidth={2.6} strokeDasharray="4 3">
+            {carvingLines(c).map((l, k) => (
+              <path key={k} d={`M${l.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join('L')}`} />
+            ))}
+          </g>
+        ),
+      )}
+    </g>
+  );
+}
+
 function maxDwell(s: RoundState): number {
   let m = 0;
   for (const t of s.hair.tufts) if (!t.bald && t.dwell > m) m = t.dwell;
@@ -220,6 +254,7 @@ export function Stage({ s, ghostOn, chair = 'basic', narrow, now, onDown, onMove
           t={now / 1000}
         />
       </g>
+      {cutting && ghostOn && s.design && <DesignGuides s={s} />}
       {/* clippings */}
       <g>
         {s.particles.map((p, i) => (

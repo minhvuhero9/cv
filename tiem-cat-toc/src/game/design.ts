@@ -1,5 +1,6 @@
 import { STENCIL_NAME, colorDistance } from './art';
 import { Creation, creationHairOn } from './creation';
+import { Template, templateHair } from './templates';
 import type { CustomerDef } from './customers';
 import { clamp, dist } from './geometry';
 import type { HairState, Zone } from './hair';
@@ -10,17 +11,29 @@ import { measureHair } from './metrics';
  * exactly — lengths per zone, colours and shaved-in patterns are all compared.
  */
 export interface DesignOrder {
-  creation: Creation;
+  /** Creation id, or `tpl:<id>` for a built-in template. */
+  id: string;
+  name: string;
+  source: 'creation' | 'template';
+  template: Template | null;
   hair: HairState;
   target: Record<Zone, number>;
   tinted: boolean;
 }
 
-/** The design as it would look on this customer's head. */
-export function designOrder(c: Creation, customerId = c.customer): DesignOrder {
-  const hair = creationHairOn(c, customerId);
+function fromHair(id: string, name: string, source: DesignOrder['source'], hair: HairState, template: Template | null = null): DesignOrder {
   const m = measureHair(hair);
-  return { creation: c, hair, target: m.zone, tinted: m.tintedFrac > 0.05 };
+  return { id, name, source, template, hair, target: m.zone, tinted: m.tintedFrac > 0.05 };
+}
+
+/** A player's creation as it would look on this customer's head. */
+export function designOrder(c: Creation, customerId = c.customer): DesignOrder {
+  return fromHair(c.id, c.name, 'creation', creationHairOn(c, customerId));
+}
+
+/** A built-in template (mẫu có sẵn) on this customer's head. */
+export function templateOrder(t: Template, customerId: string): DesignOrder {
+  return fromHair(`tpl:${t.id}`, t.name, 'template', templateHair(t, customerId), t);
 }
 
 /** Share of tufts whose colour matches the design (undyed = undyed, dyed ≈ same colour). */
@@ -65,7 +78,7 @@ export function designScore(o: DesignOrder, h: HairState): number {
 export function designCustomer(base: CustomerDef, o: DesignOrder): CustomerDef {
   return {
     ...base,
-    request: `Cắt cho em y như mẫu “${o.creation.name}” trong cuốn mẫu của tiệm!`,
+    request: `Cắt cho em y như mẫu “${o.name}” trong cuốn mẫu của tiệm!`,
     catch: 'Màu, hình cạo, độ dài… giống hệt nhé.',
     hint: 'Khách đặt kiểu từ cuốn mẫu bạn tạo ở Xưởng: cắt theo đường viền, nhuộm đúng màu, cạo đúng hình.',
     target: o.target,

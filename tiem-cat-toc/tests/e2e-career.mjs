@@ -77,6 +77,8 @@ async function playDay(page) {
   const c0 = await career(page);
   check('Career: day 1 starts with a planned queue', c0.day === 1 && c0.today.queue.length >= 3, `queue=${c0.today.queue.length}`);
   await page.screenshot({ path: `${OUT}/K1-morning.png` });
+  check('Cấp tiệm: the morning shows the shop level and what comes next', (await page.locator('[data-testid=level-card]').count()) === 1 && (await page.getAttribute('[data-testid=hud-level]', 'data-value')) === '1');
+  check('Mẫu có sẵn: day 1 has a customer ordering a built-in template', c0.today.queue.some((q) => q.reason === 'design' && q.templateId));
   check('Nhiệm vụ: the morning shows today\'s goals', (await page.locator('[data-testid=quests] li').count()) === 3 && c0.today.quests.length === 3);
   await page.click('[data-testid=open-day]');
   await playDay(page);
@@ -114,6 +116,7 @@ async function playDay(page) {
   // Day 2: give the shop some money, buy a tool and check it really appears in the toolbar.
   await page.evaluate(() => {
     window.__tctbo.career().money += 400000;
+    window.__tctbo.career().xp = 80; // shop level 2: the Cọ Nhuộm is on sale
   });
   await page.click('[data-testid=morning-shop]');
   await page.click('[data-testid=buy-wand]');

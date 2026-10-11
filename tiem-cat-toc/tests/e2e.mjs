@@ -645,6 +645,29 @@ async function finishAndWait(page) {
   await ctx.close();
 }
 
+/* ---------------- Vẽ theo mẫu (Xưởng) ---------------- */
+{
+  const { page, ctx, errors } = await newGame();
+  await page.evaluate(() => localStorage.setItem('tctbo-coach', '4'));
+  await page.goto(`${BASE}?mode=studio`);
+  await page.waitForSelector('[data-testid=studio-panel]');
+  await page.selectOption('[data-testid=studio-trace]', 'highlight');
+  await page.waitForSelector('[data-testid=design-score]');
+  const before = Number(await page.getAttribute('[data-testid=design-score]', 'data-value'));
+  check('Vẽ theo mẫu: guides and steps appear', (await page.locator('[data-testid=design-guides] circle').count()) > 5 && (await page.locator('[data-testid=trace-steps] li').count()) >= 2);
+  await page.screenshot({ path: `${OUT}/T1-trace.png` });
+  // Follow the guide: pink brush over the top and fringe.
+  await page.click('[data-testid=tool-brush]');
+  await page.click('[data-testid=art-color-0]');
+  await drag(page, [[110, 200], [150, 160], [200, 150], [250, 160], [290, 200], [260, 215], [140, 215], [200, 185]], { steps: 10 });
+  await page.waitForTimeout(300);
+  const after = Number(await page.getAttribute('[data-testid=design-score]', 'data-value'));
+  check('Vẽ theo mẫu: following the guide raises "Giống mẫu"', after > before, `${before}% -> ${after}%`);
+  await page.screenshot({ path: `${OUT}/T2-trace-after.png` });
+  check('Vẽ theo mẫu: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 /* ---------------- Responsive / touch ---------------- */
 for (const vp of [
   { width: 390, height: 844, name: 'phone' },

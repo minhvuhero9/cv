@@ -16,6 +16,7 @@ import {
 } from '../game/studio';
 import { Character } from './Character';
 import { applyLook, personaById } from '../game/mirror';
+import type { Template } from '../game/templates';
 import { BG_LABEL, FRAME_LABEL, PHOTO_H, PHOTO_W, PhotoComposition, STICKERS, StickerArt } from './PhotoComposition';
 
 const MOODS: [Mood, string][] = [
@@ -35,6 +36,9 @@ export function StudioPanel({
   s,
   onModel,
   models,
+  templates,
+  mastered,
+  onTrace,
   onUndo,
   onRedo,
   onReset,
@@ -45,6 +49,10 @@ export function StudioPanel({
   onModel(id: string): void;
   /** Models to choose from (career: customers already met). */
   models: { id: string; name: string }[];
+  /** Templates to follow, and whether this shop can do them yet. */
+  templates: { t: Template; ready: boolean }[];
+  mastered: string[];
+  onTrace(id: string | null): void;
   onUndo(): void;
   onRedo(): void;
   onReset(): void;
@@ -68,6 +76,27 @@ export function StudioPanel({
           ))}
         </select>
       </label>
+      <label className="studio-row col">
+        <span>📐 Vẽ theo mẫu</span>
+        <select value={s.design?.template?.id ?? ''} onChange={(e) => onTrace(e.target.value || null)} data-testid="studio-trace">
+          <option value="">— Tự do, không theo mẫu —</option>
+          {templates.map(({ t, ready }) => (
+            <option key={t.id} value={t.id} disabled={!ready}>
+              {mastered.includes(t.id) ? '✓ ' : ''}
+              {'★'.repeat(t.stars)} {t.name}
+              {ready ? '' : ` (🔒 cấp ${t.level}${t.tools.length || t.items.length ? ', cần đồ nghề' : ''})`}
+            </option>
+          ))}
+        </select>
+      </label>
+      {s.design?.template && (
+        <ol className="trace-steps" data-testid="trace-steps">
+          {s.design.template.steps.map((x, i) => (
+            <li key={i}>{x}</li>
+          ))}
+          <li className="trace-tip">Chấm màu = chỗ còn phải nhuộm · nét tím đứt = chỗ còn phải cạo · viền xanh = độ dài.</li>
+        </ol>
+      )}
       <p className="studio-hint">Dùng mọi dụng cụ ở thanh dưới. Chọn 🖌 Cọ Nhuộm hoặc ⚡ Khuôn Cạo Hình để tô màu, cạo hình.</p>
       <div className="studio-actions">
         <button className="secondary-btn" onClick={onUndo} disabled={!st.undo.length} data-testid="studio-undo" title="Hoàn tác (Ctrl+Z)">

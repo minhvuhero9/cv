@@ -4,6 +4,8 @@ import type { Vec } from './geometry';
 import { Carving, HairState, cloneHair } from './hair';
 import { BOOK_KEY, BOOK_MAX, Creation, creationHair } from './creation';
 import { personaById, transformCustomer } from './mirror';
+import { templateById } from './templates';
+import { templateOrder } from './design';
 import { createRound, refreshMetrics, RoundState, startCutting } from './session';
 import { ToolId, TOOLS } from './tools';
 
@@ -16,6 +18,34 @@ export interface StudioState {
   redo: HairState[];
   /** Opened from the shop after closing (career kit and models met), or free. */
   from: 'free' | 'career';
+  /** Vẽ theo mẫu: the followed template reached 90 %. */
+  traceDone?: boolean;
+}
+
+/** Vẽ theo mẫu: follow a built-in template on the current model (null = stop). */
+export function setTrace(s: RoundState, templateId: string | null) {
+  const t = templateById(templateId);
+  s.design = t ? templateOrder(t, s.baseCustomer.id) : null;
+  if (s.studio) s.studio.traceDone = false;
+}
+
+const MASTER_KEY = 'tctbo-mastered';
+export function loadMastered(store: Storage | undefined = globalThis.localStorage): string[] {
+  try {
+    const v = JSON.parse(store?.getItem(MASTER_KEY) ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+export function addMastered(id: string, store: Storage | undefined = globalThis.localStorage) {
+  const all = loadMastered(store);
+  if (all.includes(id)) return;
+  try {
+    store?.setItem(MASTER_KEY, JSON.stringify([...all, id]));
+  } catch {
+    /* ignore */
+  }
 }
 
 const UNDO_MAX = 40;

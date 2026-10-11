@@ -16,6 +16,8 @@ export const CATEGORY_LABEL: Record<ShopCategory, string> = {
 };
 
 export interface ShopUnlock {
+  /** Cấp tiệm needed. */
+  level?: number;
   day?: number;
   rep?: number;
   viral?: number;
@@ -45,10 +47,10 @@ export const SHOP: ShopItem[] = [
   { id: 'ray', name: 'Súng Tóc 3000', category: 'tool', price: 250000, tool: 'ray', desc: 'Bắn màu, dựng tóc, phóng to.', effect: 'Thêm dụng cụ Súng Tóc 3000.', unlock: { day: 2 } },
   { id: 'comb', name: 'Lược Rồng', category: 'tool', price: 200000, tool: 'comb', desc: 'Chải hướng, phồng, xoăn.', effect: 'Thêm dụng cụ Lược Rồng.', unlock: { day: 2 } },
   // ---- đồ nghề sáng tạo
-  { id: 'brush', name: 'Cọ Nhuộm', category: 'tool', price: 160000, tool: 'brush', desc: 'Tô màu lên tóc như tô tranh.', effect: 'Thêm Cọ Nhuộm (4 màu cơ bản). Khách mê màu sẽ trả thêm.', unlock: { day: 1 } },
-  { id: 'stencil', name: 'Khuôn Cạo Hình', category: 'tool', price: 200000, tool: 'stencil', desc: 'Bộ khuôn tia sét, ngôi sao, sọc.', effect: 'Thêm Khuôn Cạo Hình (3 khuôn cơ bản). Khách thích cá tính sẽ mê.', unlock: { day: 2 } },
-  { id: 'paletteXL', name: 'Bảng Màu Mở Rộng', category: 'upgrade', price: 180000, desc: '10 màu, pha màu tự do, loang hai màu.', effect: 'Cọ Nhuộm và Súng Tóc dùng đủ 10 màu, màu tự chọn và nhuộm loang.', unlock: { day: 2 } },
-  { id: 'stencilPro', name: 'Khuôn Cạo Cao Cấp', category: 'upgrade', price: 220000, desc: 'Trái tim, răng cưa, khắc chữ, chỉnh cỡ.', effect: 'Thêm khuôn trái tim, răng cưa, chữ tự gõ và chỉnh cỡ khuôn.', unlock: { day: 3 } },
+  { id: 'brush', name: 'Cọ Nhuộm', category: 'tool', price: 160000, tool: 'brush', desc: 'Tô màu lên tóc như tô tranh.', effect: 'Thêm Cọ Nhuộm (4 màu cơ bản). Mở các mẫu nhuộm màu.', unlock: { level: 2 } },
+  { id: 'stencil', name: 'Khuôn Cạo Hình', category: 'tool', price: 200000, tool: 'stencil', desc: 'Bộ khuôn tia sét, ngôi sao, sọc.', effect: 'Thêm Khuôn Cạo Hình (3 khuôn cơ bản). Mở các mẫu cạo hình.', unlock: { level: 3 } },
+  { id: 'paletteXL', name: 'Bảng Màu Mở Rộng', category: 'upgrade', price: 180000, desc: '10 màu, pha màu tự do, loang hai màu.', effect: 'Cọ Nhuộm và Súng Tóc dùng đủ 10 màu, màu tự chọn và nhuộm loang. Mở mẫu loang.', unlock: { level: 4 } },
+  { id: 'stencilPro', name: 'Khuôn Cạo Cao Cấp', category: 'upgrade', price: 220000, desc: 'Trái tim, răng cưa, khắc chữ, chỉnh cỡ.', effect: 'Thêm khuôn trái tim, răng cưa, chữ tự gõ và chỉnh cỡ khuôn. Mở mẫu bậc thầy.', unlock: { level: 5 } },
   { id: 'storm', name: 'Máy Sấy Bão', category: 'machine', price: 350000, tool: 'storm', desc: 'Bão cấp 12 trong lòng bàn tay.', effect: 'Thêm dụng cụ Máy Sấy Bão.', unlock: { day: 3, event: 'gelSpikes', eventLabel: 'Từng gây sự cố “Gió Đổi Chiều”' } },
   { id: 'cooker', name: 'Nồi Cơm Điện Tạo Kiểu', category: 'machine', price: 280000, tool: 'cooker', desc: 'Hấp tóc phồng như bánh bao.', effect: 'Thêm dụng cụ Nồi Cơm Điện.', unlock: { day: 3 } },
   { id: 'vacuum', name: 'Máy Hút Tóc Vũ Trụ', category: 'machine', price: 450000, tool: 'vacuum', desc: 'Hút tóc thừa. Và tóc không thừa.', effect: 'Thêm Máy Hút; dọn sạch tiệm: miễn phạt vệ sinh.', unlock: { viral: 25 } },
@@ -69,7 +71,7 @@ export const SHOP: ShopItem[] = [
   { id: 'plant', name: 'Chậu Cây Phong Thủy', category: 'decor', price: 90000, desc: 'Cân bằng âm dương, giảm hỗn loạn.', effect: 'Chaos từ sự cố giảm 15%.', unlock: { day: 1 } },
   // ---- special: unlocks customers/events
   { id: 'petSign', name: 'Biển “Cho Phép Thú Cưng”', category: 'special', price: 100000, desc: 'Chào mừng các khách bốn chân.', effect: 'Cậu Vàng bắt đầu đến tiệm.', unlock: { day: 2 } },
-  { id: 'mirror', name: 'Gương Thần Biến Hình', category: 'special', price: 280000, desc: 'Gương khung gỗ chạm hoa sen, soi vào là hóa thân.', effect: 'Mỗi khách được biến hình 1 lần (6 phong cách). Bé Ba Hóa Thân bắt đầu đến tiệm.', unlock: { day: 2 } },
+  { id: 'mirror', name: 'Gương Thần Biến Hình', category: 'special', price: 280000, desc: 'Gương khung gỗ chạm hoa sen, soi vào là hóa thân.', effect: 'Mỗi khách được biến hình 1 lần (6 phong cách). Bé Ba Hóa Thân bắt đầu đến tiệm.', unlock: { level: 3 } },
   { id: 'neon', name: 'Biển Hiệu Neon Nhấp Nháy', category: 'special', price: 500000, desc: 'Sáng đến mức nhìn thấy từ ngoài vũ trụ.', effect: '+2 Viral mỗi ngày; khách mới thấy tiệm từ xa.', unlock: { viral: 30 } },
 ];
 

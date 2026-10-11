@@ -96,9 +96,13 @@ describe('cuốn mẫu: khách đặt theo mẫu bạn tạo', () => {
     const q = c.today.queue.find((x) => x.reason === 'design');
     expect(q?.customer).toBe('khoa');
     expect(q?.designId).toBe('d1');
+    // Odd days (and day 1) order a built-in template instead.
     c.day = 1;
     planDay(c, [{ id: 'd1', customer: 'khoa', name: 'Sét Xanh' }]);
-    expect(c.today.queue.some((x) => x.reason === 'design')).toBe(false);
+    const t = c.today.queue.filter((x) => x.reason === 'design');
+    expect(t).toHaveLength(1);
+    expect(t[0].templateId).toBeTruthy();
+    expect(t[0].designId).toBeUndefined();
   });
 
   it('copying the design scores high, ignoring it scores low', () => {

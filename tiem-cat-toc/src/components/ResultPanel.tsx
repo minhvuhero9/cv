@@ -8,6 +8,7 @@ import { ToolIcon } from './ToolIcons';
 import { lengthWord, requestSheet } from '../game/request';
 import { SheetChecklist } from './RequestSheet';
 import { ReplayPlayer } from './ReplayPlayer';
+import { LEVELS } from '../game/level';
 import type { Zone } from '../game/hair';
 
 const ZONES: [Zone, string][] = [
@@ -142,6 +143,17 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, d
                 {career.served.repDelta}
               </span>
               <span className="up">🔥 Viral +{career.served.viralDelta}</span>
+            </div>
+          )}
+          {career?.served.levelUp && (
+            <div className="level-up" data-testid="level-up">
+              🎉 Tiệm lên <b>cấp {career.served.levelUp}: {LEVELS[career.served.levelUp - 1].name}</b>!
+              <small>Mở khóa: {LEVELS[career.served.levelUp - 1].unlocks.join(' · ')}</small>
+            </div>
+          )}
+          {career && (career.served.xp ?? 0) > 0 && (
+            <div className="xp-gain" data-testid="xp-gain">
+              +{career.served.xp} kinh nghiệm cho tiệm
             </div>
           )}
           {career?.served.quests?.map((q) => (
