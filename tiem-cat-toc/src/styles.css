@@ -1913,6 +1913,28 @@ button {
   font-size: 14px;
 }
 
+.contest-result {
+  background: #fff6d6;
+  border-color: #c9952b;
+}
+.contest-result.no-prize,
+.story-failed {
+  background: #f4efe6;
+  border-color: #a99c85;
+}
+.story-result {
+  background: #eaf1ff;
+  border-color: #3d6fd8;
+}
+.story-log {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.story-log li {
+  margin: 2px 0;
+}
+
 /* ---------------- Đồ mua về hiện trong tiệm ---------------- */
 .wall-decor {
   display: grid;

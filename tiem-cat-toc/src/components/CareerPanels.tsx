@@ -100,7 +100,7 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
   );
 }
 
-const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu', freestyle: 'Khách tùy thợ' } as const;
+const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu', freestyle: 'Khách tùy thợ', story: 'Khách có câu chuyện', contest: 'Cuộc thi tóc của phường' } as const;
 
 /** Morning: what happens today (with causes) and who is coming. */
 export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void }) {
@@ -193,6 +193,17 @@ export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerStat
             ))}
           </tbody>
         </table>
+        {sum.served.some((x) => x.story || x.contest) && (
+          <ul className="story-log" data-testid="story-log">
+            {sum.served.map((x, i) =>
+              x.contest ? (
+                <li key={`c${i}`}>🏆 Cuộc thi “{x.contest.theme}”: <b>{x.contest.label}</b>{x.contest.money > 0 ? ` (+${vnd(x.contest.money)})` : ''}</li>
+              ) : x.story ? (
+                <li key={`s${i}`} className={x.story.passed ? 'up' : 'down'}>📖 {x.story.title}: {x.story.text}</li>
+              ) : null,
+            )}
+          </ul>
+        )}
         {sum.quests && sum.quests.length > 0 && (
           <div className="quest-box">
             <div className="intro-label">Nhiệm vụ</div>
@@ -208,6 +219,12 @@ export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerStat
             <dt>Tiền boa</dt>
             <dd className="up">+{vnd(sum.tips)}</dd>
           </div>
+          {(sum.bonusMoney ?? 0) > 0 && (
+            <div>
+              <dt>Giải thưởng &amp; câu chuyện</dt>
+              <dd className="up">+{vnd(sum.bonusMoney!)}</dd>
+            </div>
+          )}
           {(sum.questMoney ?? 0) > 0 && (
             <div>
               <dt>Thưởng nhiệm vụ</dt>

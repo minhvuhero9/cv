@@ -156,6 +156,17 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, d
               +{career.served.xp} kinh nghiệm cho tiệm
             </div>
           )}
+          {career?.served.contest && (
+            <div className={`quest-done contest-result ${career.served.contest.money > 0 ? '' : 'no-prize'}`} data-testid="contest-result">
+              🏆 Cuộc thi “{career.served.contest.theme}”: <b>{career.served.contest.label}</b>
+              {career.served.contest.money > 0 && <> · thưởng {vnd(career.served.contest.money)}</>}
+            </div>
+          )}
+          {career?.served.story && (
+            <div className={`quest-done story-result ${career.served.story.passed ? '' : 'story-failed'}`} data-testid="story-result">
+              📖 <b>{career.served.story.title}</b>: {career.served.story.text}
+            </div>
+          )}
           {career?.served.savedDesign && career.served.saveDesign && (
             <div className="quest-done design-saved" data-testid="design-saved">
               📒 Đúng gu khách! Kiểu này được lưu vào cuốn mẫu: <b>{career.served.saveDesign.name}</b>

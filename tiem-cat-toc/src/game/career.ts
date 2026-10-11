@@ -3,7 +3,8 @@ import { STYLE_RULES } from './evaluate';
 import { clamp } from './geometry';
 import { HairState, Tuft, createHair } from './hair';
 import { makeRng, pick } from './rng';
-import { tasteById, tasteDesignName, tastesFor } from './freestyle';
+import { CONTESTS, contestPrize, tasteById, tasteDesignName, tastesFor } from './freestyle';
+import { STORIES, StoryProgress, storyById } from './stories';
 import type { RoundContext, RoundState } from './session';
 import { ELECTRIC, MACHINES, SHOP, ShopItem, shopItem } from './shop';
 import { TOOLS, ToolId } from './tools';
@@ -23,7 +24,7 @@ export const BASE_CUSTOMERS = 3;
 /** Viral gained from one customer that turns their hairstyle into tomorrow's trend. */
 export const VIRAL_TREND = 6;
 
-export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip' | 'boss' | 'design' | 'freestyle';
+export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip' | 'boss' | 'design' | 'freestyle' | 'story' | 'contest';
 
 export interface QueueEntry {
   customer: string;
@@ -34,8 +35,11 @@ export interface QueueEntry {
   designId?: string;
   /** …or the built-in template. */
   templateId?: string;
-  /** Khách tùy thợ: their taste (freestyle.ts). */
+  /** Khách tùy thợ: their taste (freestyle.ts); contest days: the theme. */
   tasteId?: string;
+  /** Khách có câu chuyện: story and chapter (stories.ts). */
+  storyId?: string;
+  storyStep?: number;
 }
 
 export interface DayEvent {
@@ -68,6 +72,10 @@ export interface Served {
   saveDesign?: { name: string; caption: string };
   /** …and it was saved. */
   savedDesign?: boolean;
+  /** Prize or story reward money (counted in the day's takings). */
+  bonus?: number;
+  story?: { title: string; text: string; passed: boolean; finished?: boolean };
+  contest?: { theme: string; label: string; money: number };
   /** XP earned, and the level reached if this round levelled the shop up. */
   xp?: number;
   levelUp?: number;
@@ -94,6 +102,8 @@ export interface DaySummary {
   /** Today's goals as they ended, and the bonus money they paid. */
   quests?: Quest[];
   questMoney?: number;
+  /** Contest prizes and story rewards. */
+  bonusMoney?: number;
 }
 
 export interface Pending {
@@ -130,6 +140,12 @@ export interface CareerState {
   seed?: number;
   /** Catalog id of a design born yesterday from a freestyle cut (ordered first). */
   freshDesign?: string | null;
+  /** Khách có câu chuyện: progress per story. */
+  stories?: Record<string, StoryProgress>;
+  /** Friends a finished story brings tomorrow. */
+  bonusWalkins?: number;
+  /** Cúp từ Cuộc thi tóc của phường. */
+  trophies?: { day: number; theme: string; rank: number; label: string }[];
   today: {
     phase: 'morning' | 'open' | 'closed';
     queue: QueueEntry[];
@@ -232,6 +248,7 @@ function eligible(c: CareerState, d: CustomerDef, events: string[]): boolean {
   if (a.minRep !== undefined && c.rep < a.minRep && !(d.id === 'vip' && events.includes('newspaper'))) return false;
   if (a.minViral !== undefined && c.viral < a.minViral) return false;
   if (a.needsItem && !c.owned.includes(a.needsItem)) return false;
+  if (a.minLevel && shopLevel(c).level < a.minLevel) return false;
   return true;
 }
 
@@ -275,6 +292,21 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   }
   for (const p of due.filter((p) => p.reason !== 'return' && p.reason !== 'loyal')) queue.push({ customer: p.customer, reason: p.reason, note: p.note });
 
+  // 1b) Khách có câu chuyện: one chapter a day; a story starts once its day and level come.
+  const stories = (c.stories ??= {});
+  let storyToday = false;
+  for (const st of STORIES) {
+    if (!stories[st.id] && c.day >= st.startDay && shopLevel(c).level >= st.minLevel) stories[st.id] = { step: 0, due: c.day, state: 'active' };
+    const pr = stories[st.id];
+    if (!pr || pr.state !== 'active' || pr.due > c.day) continue;
+    if (storyToday || queue.some((q) => q.customer === st.customer)) {
+      pr.due = c.day + 1;
+      continue;
+    }
+    storyToday = true;
+    queue.push({ customer: st.customer, reason: 'story', note: st.chapters[pr.step].note, storyId: st.id, storyStep: pr.step });
+  }
+
   // 2) A viral style brings a copycat.
   if (ids.includes('viralClip') && c.viralStyle) {
     queue.push({ customer: 'copycat', reason: 'copycat', note: `Muốn y hệt kiểu “${c.viralStyle.name}” trên mạng`, wantStyle: c.viralStyle.id });
@@ -285,7 +317,7 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   //     planned in the morning. They order a template your tools can do or, every other
   //     day once you have some, a design you saved yourself.
   const artShop = c.owned.includes('brush') || c.owned.includes('stencil');
-  const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)) && !queue.some((q) => q.customer === d.id);
+  const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)) && (!d.appear.minLevel || shopLevel(c).level >= d.appear.minLevel) && !queue.some((q) => q.customer === d.id);
   const fresh = artShop ? catalog.find((x) => x.id === c.freshDesign) : undefined;
   c.freshDesign = null;
   const own = fresh ?? (artShop && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null);
@@ -320,9 +352,19 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
     if (who) queue.push({ customer: who.id, reason: 'freestyle', note: `Tùy thợ: “${taste.name}”`, tasteId: taste.id });
   }
 
+  // 2d) Cuộc thi tóc của phường: every week (day 4, 11, 18…) a model sits down for the contest.
+  if (c.day % 7 === 4) {
+    const themes = CONTESTS.filter((t) => t.needs.every((x) => careerTools(c).includes(x)));
+    const theme = themes[Math.floor(c.day / 7) % themes.length];
+    const pool = CUSTOMERS.filter((d) => ok(d) && !d.behaviors.includes('transform') && !d.stages?.length);
+    const who = pool.length ? pool[Math.floor(rng() * pool.length) % pool.length] : null;
+    if (who && theme) queue.push({ customer: who.id, reason: 'contest', note: `🏆 Người mẫu dự thi — đề “${theme.name}”`, tasteId: theme.id });
+  }
+
   // 3) Walk-ins, weighted, no duplicates; drama lovers more likely after a viral clip.
   //    There are always at least two new faces besides the ones coming back.
-  const total = customersPerDay(c, ids);
+  const total = customersPerDay(c, ids) + (c.bonusWalkins ?? 0);
+  c.bonusWalkins = 0;
   const pool = CUSTOMERS.filter((d) => eligible(c, d, ids));
   let walkins = 0;
   let guard = 0;
@@ -400,6 +442,7 @@ export function roundContext(c: CareerState): Partial<RoundContext> {
     wantStyle: q?.wantStyle ?? null,
     returnHair: snap ? unsnap(snap, q.customer) : null,
     taste: q?.tasteId ?? null,
+    story: q?.storyId ? { id: q.storyId, step: q.storyStep ?? 0 } : null,
   };
 }
 
@@ -474,11 +517,12 @@ export function applyRound(c: CareerState, s: RoundState): Served {
   c.history[d.id] = { day: c.day, styleId: r.style.id, sat: r.sat, tier: r.tier };
   const already = c.pending.some((p) => p.customer === d.id);
   // Someone who already came back to get it fixed and is still unhappy gives up on the shop.
-  const secondChance = q?.reason === 'return';
+  // Story visits come back through their story, not as returns or regulars.
+  const secondChance = q?.reason === 'return' || q?.reason === 'story' || q?.reason === 'contest';
   if (!already && !secondChance && !r.walkedOut && d.returns.onDisaster && (r.tier === 'bad' || r.tier === 'disaster')) {
     c.pending.push({ customer: d.id, reason: 'return', day: c.day + 1, note: `Quay lại đòi sửa kiểu “${r.style.name}” hôm qua` });
     c.returnHair[d.id] = snapHair(s.hair);
-  } else if (!already && d.returns.onLove && r.tier === 'love') {
+  } else if (!already && !secondChance && d.returns.onLove && r.tier === 'love') {
     c.pending.push({ customer: d.id, reason: 'loyal', day: c.day + 2, note: 'Khách quen, mê tay nghề của tiệm' });
   }
   // A big viral moment: the style becomes tomorrow's trend.
@@ -508,6 +552,42 @@ export function applyRound(c: CareerState, s: RoundState): Served {
     served.viralDelta = Math.round((served.viralDelta + 2) * 10) / 10;
   }
   if (q?.designId) served.designId = q.designId;
+  // Khách có câu chuyện: pass the chapter and the story goes on; fail and it ends.
+  const st = q?.reason === 'story' ? storyById(q.storyId) : null;
+  const pr = st ? c.stories?.[st.id] : undefined;
+  if (st && pr && pr.state === 'active') {
+    const ch = st.chapters[pr.step];
+    if (!r.walkedOut && r.sat >= ch.pass) {
+      if (pr.step >= st.chapters.length - 1) {
+        pr.state = 'done';
+        c.money += st.reward.money;
+        c.viral = clamp(c.viral + st.reward.viral, 0, 100);
+        c.rep = clamp(c.rep + st.reward.rep, 0, 100);
+        c.bonusWalkins = (c.bonusWalkins ?? 0) + st.reward.friends;
+        served.bonus = (served.bonus ?? 0) + st.reward.money;
+        served.story = { title: st.title, text: `${ch.win} ${st.reward.text}`, passed: true, finished: true };
+      } else {
+        pr.step++;
+        pr.due = c.day + Math.max(1, ch.gap);
+        served.story = { title: st.title, text: ch.win, passed: true };
+      }
+    } else {
+      pr.state = 'failed';
+      served.story = { title: st.title, text: st.fail, passed: false };
+    }
+  }
+  // Cuộc thi tóc của phường: the judges' score is the satisfaction.
+  const theme = q?.reason === 'contest' ? tasteById(q.tasteId) : null;
+  if (theme) {
+    const prize = r.walkedOut ? null : contestPrize(r.sat);
+    if (prize) {
+      c.money += prize.money;
+      c.viral = clamp(c.viral + prize.viral, 0, 100);
+      (c.trophies ??= []).push({ day: c.day, theme: theme.name, rank: prize.rank, label: prize.label });
+      served.bonus = (served.bonus ?? 0) + prize.money;
+    }
+    served.contest = { theme: theme.name, label: prize?.label ?? 'Không đạt giải', money: prize?.money ?? 0 };
+  }
   // Tùy thợ: a cut they loved goes into the catalog; tomorrow someone orders it.
   const taste = tasteById(q?.tasteId);
   if (taste && !r.walkedOut && r.sat >= 75) {
@@ -517,7 +597,7 @@ export function applyRound(c: CareerState, s: RoundState): Served {
   if (done.length) served.quests = done.map((q) => q.label);
   // Cấp tiệm.
   const before = shopLevel(c).level;
-  const gained = xpFor(r, { design: q?.reason === 'design' || q?.reason === 'freestyle', art: s.metrics.carvingCount > 0 || s.metrics.tintedFrac > 0.1, boss: q?.reason === 'boss', quests: done.length });
+  const gained = xpFor(r, { design: q?.reason === 'design' || q?.reason === 'freestyle' || q?.reason === 'story' || q?.reason === 'contest', art: s.metrics.carvingCount > 0 || s.metrics.tintedFrac > 0.1, boss: q?.reason === 'boss', quests: done.length });
   c.xp = (c.xp ?? 0) + gained;
   served.xp = gained;
   if (shopLevel(c).level > before) served.levelUp = shopLevel(c).level;
@@ -551,6 +631,7 @@ export function endDay(c: CareerState): DaySummary {
   const costs = dayCosts(c);
   const revenue = c.today.served.reduce((a, s) => a + s.paid, 0);
   const tips = c.today.served.reduce((a, s) => a + s.tip, 0);
+  const bonusMoney = c.today.served.reduce((a, s) => a + (s.bonus ?? 0), 0);
   const total = costs.reduce((a, x) => a + x.amount, 0);
   c.money -= total;
   if (c.owned.includes('neon')) c.viral = clamp(c.viral + 2, 0, 100);
@@ -562,6 +643,12 @@ export function endDay(c: CareerState): DaySummary {
   for (const p of c.pending.filter((p) => p.day === next)) tomorrow.push(`${customerById(p.customer).name}: ${p.note}`);
   if (next % 3 === 0) tomorrow.push('Ngày mai có chợ phiên trước cửa tiệm.');
   if (next % 7 === 0) tomorrow.push(`Ngày mai có khách trùm cuối tuần: ${customerById(BOSSES[(next / 7 - 1) % BOSSES.length]).name}!`);
+  if (next % 7 === 4) tomorrow.push('Ngày mai có Cuộc thi tóc của phường: một người mẫu sẽ đến, giải Nhất 300.000đ!');
+  for (const st of STORIES) {
+    const pr = c.stories?.[st.id];
+    if (pr?.state === 'active' && pr.due === next) tomorrow.push(`${customerById(st.customer).name} quay lại: ${st.chapters[pr.step].note}`);
+  }
+  if ((c.bonusWalkins ?? 0) > 0) tomorrow.push(`Bạn bè khách giới thiệu: thêm ${c.bonusWalkins} khách.`);
   if (next % 4 === 0) tomorrow.push(c.owned.includes('generator') ? 'Ngày mai cắt điện, nhưng tiệm có máy phát.' : 'Ngày mai cắt điện luân phiên: máy dùng điện sẽ nghỉ.');
   const low = MACHINES.filter((m) => (c.condition[m] ?? 100) < 25 && (m === 'clipper' || m === 'dryer' || c.owned.includes(m)));
   if (low.length) tomorrow.push(`Máy sắp hỏng: ${low.map((m) => TOOLS.find((t) => t.id === m)?.name).join(', ')} — nên bảo dưỡng ở Cửa hàng.`);
@@ -571,7 +658,7 @@ export function endDay(c: CareerState): DaySummary {
     revenue,
     tips,
     costs,
-    net: revenue + tips + questMoney - total,
+    net: revenue + tips + questMoney + bonusMoney - total,
     repDelta: Math.round((c.rep - c.today.repStart) * 10) / 10,
     viralDelta: Math.round((viralBefore - c.today.viralStart) * 10) / 10,
     moneyAfter: c.money,
@@ -579,6 +666,7 @@ export function endDay(c: CareerState): DaySummary {
     mess: c.today.mess,
     quests: (c.today.quests ?? []).map((q) => ({ ...q, reward: { ...q.reward } })),
     questMoney,
+    bonusMoney,
   };
   c.lastSummary = summary;
   c.stats.days++;

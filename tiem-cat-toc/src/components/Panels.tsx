@@ -8,6 +8,7 @@ import { RARITY_LABEL, Rarity, TOOLS, ToolDef, ToolId, toolDef, unlockText } fro
 import { ToolIcon } from './ToolIcons';
 import { ArtBar } from './ArtBar';
 import { requestSheet } from '../game/request';
+import { isContest } from '../game/freestyle';
 import { DailyChallenge, RULE_TEXT } from '../game/daily';
 import { RefPicture, SheetChecklist } from './RequestSheet';
 
@@ -42,7 +43,7 @@ export function RequestCard({ s, ghost, onGhost }: { s: RoundState; ghost: boole
       <div className="req-sheet">
         {sheet.target && <RefPicture s={s} target={sheet.target} />}
         <div className="req-body">
-          <div className="req-title">{s.taste ? `Khách tùy thợ · ${s.taste.name}` : 'Phiếu yêu cầu'}</div>
+          <div className="req-title">{s.taste ? `${isContest(s.taste) ? 'Cuộc thi · Đề' : 'Khách tùy thợ ·'} ${s.taste.name}` : 'Phiếu yêu cầu'}</div>
           <SheetChecklist s={s} sheet={sheet} />
           {sheet.target && (
             <button className={`ghost-toggle ${ghost ? 'on' : ''}`} onClick={onGhost} data-testid="ghost-toggle" aria-pressed={ghost}>

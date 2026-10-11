@@ -192,7 +192,61 @@ const TASTE_LIST: Taste[] = [
 
 export const TASTES: Taste[] = TASTE_LIST.map((t) => ({ ...t, dislikes: [UNTOUCHED, ...t.dislikes] }));
 
-export const tasteById = (id: string | null | undefined) => TASTES.find((t) => t.id === id) ?? null;
+/**
+ * Cuộc thi tóc của phường: a weekly theme instead of a taste. The model sits down, the
+ * judges score the head against the theme with the same rules.
+ */
+const CONTEST_LIST: Taste[] = [
+  {
+    id: 'ct-he',
+    name: 'Mùa Hè Rực Rỡ',
+    ask: 'mát mẻ, tươi sáng: hai bên ngắn, thêm chút màu nóng càng tốt.',
+    needs: [],
+    neat: true,
+    likes: [R.sidesShort(0.45, 20), { id: 'cool', label: 'Gọn cho mát', points: 15, check: (m) => m.avg <= 0.65 }, R.color('warm', 'Điểm màu nóng (nếu có Cọ Nhuộm)', 0.15, 15)],
+    dislikes: [R.noBald(35)],
+  },
+  {
+    id: 'ct-hero',
+    name: 'Siêu Anh Hùng',
+    ask: 'mạnh mẽ như siêu anh hùng: hai bên ngắn, phía trên cao, dựng lên được thì càng tốt.',
+    needs: [],
+    neat: true,
+    likes: [R.sidesShort(0.45, 20), R.topLong(0.85, 20), { id: 'spike', label: 'Tóc dựng (máy sấy, keo)', points: 15, check: (m) => m.spikedFrac >= 0.15 }],
+    dislikes: [R.noBald(35)],
+  },
+  {
+    id: 'ct-codien',
+    name: 'Cổ Điển Lịch Lãm',
+    ask: 'lịch lãm kiểu xưa: gọn, đều, tinh tế, không màu mè.',
+    needs: [],
+    neat: true,
+    likes: [R.even(20), { id: 'mid', label: 'Ngắn vừa phải', points: 20, check: (m) => m.avg >= 0.4 && m.avg <= 0.75 }, { id: 'tidy', label: 'Đường cắt gọn', points: 10, check: (m) => m.choppiness < 0.12 }],
+    dislikes: [R.noArt(25), R.noBald(35)],
+  },
+  {
+    id: 'ct-anhsang',
+    name: 'Lễ Hội Ánh Sáng',
+    ask: 'lung linh như lễ hội: nhiều màu, càng sáng càng đẹp.',
+    needs: ['brush'],
+    neat: false,
+    likes: [{ id: 'two', label: 'Ít nhất 2 màu', points: 30, check: (m) => m.colorCount >= 2 }, { id: 'cover', label: 'Nhuộm từ 40% đầu', points: 15, check: (m) => m.tintedFrac >= 0.4 }],
+    dislikes: [R.noShort(20), R.noBald(35)],
+  },
+];
+
+export const CONTESTS: Taste[] = CONTEST_LIST.map((t) => ({ ...t, dislikes: [UNTOUCHED, ...t.dislikes] }));
+
+export const tasteById = (id: string | null | undefined) => TASTES.find((t) => t.id === id) ?? CONTESTS.find((t) => t.id === id) ?? null;
+export const isContest = (t: Taste | null | undefined) => !!t && t.id.startsWith('ct-');
+
+/** Contest prize by the judges' score. */
+export function contestPrize(score: number): { rank: 1 | 2 | 3; label: string; money: number; viral: number } | null {
+  if (score >= 90) return { rank: 1, label: 'Giải Nhất', money: 300000, viral: 8 };
+  if (score >= 75) return { rank: 2, label: 'Giải Nhì', money: 150000, viral: 5 };
+  if (score >= 60) return { rank: 3, label: 'Giải Ba', money: 80000, viral: 3 };
+  return null;
+}
 
 /** Tastes this shop can satisfy with its tools. */
 export function tastesFor(tools: ToolId[]): Taste[] {
@@ -220,18 +274,22 @@ export function tasteCustomer(base: CustomerDef, t: Taste): CustomerDef {
   const toolReactions = { ...base.toolReactions };
   // They asked for colours / patterns: the brush and stencil don't bother them today.
   for (const x of t.needs) delete toolReactions[x];
+  const contest = isContest(t);
   return {
     ...base,
-    request: `Làm gì cũng được, miễn hợp gu em: ${t.ask}`,
-    catch: 'Em tin tay nghề tiệm mình đấy!',
-    hint: `Khách tùy thợ (${t.name}): không có mẫu, bạn tự sáng tạo. Xem gu ở phiếu yêu cầu.`,
+    request: contest ? `Cuộc thi tóc của phường! Đề thi “${t.name}”: ${t.ask}` : `Làm gì cũng được, miễn hợp gu em: ${t.ask}`,
+    catch: contest ? 'Giám khảo đang nhìn đấy, cố lên!' : 'Em tin tay nghề tiệm mình đấy!',
+    hint: contest
+      ? `Cuộc thi: bạn tự sáng tạo theo đề. Giám khảo chấm theo phiếu; từ 60% có giải (Ba, Nhì từ 75%, Nhất từ 90%).`
+      : `Khách tùy thợ (${t.name}): không có mẫu, bạn tự sáng tạo. Xem gu ở phiếu yêu cầu.`,
+    ...(contest ? { timeLimit: 90, patienceDecay: base.patienceDecay * 0.5 } : {}),
     target: null,
     stages: undefined,
     artTaste: 0,
     toolReactions,
     satisfaction: (m, ctx) => tasteScore(t, m, ctx?.hair ?? null),
     special: (_m, sat) => sat >= 92,
-    specialLine: { line: 'Đúng gu em luôn! Em sẽ khoe khắp xóm!', mood: 'ecstatic' },
+    specialLine: contest ? { line: 'Cả hội đồng giám khảo đứng dậy vỗ tay!', mood: 'ecstatic' } : { line: 'Đúng gu em luôn! Em sẽ khoe khắp xóm!', mood: 'ecstatic' },
     pay: { base: Math.round(base.pay.base * 1.25), tip: Math.round(base.pay.tip * 1.4) },
   };
 }

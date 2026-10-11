@@ -7,7 +7,7 @@ import { AirCon, StageDecor, WallDecor } from './components/Decor';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
 import { deleteFromBook, loadBook, saveToBook, snapCreation } from './game/creation';
-import { tasteScore } from './game/freestyle';
+import { isContest, tasteScore } from './game/freestyle';
 import { BookPanel, PhotoPanel } from './components/PhotoBook';
 import { careerKit, fullKit } from './game/art';
 import { designScore } from './game/design';
@@ -417,7 +417,7 @@ export default function App() {
           )}
           {s.phase === 'cutting' && s.taste && (
             <div className="design-score taste-score" data-testid="taste-score" data-value={tasteScore(s.taste, s.metrics, s.hair)}>
-              🎨 Hợp gu <b>{tasteScore(s.taste, s.metrics, s.hair)}%</b>
+              {isContest(s.taste) ? '🏆 Giám khảo chấm' : '🎨 Hợp gu'} <b>{tasteScore(s.taste, s.metrics, s.hair)}%</b>
               <small>{s.taste.name}</small>
             </div>
           )}

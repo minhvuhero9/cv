@@ -226,6 +226,22 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
    - Để nguyên không làm gì hoặc cạo trọc thì khách không chịu. Hợp gu từ 75% trở lên: kiểu tóc **tự lưu vào cuốn mẫu**, và hôm sau (khi tiệm có Cọ Nhuộm hoặc Khuôn Cạo) sẽ có khách đặt lại đúng kiểu đó trước tiên.
    - Trả ×1,25, boa ×1,4, được thêm kinh nghiệm như khách đặt mẫu.
 
+## Khách mới, khách có câu chuyện, cuộc thi tóc
+
+- **6 khách mới** (đều hư cấu):
+  - Từ đầu: **Bin Gamer** (mái che mắt, đang vội vào trận).
+  - Từ cấp 2: **Chị Hồng Bếp** (gọn, không lòa xòa) và **Bà Viên** (muốn xoăn bồng, ngủ gật).
+  - Từ cấp 3: **Anh Long Rốc** (tóc dựng, mê Máy Sấy Bão và cạo hình).
+  - Chỉ đến qua câu chuyện của mình (chơi tự do thì chọn được): **Bé Ngân** và **Anh Đạt**.
+- **Khách có câu chuyện** (`stories.ts`): một khách quay lại qua nhiều ngày. Mỗi lần đến là một chương có yêu cầu riêng. Đạt thì chương sau đến sau vài ngày; hỏng một chương thì câu chuyện kết thúc.
+  - *Bé Ngân đi diễn văn nghệ* (từ ngày 3): tập văn nghệ, diễn chính thức, rồi được giải và tùy thợ. Thưởng 150k, Viral +6, hôm sau cả lớp đến (+2 khách).
+  - *Anh Đạt đi xin việc* (từ ngày 5): phỏng vấn, ngày đầu đi làm, rồi lên chức và tùy thợ. Thưởng 250k, uy tín +4, +1 khách.
+  - *Đêm nhạc của Long Rốc* (từ ngày 6, cấp 3): quán cà phê, rồi sân khấu lớn. Thưởng 200k, Viral +12.
+- **Cuộc thi tóc của phường** (ngày 4, 11, 18…): một người mẫu đến, đề thi đổi theo tuần (Mùa Hè Rực Rỡ, Siêu Anh Hùng, Cổ Điển Lịch Lãm, Lễ Hội Ánh Sáng khi có Cọ Nhuộm).
+  - Bạn tự sáng tạo theo đề; giám khảo chấm theo phiếu, có 90 giây.
+  - Giải Ba từ 60% (80k), Nhì từ 75% (150k), Nhất từ 90% (300k). Cúp được lưu lại.
+- Tiền thưởng hiện riêng trong sổ cuối ngày (“Giải thưởng & câu chuyện”). Bảng tổng kết kể lại diễn biến câu chuyện và báo trước ngày mai có ai quay lại hay có cuộc thi.
+
 ## Cấu trúc code
 
 ```
