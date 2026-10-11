@@ -38,7 +38,7 @@ describe('customer catalogue', () => {
     expect(CUSTOMERS.length).toBeGreaterThanOrEqual(15);
     expect(new Set(CUSTOMERS.map((c) => c.id)).size).toBe(CUSTOMERS.length);
     for (const c of CUSTOMERS) {
-      expect(c.name && c.trait && c.request && c.voice.espeak && c.pay.base > 0).toBeTruthy();
+      expect(c.name && c.trait && c.request && c.pay.base > 0).toBeTruthy();
       expect(Array.isArray(c.behaviors) && Array.isArray(c.likes)).toBe(true);
     }
     // Not just recolours: behaviour sets differ across the cast.

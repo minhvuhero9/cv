@@ -247,7 +247,6 @@ export function ShopPanel({ c, onBuy, onRepair, onClose }: { c: CareerState; onB
 
 export interface AudioSettings {
   master: number;
-  voice: number;
   sfx: number;
   muted: boolean;
 }
@@ -269,7 +268,7 @@ export function SettingsPanel({
   onMode(m: 'career' | 'free'): void;
 }) {
   const [confirm, setConfirm] = useState(false);
-  const slider = (key: 'master' | 'voice' | 'sfx', label: string) => (
+  const slider = (key: 'master' | 'sfx', label: string) => (
     <label className="slider">
       <span>
         {label} <b>{Math.round(audio[key] * 100)}%</b>
@@ -287,7 +286,6 @@ export function SettingsPanel({
           </button>
         </div>
         {slider('master', 'Âm lượng tổng')}
-        {slider('voice', 'Lồng tiếng')}
         {slider('sfx', 'Hiệu ứng')}
         <label className="check">
           <input type="checkbox" checked={audio.muted} onChange={(e) => onAudio({ ...audio, muted: e.target.checked })} data-testid="mute" /> Tắt toàn bộ âm thanh

@@ -299,7 +299,7 @@ export function magicLine(rng: Rng, key: MagicLineKey, p: Personality): string {
   return pick(rng, MAGIC_LINES[key][p]);
 }
 
-/* ------------------------------------------------------------------ fallback voices */
+/* ------------------------------------------------------------------ fallback lines */
 
 /**
  * Fallback lines for customers who don't override an event. The classic three use the

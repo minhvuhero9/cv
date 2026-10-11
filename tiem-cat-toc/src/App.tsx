@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playSfx, setMuted, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
-import { voice } from './audio/voice';
 import { AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
 import { ResultPanel } from './components/ResultPanel';
@@ -66,7 +65,7 @@ function loadAudio(): AudioSettings {
   } catch {
     /* ignore */
   }
-  return { master: 1, voice: 1, sfx: 0.8, muted: false };
+  return { master: 1, sfx: 0.8, muted: false };
 }
 
 function freeTools(p: Progress): ToolId[] {
@@ -75,7 +74,7 @@ function freeTools(p: Progress): ToolId[] {
 
 declare global {
   interface Window {
-    __tctbo?: { state: () => RoundState; career: () => CareerState; voice: typeof voice };
+    __tctbo?: { state: () => RoundState; career: () => CareerState };
   }
 }
 
@@ -126,12 +125,10 @@ export default function App() {
     return () => mq.removeEventListener('change', on);
   }, []);
 
-  // Audio settings apply to effects and voice, and persist.
+  // Audio settings apply to the sound effects, and persist.
   useEffect(() => {
     setSfxVolume(audio.master, audio.sfx);
     setMuted(audio.muted);
-    voice.setVolume(audio.master * audio.voice);
-    voice.setMuted(audio.muted);
     try {
       localStorage.setItem('tctbo-audio', JSON.stringify(audio));
     } catch {
@@ -140,8 +137,7 @@ export default function App() {
   }, [audio]);
 
   useEffect(() => {
-    window.__tctbo = { state: () => roundRef.current, career: () => careerRef.current, voice };
-    voice.init();
+    window.__tctbo = { state: () => roundRef.current, career: () => careerRef.current };
     let raf = 0;
     let last = performance.now();
     const loop = (t: number) => {
@@ -152,7 +148,6 @@ export default function App() {
         for (const fx of st.sfx) playSfx(fx);
         st.sfx.length = 0;
       }
-      voice.update(st);
       setToolLoop(st.phase === 'cutting' && st.pointer.down ? st.tool : null);
       setNow(t);
       setFrame((f) => (f + 1) % 1_000_000);
@@ -171,8 +166,6 @@ export default function App() {
     saveProgress(next);
     progressRef.current = next;
     setProgress(next);
-    if (s.result.walkedOut) voice.say('narrator', 'walkout', 1);
-    else if (s.result.tip > 0) voice.say('narrator', 'tip', 1);
     if (mode === 'career') {
       setServed(applyRound(c, s));
       setNewTools([]);
@@ -185,7 +178,6 @@ export default function App() {
 
   const replaceRound = useCallback((r: RoundState, start = false) => {
     setToolLoop(null);
-    voice.stop();
     if (start) startCutting(r);
     roundRef.current = r;
     setServed(null);
@@ -209,7 +201,6 @@ export default function App() {
     if (c.today.phase === 'closed') {
       endDay(c);
       saveCareer(c);
-      voice.say('narrator', 'endDay');
     } else {
       replaceRound(careerRound(c));
     }
@@ -288,7 +279,6 @@ export default function App() {
               now={now}
               onDown={(p) => {
                 unlockAudio();
-                voice.unlock();
                 pointerDown(roundRef.current, p);
               }}
               onMove={(p) => pointerMove(roundRef.current, p)}
@@ -297,7 +287,7 @@ export default function App() {
             />
           </div>
           {bubble && (
-            <div className={`bubble ${bubble.shout ? 'is-shout' : ''} ${voice.speaking ? 'is-speaking' : ''}`} data-testid="bubble">
+            <div className={`bubble ${bubble.shout ? 'is-shout' : ''}`} data-testid="bubble">
               {bubble.text}
             </div>
           )}
@@ -367,10 +357,8 @@ export default function App() {
           note={introNote}
           onStart={() => {
             unlockAudio();
-            voice.unlock();
             startCutting(roundRef.current);
             if (career && c.today.phase === 'morning') c.today.phase = 'open';
-            if (career && q?.reason === 'return') voice.say('narrator', 'returnCustomer', 2);
           }}
           onPick={career ? undefined : (o) => newFreeRound(o.id)}
         />
@@ -390,12 +378,9 @@ export default function App() {
           c={c}
           onOpen={() => {
             unlockAudio();
-            voice.unlock();
             c.today.phase = 'open';
             saveCareer(c);
             replaceRound(careerRound(c));
-            const ev = c.today.events.map((e) => e.id);
-            voice.say('narrator', ev.includes('viralClip') ? 'viralClip' : ev.includes('powerCut') ? 'powerCut' : 'openDay', 2);
           }}
           onShop={() => setOverlay('shop')}
           onFree={() => switchMode('free')}
@@ -421,7 +406,6 @@ export default function App() {
             if (r.ok) {
               saveCareer(c);
               playSfx('cash');
-              voice.say('narrator', 'purchase', 1);
               // New tools are usable from the next customer on.
               if (s.phase === 'intro') replaceRound(careerRound(c));
               rerender();
