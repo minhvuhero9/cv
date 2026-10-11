@@ -97,7 +97,7 @@ export function Toolbar({ s, onTool, onFinish }: { s: RoundState; onTool(t: Tool
         }}
         disabled={!active}
         aria-pressed={s.tool === t.id}
-        aria-disabled={isLocked}
+        aria-label={isLocked ? `${t.name}: ${soon ? 'sắp ra mắt' : 'chưa mở khóa, bấm để xem điều kiện'}` : t.name}
         data-testid={`tool-${t.id}`}
         data-locked={isLocked ? 'true' : 'false'}
         data-state={isLocked ? 'locked' : g.state}

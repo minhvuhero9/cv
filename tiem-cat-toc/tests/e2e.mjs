@@ -24,7 +24,7 @@ async function newGame(viewport = { width: 1280, height: 800 }, opts = {}) {
   const errors = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`${BASE}?seed=${opts.seed ?? 11}`);
+  await page.goto(`${BASE}?seed=${opts.seed ?? 11}${opts.unlockAll ? '&unlock=all' : ''}`);
   await page.waitForSelector('[data-testid=start]');
   return { page, ctx, errors };
 }
@@ -267,6 +267,146 @@ async function finishAndWait(page) {
   const s = await state(page);
   check('C-event: head turn under running clipper causes stray cut', (s.events.strayCut ?? 0) > 0 && s.bald > 0, JSON.stringify(s.events));
   check('C-event: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+
+/* ---------------- Bộ Đồ Nghề Bất Ổn: locks and unlocks ---------------- */
+{
+  const { page, ctx, errors } = await newGame();
+  await start(page, 'tuan');
+  const locked = await page.getAttribute('[data-testid=tool-wand]', 'data-locked');
+  check('Gear: new player has magic tools locked', locked === 'true');
+  await page.click('[data-testid=tool-wand]');
+  const info = await page.textContent('[data-testid=tool-info]');
+  const tool = (await state(page)).tool;
+  check('Gear: clicking a locked tool shows how to unlock, does not equip it', /Mở khóa/.test(info) && tool !== 'wand', info);
+  const soon = await page.textContent('[data-testid=tool-stamp]');
+  check('Gear: unimplemented tools are marked "Sắp có"', /Sắp có/.test(soon), soon);
+  // The game is fully playable with basic tools only.
+  await page.click('[data-testid=tool-scissors]');
+  await drag(page, [[120, 214], [280, 214]], { steps: 8 });
+  const end = await finishAndWait(page);
+  check('Gear: basic-only round still completes', end.phase === 'result');
+  const unlocked = await page.textContent('[data-testid=new-tools]').catch(() => '');
+  check('Gear: finishing a round unlocks Gậy Như Ý', /Gậy Như Ý/.test(unlocked), unlocked);
+  await page.click('[data-testid=next]');
+  await page.click('[data-testid=start]');
+  check('Gear: unlock persists into the next customer', (await page.getAttribute('[data-testid=tool-wand]', 'data-locked')) === 'false');
+  check('Gear: no console errors (locks)', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+/* ---------------- Bộ Đồ Nghề Bất Ổn: every tool and combo ---------------- */
+{
+  const { page, ctx, errors } = await newGame({ width: 1280, height: 800 }, { unlockAll: true, seed: 5 });
+  await start(page, 'khoa');
+  await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    s.nextTurnCheck = 1e9;
+  });
+  const len0 = (await state(page)).totalLen;
+  await page.click('[data-testid=tool-wand]');
+  for (const x of [110, 150, 200, 250, 290]) await drag(page, [[x, 190], [x, 90]], { steps: 10 });
+  const w = await state(page);
+  check('Gậy Như Ý: dragging up grows the hair', w.totalLen > len0 * 1.2, `${len0.toFixed(0)} -> ${w.totalLen.toFixed(0)}`);
+  await page.screenshot({ path: `${OUT}/G1-wand.png` });
+  await page.click('[data-testid=tool-storm]');
+  await drag(page, [[90, 210], [250, 190]], { steps: 10 });
+  await page.waitForTimeout(300);
+  const g = await state(page);
+  check('Combo Gậy + Bão fires on wand-grown hair', (g.events.comboStormLong ?? 0) === 1, JSON.stringify(g.events));
+  await page.screenshot({ path: `${OUT}/G2-storm-combo.png` });
+  await page.click('[data-testid=replay]').catch(() => {});
+  await ctx.close();
+}
+{
+  const { page, ctx, errors } = await newGame({ width: 1280, height: 800 }, { unlockAll: true, seed: 5 });
+  await start(page, 'khoa');
+  await page.evaluate(() => {
+    window.__tctbo.state().nextTurnCheck = 1e9;
+  });
+  await page.click('[data-testid=tool-ray]');
+  for (const [x, y] of [[150, 150], [200, 135], [250, 150]]) {
+    const c = await toClient(page, x, y);
+    await page.mouse.click(c.x, c.y);
+    await page.waitForTimeout(400);
+  }
+  const r = await page.evaluate(() => window.__tctbo.state().hair.tufts.filter((t) => t.tint).length);
+  check('Súng Tóc 3000: shots dye hair', r >= 6, `${r} dyed tufts`);
+  await page.click('[data-testid=tool-comb]');
+  await drag(page, [[130, 130], [200, 105], [270, 130]], { steps: 20 });
+  await page.waitForTimeout(200);
+  const k = await state(page);
+  check('Combo Súng + Lược: dyed hair combed into a horn', (k.events.comboSculpt ?? 0) === 1, JSON.stringify(k.events));
+  await page.screenshot({ path: `${OUT}/G3-unicorn.png` });
+  await page.click('[data-testid=tool-cooker]');
+  let c = await toClient(page, 200, 150);
+  await page.mouse.click(c.x, c.y);
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/G4-pot.png` });
+  await page.waitForTimeout(1100);
+  const steamed = await page.evaluate(() => window.__tctbo.state().metrics.steamedFrac);
+  check('Nồi Cơm Điện: hair is steamed and puffed', steamed > 0.3, steamed.toFixed(2));
+  await page.click('[data-testid=tool-vacuum]');
+  c = await toClient(page, 170, 150);
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  await page.waitForTimeout(500);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const v = await state(page);
+  check('Combo Nồi Cơm + Máy Hút: steamed bun sucked in', (v.events.comboPotSuck ?? 0) === 1 && v.bald > 0, JSON.stringify(v.events));
+  await page.screenshot({ path: `${OUT}/G5-potsuck.png` });
+  // Switching tools in the middle of a storm aim must not fire it.
+  await page.click('[data-testid=tool-storm]').catch(() => {});
+  const lean0 = (await state(page)).metrics.leanAvg;
+  const a = await toClient(page, 90, 210);
+  const b = await toClient(page, 300, 210);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 6 });
+  await page.keyboard.press('2');
+  await page.mouse.up();
+  const sw = await state(page);
+  check('Switching tool mid-aim cancels the gust', Math.abs(sw.metrics.leanAvg - lean0) < 1e-6 && sw.tool === 'scissors');
+  const end = await finishAndWait(page);
+  await page.screenshot({ path: `${OUT}/G6-result.png` });
+  check('Magic round ends with a result card', end.phase === 'result' && !!end.result.style.name, end.result.style.name);
+  await page.click('[data-testid=replay]');
+  await page.waitForTimeout(200);
+  const fresh = await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    return {
+      dirty: s.hair.tufts.some((t) => t.tint || t.thick !== 1 || t.curl || t.sculpt || t.steamed || t.bald),
+      combos: Object.keys(s.combos).length,
+      charge: Math.min(...Object.values(s.gear).map((g) => g.charge)),
+    };
+  });
+  check('Replay resets magic hair, combos and energy', !fresh.dirty && fresh.combos === 0 && fresh.charge === 1, JSON.stringify(fresh));
+  check('Gear: no console errors (magic)', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+{
+  const { page, ctx, errors } = await newGame({ width: 390, height: 844 }, { unlockAll: true, touch: true });
+  await page.click('[data-testid=start]');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  check('Gear(phone): no page overflow with the full toolbar', !overflow);
+  const scrolls = await page.evaluate(() => {
+    const el = document.querySelector('.tool-scroll');
+    return el.scrollWidth > el.clientWidth;
+  });
+  check('Gear(phone): tools scroll sideways instead of squeezing', scrolls);
+  const fin = await page.locator('[data-testid=finish]').boundingBox();
+  check('Gear(phone): Xong button stays visible', fin && fin.x + fin.width <= 390 && fin.y + fin.height <= 844, JSON.stringify(fin));
+  await page.locator('[data-testid=tool-cooker]').scrollIntoViewIfNeeded();
+  await page.tap('[data-testid=tool-cooker]');
+  await page.waitForTimeout(200);
+  const pressed = await page.getAttribute('[data-testid=tool-cooker]', 'aria-pressed');
+  const infoName = await page.textContent('[data-testid=tool-info-name]');
+  check('Gear(phone): tapping a magic tool equips it', (await state(page)).tool === 'cooker' && pressed === 'true' && /Nồi Cơm/.test(infoName), infoName);
+  await page.screenshot({ path: `${OUT}/G7-phone-toolbar.png` });
+  check('Gear(phone): no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
 
