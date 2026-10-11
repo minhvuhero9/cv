@@ -119,6 +119,8 @@ export interface CareerState {
   stats: { served: number; walkouts: number; earned: number; days: number };
   /** Kinh nghiệm của tiệm (Cấp tiệm). Older saves start at 0. */
   xp?: number;
+  /** Hạt giống riêng của tiệm: each new shop gets its own customers. Older saves: 0. */
+  seed?: number;
   today: {
     phase: 'morning' | 'open' | 'closed';
     queue: QueueEntry[];
@@ -139,9 +141,10 @@ export interface CareerState {
 
 export const vnd = (n: number) => `${Math.round(n).toLocaleString('vi-VN')}đ`;
 
-export function newCareer(): CareerState {
+export function newCareer(seed = 0): CareerState {
   const c: CareerState = {
     v: CAREER_VERSION,
+    seed,
     day: 1,
     money: START_MONEY,
     rep: 50,
@@ -242,16 +245,26 @@ export interface CatalogEntry {
 
 /** Builds today's events and customer queue. Deterministic per day. */
 export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
-  const rng = makeRng(c.day * 7919 + c.stats.served * 13 + 1);
+  const rng = makeRng(c.day * 7919 + c.stats.served * 13 + 1 + (c.seed ?? 0));
   const events = dayEvents(c);
   const ids = events.map((e) => e.id);
   const queue: QueueEntry[] = [];
 
   // 1) Customers who said they'd come back today.
-  for (const p of c.pending.filter((p) => p.day <= c.day)) {
-    queue.push({ customer: p.customer, reason: p.reason, note: p.note });
-  }
+  //    At most one comes back to complain (the others gave up on the shop) and one
+  //    regular per day (the rest come a day later), so the day isn't all repeats.
+  const due = c.pending.filter((p) => p.day <= c.day);
   c.pending = c.pending.filter((p) => p.day > c.day);
+  for (const reason of ['return', 'loyal'] as const) {
+    due
+      .filter((p) => p.reason === reason)
+      .forEach((p, i) => {
+        if (i === 0) queue.push({ customer: p.customer, reason: p.reason, note: p.note });
+        else if (reason === 'loyal') c.pending.push({ ...p, day: c.day + 1 });
+        else delete c.returnHair[p.customer];
+      });
+  }
+  for (const p of due.filter((p) => p.reason !== 'return' && p.reason !== 'loyal')) queue.push({ customer: p.customer, reason: p.reason, note: p.note });
 
   // 2) A viral style brings a copycat.
   if (ids.includes('viralClip') && c.viralStyle) {
@@ -276,14 +289,16 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   }
 
   // 3) Walk-ins, weighted, no duplicates; drama lovers more likely after a viral clip.
+  //    There are always at least two new faces besides the ones coming back.
   const total = customersPerDay(c, ids);
   const pool = CUSTOMERS.filter((d) => eligible(c, d, ids));
+  let walkins = 0;
   let guard = 0;
-  while (queue.length < total && guard++ < 50) {
-    const cands = pool.filter((d) => !queue.some((q) => q.customer === d.id));
+  while ((queue.length < total || walkins < 2) && guard++ < 50) {
+    const cands = pool.filter((d) => !queue.some((q) => q.customer === d.id) && !c.pending.some((p) => p.customer === d.id));
     if (!cands.length) break;
-    // Yesterday's customers are less likely to walk in again today.
-    const recent = (d: CustomerDef) => (c.history[d.id] && c.history[d.id].day >= c.day - 1 ? 0.3 : 1);
+    // Customers from the last two days rarely walk in again.
+    const recent = (d: CustomerDef) => (c.history[d.id] && c.history[d.id].day >= c.day - 2 ? 0.12 : 1);
     const w = cands.map((d) => d.appear.weight * recent(d) * (ids.includes('viralClip') ? d.viralWeight : 1) * (d.id === 'vip' && ids.includes('newspaper') ? 3 : 1));
     let r = rng() * w.reduce((a, b) => a + b, 0);
     let chosen = cands[0];
@@ -295,6 +310,7 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
       }
     }
     queue.push({ customer: chosen.id, reason: chosen.id === 'vip' ? 'vip' : 'walkin', note: pick(rng, ['Khách vãng lai', 'Đi ngang qua thấy biển', 'Hàng xóm giới thiệu']) });
+    walkins++;
   }
 
   // 4) Every seventh day a boss customer closes the week.
