@@ -6,6 +6,7 @@ import { GearStatus, gearStatus } from '../game/gear';
 import { RoundState, CHAOS_TIER_LABEL, Tool, chaosTier, timeLeft } from '../game/session';
 import { RARITY_LABEL, Rarity, TOOLS, ToolDef, ToolId, toolDef, unlockText } from '../game/tools';
 import { ToolIcon } from './ToolIcons';
+import { ArtBar } from './ArtBar';
 import { requestSheet } from '../game/request';
 import { DailyChallenge, RULE_TEXT } from '../game/daily';
 import { RefPicture, SheetChecklist } from './RequestSheet';
@@ -86,6 +87,7 @@ export function Toolbar({ s, onTool, onFinish, extra, finishLabel }: { s: RoundS
   const st = gearStatus(s, shown.id);
   const denied = s.time - s.deniedAt < 0.45;
   const basic = TOOLS.filter((t) => t.group === 'basic');
+  const art = TOOLS.filter((t) => t.group === 'art');
   const magic = TOOLS.filter((t) => t.group === 'magic');
 
   const button = (t: ToolDef) => {
@@ -151,6 +153,7 @@ export function Toolbar({ s, onTool, onFinish, extra, finishLabel }: { s: RoundS
             </span>
           )}
         </div>
+        {!inspect && <ArtBar s={s} />}
         <div className="tool-info-body" data-testid="tool-tip">
           <span className="tool-blurb">{shown.blurb}</span> <span className="tool-howto">{locked ? '' : shown.howTo}</span>
         </div>
@@ -158,6 +161,10 @@ export function Toolbar({ s, onTool, onFinish, extra, finishLabel }: { s: RoundS
       <div className="tool-bar-row">
         <div className="tool-scroll">
           <div className="tool-group">{basic.map(button)}</div>
+          <div className="tool-group tool-group-art">
+            <span className="group-label">Đồ nghề sáng tạo</span>
+            {art.map(button)}
+          </div>
           <div className="tool-group tool-group-magic">
             <span className="group-label">Đồ nghề bất ổn</span>
             {magic.map(button)}

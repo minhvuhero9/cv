@@ -4,7 +4,7 @@ import type { Vec } from '../game/geometry';
 import { HairState, Tuft, Zone, tuftPoints } from '../game/hair';
 import type { HairMetrics } from '../game/metrics';
 import { Body, BehindBody, idleOffset } from './character/Body';
-import { carvingLines } from '../game/studio';
+import { carvingLines } from '../game/art';
 import { DogFace, Face } from './character/Face';
 import { Ears, HeadWear } from './character/Head';
 import { capPath, f1, geo, lookPhase, skullPath } from './character/geo';

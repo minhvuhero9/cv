@@ -22,7 +22,10 @@ import { Rng, between, makeRng } from './rng';
 import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown, gearMove, gearTick, gearUp, isMagic, Fx, ComboState } from './gear';
 import { ToolId } from './tools';
 import { checkSheet, requestSheet } from './request';
+import type { Creation } from './creation';
+import { DesignOrder, designCustomer, designOrder } from './design';
 import type { StudioState } from './studio';
+import { ArtKit, ArtSettings, brushHair, carveHair, fullKit, newArt } from './art';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
 
 export type Tool = ToolId;
@@ -145,8 +148,13 @@ export interface RoundState {
   textureSaid: boolean;
   /** Multi-step request: steps already met. */
   stage: number;
-  /** Xưởng Tạo Kiểu (sandbox): palette, stencils, undo; no clock and no judging. */
+  /** Xưởng Tạo Kiểu (sandbox): undo/redo; no clock and no judging. */
   studio?: StudioState;
+  /** Cuốn mẫu: the design this customer ordered. */
+  design: DesignOrder | null;
+  /** Đồ nghề sáng tạo: current colours / stencil, and what the barber owns. */
+  art: ArtSettings;
+  kit: ArtKit;
   /** Frames for the 5-second replay (sampled while cutting). */
   replay: ReplayFrame[];
   nextReplayAt: number;
@@ -294,6 +302,8 @@ export interface RoundContext {
   payMultiplier?: number;
   /** Persona a "Hóa Thân" customer asks for. */
   wantPersona?: PersonaId | null;
+  /** A design from the shop's catalog this customer ordered. */
+  design?: Creation | null;
 }
 
 export interface RoundOptions {
@@ -304,11 +314,15 @@ export interface RoundOptions {
   onlyTools?: ToolId[];
   /** Round length override (daily challenge). */
   timeLimit?: number;
+  /** Colours and stencils available to the brush / stencil tools (default: everything). */
+  kit?: ArtKit;
   ctx?: Partial<RoundContext>;
 }
 
 export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, opts: RoundOptions = {}): RoundState {
-  const customer = customerById(customerId);
+  const baseDef = customerById(customerId);
+  const design = opts.ctx?.design ? designOrder(opts.ctx.design, baseDef.id) : null;
+  const customer = design ? designCustomer(baseDef, design) : baseDef;
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
   const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };
@@ -318,6 +332,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
   return {
     customer,
     baseCustomer: customer,
+    design,
     persona: null,
     wantPersona,
     mirrorReady: (opts.mirror ?? false) || ctx.items.includes('mirror'),
@@ -330,6 +345,8 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     stage: 0,
     replay: [],
     nextReplayAt: 0,
+    kit: opts.kit ?? fullKit(),
+    art: newArt(opts.kit ?? fullKit()),
     seed,
     rng,
     hair,
@@ -594,8 +611,29 @@ export function pointerDown(s: RoundState, p: Vec) {
     if (!gearDown(s, local)) ptr.down = false;
     return;
   }
+  if (s.tool === 'brush') {
+    artBrush(s, local);
+    return;
+  }
+  if (s.tool === 'stencil') {
+    const c = carveHair(s.hair, s.art, local);
+    if (c) {
+      ptr.magicUsed = true;
+      s.sfx.push('bald');
+      refreshMetrics(s);
+    } else s.deniedAt = s.time;
+    return;
+  }
   if (s.tool === 'clipper') {
     handleCut(s, clipperSweep(s.hair, local, local, ptr.stroke));
+  }
+}
+
+/** Cọ Nhuộm under the pointer (counts as a styling stroke for reactions and praise). */
+function artBrush(s: RoundState, local: Vec) {
+  if (brushHair(s.hair, s.art, local)) {
+    s.pointer.magicUsed = true;
+    refreshMetrics(s);
   }
 }
 
@@ -608,6 +646,8 @@ export function pointerMove(s: RoundState, p: Vec) {
   ptr.travel += dist(prev, local);
   if (isMagic(s.tool)) {
     gearMove(s, prev, local);
+  } else if (s.tool === 'brush') {
+    artBrush(s, local);
   } else if (s.tool === 'scissors') {
     const r = scissorsSweep(s.hair, prev, local, ptr.stroke);
     if (r.cut.length) s.sfx.push('snip');
@@ -865,6 +905,7 @@ export function finish(s: RoundState, reason: EndReason) {
       wantStyle: s.wantStyle,
       payBonus: s.ctx.payMultiplier ?? 1,
       stagesDone: s.stage,
+      hair: s.hair,
     },
     s.rng,
   );

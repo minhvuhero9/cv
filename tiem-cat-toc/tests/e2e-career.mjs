@@ -85,14 +85,39 @@ async function playDay(page) {
   check('Nhiệm vụ: goals are listed on the evening summary', (await page.locator('[data-testid=summary] [data-testid=quests] li').count()) === 3);
   check('Career: day 1 ledger has revenue and costs', c1.lastSummary && c1.lastSummary.costs.length >= 2 && c1.lastSummary.served.length >= 3, `net=${c1.lastSummary?.net}`);
   check('Career: reputation moved from real results', c1.rep !== 50, `rep=${c1.rep}`);
+  // Creative loop: after closing, make a design in the Xưởng and save it to the catalog.
+  await page.evaluate(() => {
+    localStorage.removeItem('tctbo-studio-book');
+    localStorage.setItem('tctbo-coach', '4');
+  });
+  await page.click('[data-testid=summary-studio]');
+  await page.waitForSelector('[data-testid=studio-panel]');
+  const studioTools = await page.evaluate(() => window.__tctbo.state().unlocked);
+  check('Xưởng sau giờ: only the tools the shop owns', !studioTools.includes('brush') && !studioTools.includes('wand') && studioTools.includes('scissors'), studioTools.join(','));
+  const sa = await toClient(page, 110, 232);
+  const sb = await toClient(page, 290, 232);
+  await page.mouse.move(sa.x, sa.y);
+  await page.mouse.down();
+  await page.mouse.move(sb.x, sb.y, { steps: 10 });
+  await page.mouse.up();
+  await page.click('[data-testid=studio-photo]');
+  await page.fill('[data-testid=photo-name]', 'Mẫu Số Một');
+  await page.click('[data-testid=photo-save]');
+  await page.click('[data-testid=photo-close]');
+  await page.click('[data-testid=studio-exit]');
+  await page.waitForSelector('[data-testid=next-day]');
+  check('Xưởng sau giờ: back to the shop summary', (await career(page)).day === 1);
   await page.click('[data-testid=next-day]');
   await page.waitForSelector('[data-testid=morning]');
+  const qd = (await career(page)).today.queue.filter((x) => x.reason === 'design');
+  check('Cuốn mẫu: the next day a customer orders the saved design', qd.length === 1, JSON.stringify(qd));
   // Day 2: give the shop some money, buy a tool and check it really appears in the toolbar.
   await page.evaluate(() => {
     window.__tctbo.career().money += 400000;
   });
   await page.click('[data-testid=morning-shop]');
   await page.click('[data-testid=buy-wand]');
+  await page.click('[data-testid=buy-brush]');
   await page.click('[data-testid=shop-tab-decor]');
   await page.click('[data-testid=buy-plant]');
   await page.screenshot({ path: `${OUT}/K3-shop.png` });
@@ -101,6 +126,8 @@ async function playDay(page) {
   check('Shop: buying Gậy Như Ý spends money and owns it', c2.owned.includes('wand'), `money=${c2.money}`);
   await page.click('[data-testid=open-day]');
   await page.waitForSelector('[data-testid=start]');
+  check('Đồ nghề sáng tạo: the bought brush is in the toolbar', (await page.getAttribute('[data-testid=tool-brush]', 'data-locked')) === 'false');
+  check('Tường tác phẩm: the saved design hangs on the wall', (await page.locator('[data-decor^=work-]').count()) === 1);
   check('Đồ mua về: the plant now stands in the shop', (await page.locator('[data-decor=plant]').count()) === 1);
   check('Nhiệm vụ: HUD shows goal progress', (await page.locator('[data-testid=hud-quests]').count()) === 1);
   check('Shop: the bought tool is in the toolbar and usable', (await page.getAttribute('[data-testid=tool-wand]', 'data-locked')) === 'false' && (await round(page)).unlocked.includes('wand'));

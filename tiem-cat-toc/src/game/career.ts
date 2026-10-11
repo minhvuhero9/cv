@@ -20,13 +20,15 @@ export const BASE_CUSTOMERS = 3;
 /** Viral gained from one customer that turns their hairstyle into tomorrow's trend. */
 export const VIRAL_TREND = 6;
 
-export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip' | 'boss';
+export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip' | 'boss' | 'design';
 
 export interface QueueEntry {
   customer: string;
   reason: QueueReason;
   note: string;
   wantStyle?: string | null;
+  /** Cuốn mẫu: id of the saved creation they ordered. */
+  designId?: string;
 }
 
 export interface DayEvent {
@@ -53,6 +55,8 @@ export interface Served {
   reason: QueueReason;
   /** Goals completed by this round (labels). */
   quests?: string[];
+  /** Ordered from the catalog: the creation id. */
+  designId?: string;
 }
 
 export interface CostLine {
@@ -219,8 +223,15 @@ export function customersPerDay(c: CareerState, events: string[]): number {
   return clamp(n, 2, 6);
 }
 
+/** A page of the shop's catalog (the player's saved creations). */
+export interface CatalogEntry {
+  id: string;
+  customer: string;
+  name: string;
+}
+
 /** Builds today's events and customer queue. Deterministic per day. */
-export function planDay(c: CareerState) {
+export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   const rng = makeRng(c.day * 7919 + c.stats.served * 13 + 1);
   const events = dayEvents(c);
   const ids = events.map((e) => e.id);
@@ -235,6 +246,17 @@ export function planDay(c: CareerState) {
   // 2) A viral style brings a copycat.
   if (ids.includes('viralClip') && c.viralStyle) {
     queue.push({ customer: 'copycat', reason: 'copycat', note: `Muốn y hệt kiểu “${c.viralStyle.name}” trên mạng`, wantStyle: c.viralStyle.id });
+  }
+
+  // 2b) Cuốn mẫu: from day 2, one customer a day picks a design you created in the Xưởng
+  //     (the model it was made on if they are free today, otherwise another walk-in).
+  if (c.day >= 2 && catalog.length) {
+    const e = catalog[c.day % catalog.length];
+    const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && !queue.some((q) => q.customer === d.id);
+    const model = CUSTOMERS.find((x) => x.id === e.customer);
+    const others = CUSTOMERS.filter((d) => ok(d) && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)));
+    const who = model && ok(model) ? model : others.length ? others[Math.floor(rng() * others.length) % others.length] : null;
+    if (who) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu “${e.name}” trong cuốn mẫu của tiệm`, designId: e.id });
   }
 
   // 3) Walk-ins, weighted, no duplicates; drama lovers more likely after a viral clip.
@@ -413,6 +435,12 @@ export function applyRound(c: CareerState, s: RoundState): Served {
     walkedOut: r.walkedOut,
     reason: q?.reason ?? 'walkin',
   };
+  // A catalog design done well: word of mouth.
+  if (q?.reason === 'design' && !r.walkedOut && (r.tier === 'love' || r.tier === 'ok')) {
+    c.viral = clamp(c.viral + 2, 0, 100);
+    served.viralDelta = Math.round((served.viralDelta + 2) * 10) / 10;
+  }
+  if (q?.designId) served.designId = q.designId;
   const done = updateQuests(c, s, served);
   if (done.length) served.quests = done.map((q) => q.label);
   c.today.served.push(served);
@@ -481,9 +509,9 @@ export function endDay(c: CareerState): DaySummary {
 }
 
 /** Starts the next day (after the summary / shopping). */
-export function nextDay(c: CareerState) {
+export function nextDay(c: CareerState, catalog: CatalogEntry[] = []) {
   c.day++;
-  planDay(c);
+  planDay(c, catalog);
 }
 
 /* ------------------------------------------------------------------ shop */

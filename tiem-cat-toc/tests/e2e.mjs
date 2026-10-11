@@ -576,13 +576,14 @@ async function finishAndWait(page) {
   await drag(page, [[90, 250], [310, 250]], { steps: 12 });
   const s1 = await st();
   check('Xưởng: one stroke = one undo step', s1.len < s0.len && s1.undo === 1, `undo=${s1.undo}`);
-  await page.click('[data-testid=studio-mode-brush]');
-  await page.click('[data-testid=studio-color-4]');
-  await page.check('[data-testid=studio-blend]');
+  await page.click('[data-testid=tool-brush]');
+  await page.click('[data-testid=art-color-4]');
+  await page.check('[data-testid=art-blend]');
   await drag(page, [[130, 170], [200, 150], [270, 170], [260, 225], [140, 225]], { steps: 8 });
   const s2 = await st();
   check('Xưởng: colour brush dyes without cutting', s2.tinted > 0.3 && Math.abs(s2.len - s1.len) < 0.01, `tinted=${s2.tinted.toFixed(2)}`);
-  await page.click('[data-testid=studio-stencil-star]');
+  await page.click('[data-testid=tool-stencil]');
+  await page.click('[data-testid=art-stencil-star]');
   const sp = await toClient(page, 200, 175);
   await page.mouse.click(sp.x, sp.y);
   const s3 = await st();

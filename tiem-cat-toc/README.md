@@ -177,16 +177,32 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
 - **Xem lại 5 giây** ở màn kết quả và **Tải video** (WebM hoặc MP4 tùy trình duyệt, quay bằng MediaRecorder ngay trong trình duyệt).
 - Hiệu năng: đo bằng Chromium giả lập CPU chậm trên khung điện thoại 390×844: ~60 fps ở tốc độ thường, ~35 fps khi chậm 4×, ~21 fps khi chậm 6×. Đã cache đường vẽ từng lọn tóc, cô lập vùng vẽ sân khấu và ghi nhớ ảnh mẫu; phần lớn thời gian còn lại là trình duyệt tô SVG.
 
+## Sáng tạo là vòng chơi chính (Mở Tiệm)
+
+1. **Mua đồ nghề sáng tạo ở Cửa hàng:**
+   - **Cọ Nhuộm** (160k, 4 màu cơ bản) và **Khuôn Cạo Hình** (200k, tia sét, ngôi sao, sọc).
+   - Nâng cấp **Bảng Màu Mở Rộng** (10 màu, màu tự chọn, nhuộm loang; Súng Tóc cũng bắn màu bạn chọn).
+   - Nâng cấp **Khuôn Cạo Cao Cấp** (trái tim, răng cưa, chữ tự gõ, chỉnh cỡ).
+2. **Dùng ngay khi cắt cho khách thật.** Mỗi khách có gu riêng về hình cạo:
+   - Mê: Tí Sún, Tèo, Khoa, Na Bông.
+   - Ghét: Chú Bảy, Thầy Long, Chị Linh, Chú Rể, Bà Thanh Tra.
+   - Có tên kiểu tóc mới: *Đầu Có Chữ Ký*, *Tranh Tường Di Động*, *Hoàng Hôn Trên Đỉnh Đầu*, *Một Nét Cá Tính*.
+3. **Sau giờ đóng cửa: “🎨 Ra Xưởng tạo mẫu”.**
+   - Tạo kiểu trên những khách đã từng ghé, chỉ bằng đồ nghề đã mua.
+   - Lưu vào Sổ kiểu tóc. Sổ này chính là **cuốn mẫu của tiệm**.
+4. **Từ ngày 2, mỗi ngày có một khách chọn mẫu trong cuốn mẫu.**
+   - Mẫu được dựng lại trên đầu người đặt: độ dài theo tỉ lệ, hình cạo co giãn theo đầu.
+   - Phiếu yêu cầu hiện đúng tác phẩm của bạn và chấm độ dài từng vùng, màu, từng hình cạo.
+   - Làm tốt thì được trả ×1,3, tiền boa ×1,5 và +2 Viral; sổ ghi “được đặt N lần”.
+5. **Tường tác phẩm:** 3 mẫu mới nhất treo trên tường tiệm.
+   - Màn kết quả có “📷 Chụp ảnh & lưu mẫu”, nên kiểu cắt đẹp cho khách thật cũng thành mẫu.
+
 ## Xưởng Tạo Kiểu (sáng tạo tự do)
 
 Vào từ nút **🎨 Xưởng Tạo Kiểu** ở thẻ khách (chế độ tự do), link trên biển hiệu, hoặc `?mode=studio`.
 - **Không chấm điểm, không tính giờ:** người mẫu ngồi yên, không quay đầu, không bỏ về.
 - **Chọn người mẫu** là bất kỳ khách nào. Dùng được mọi dụng cụ và Gương Thần.
-- **Ba chế độ thao tác:**
-  - ✂ Dụng cụ: Súng Tóc 3000 bắn đúng màu đang chọn.
-  - 🖌 Cọ nhuộm: tô màu mà không làm đổi kiểu tóc.
-  - ⚡ Cạo hình: cạo theo khuôn tia sét, ngôi sao, trái tim, sọc, răng cưa, hoặc chữ tự gõ (tối đa 8 ký tự).
-- **Màu:** bảng 10 màu, chọn màu tự do, và **loang 2 màu** từ đỉnh đầu xuống đuôi tóc.
+- **Có sẵn mọi dụng cụ**, kể cả **Cọ Nhuộm** và **Khuôn Cạo Hình** với đủ 10 màu, màu tự chọn, loang 2 màu và mọi khuôn: tia sét, ngôi sao, trái tim, sọc, răng cưa, chữ tự gõ (tối đa 8 ký tự).
 - **Hoàn tác / Làm lại** (cả Ctrl+Z / Ctrl+Y), và nút "Tóc gốc" để làm lại từ đầu.
 - **📷 Chụp ảnh:**
   - Tự đặt tên kiểu tóc và lời chú thích.
@@ -217,7 +233,9 @@ src/game/request.ts    phiếu yêu cầu: điều kiện từng khách, tick tr
 src/game/quests.ts     nhiệm vụ trong ngày
 src/game/album.ts      Album Gương Thần
 src/game/daily.ts      thử thách hằng ngày + bảng xếp hạng trên máy
-src/game/studio.ts     Xưởng Tạo Kiểu: cọ nhuộm, cạo hình, hoàn tác, sổ kiểu tóc; photoExport.ts xuất ảnh
+src/game/art.ts        Cọ Nhuộm, Khuôn Cạo Hình, bộ đồ nghề theo đồ đã mua
+src/game/studio.ts     Xưởng Tạo Kiểu: hoàn tác, sổ kiểu tóc; creation.ts lưu tác phẩm; photoExport.ts xuất ảnh
+src/game/design.ts     cuốn mẫu: khách đặt theo mẫu, chấm độ giống mẫu
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
                        MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, StudioPanels, PhotoComposition

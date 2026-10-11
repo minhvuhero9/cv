@@ -1,10 +1,30 @@
 import type { ReactNode } from 'react';
 import { MirrorFrame } from './MirrorPicker';
+import { useMemo } from 'react';
+import { Creation, creationHair } from '../game/creation';
+import { CUSTOMERS } from '../game/customers';
+import { measureHair } from '../game/metrics';
+import { applyLook, personaById } from '../game/mirror';
+import { Character } from './Character';
+
+function WorkFrame({ c }: { c: Creation }) {
+  const hair = useMemo(() => creationHair(c), [c]);
+  const d = CUSTOMERS.find((x) => x.id === c.customer) ?? CUSTOMERS[0];
+  const p = personaById(c.persona);
+  return (
+    <svg viewBox="20 20 360 340" className="work-frame">
+      <rect x={20} y={20} width={360} height={340} fill="#e8f6fb" stroke="#b8862b" strokeWidth={22} />
+      <Character look={p ? applyLook(d.look, p.look) : d.look} hair={hair} metrics={measureHair(hair)} mood={c.photo.mood} idPrefix={`wall-${c.id}`} />
+    </svg>
+  );
+}
 
 /** Things bought in the shop, hung on the wall / placed on the floor (career mode). */
-export function WallDecor({ owned }: { owned: string[] }) {
+export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Creation[] }) {
   const has = (id: string) => owned.includes(id);
   const items: { id: string; label: string; art: ReactNode }[] = [];
+  // Tường tác phẩm: the newest pages of the catalog, framed.
+  for (const w of works) items.push({ id: `work-${w.id}`, label: w.name, art: <WorkFrame c={w} /> });
   if (has('award'))
     items.push({
       id: 'award',

@@ -3,6 +3,21 @@ import type { ToolId } from '../game/tools';
 /** Tool artwork in a 40×40 box. Used by the toolbar buttons and the magic-tool cursors. */
 export function ToolArt({ id }: { id: ToolId }) {
   switch (id) {
+    case 'brush':
+      return (
+        <g>
+          <path d="M26,4 L34,12 L18,28 L12,22Z" fill="#c99a5b" stroke="#6b4a22" strokeWidth={1.8} />
+          <path d="M12,22 L18,28 L14,32 Q8,38 3,37 Q4,32 8,26Z" fill="#ff3fa4" stroke="#a3305e" strokeWidth={1.8} />
+          <circle cx={8} cy={33} r={2} fill="#18c8ff" />
+        </g>
+      );
+    case 'stencil':
+      return (
+        <g>
+          <rect x={4} y={4} width={32} height={32} rx={5} fill="#d9dde2" stroke="#4a4f57" strokeWidth={2} />
+          <path d="M18,8 L26,8 L21,18 L28,18 L15,33 L19,21 L12,21Z" fill="#fff8e8" stroke="#4a4f57" strokeWidth={1.5} />
+        </g>
+      );
     case 'clipper':
       return (
         <g>

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { measureHair } from './metrics';
 import { pointerDown, pointerMove, pointerUp, setTool, tick } from './session';
-import { BOOK_MAX, brush, carve, creationHair, deleteFromBook, loadBook, mixColor, openCreation, pushUndo, redo, resetHair, saveToBook, snapCreation, studioRound, undo } from './studio';
+import { BOOK_MAX, brush, carve, creationHair, deleteFromBook, loadBook, openCreation, pushUndo, redo, resetHair, saveToBook, snapCreation, studioRound, undo } from './studio';
+import { mixColor } from './art';
 
 function memoryStore(): Storage {
   const m = new Map<string, string>();
@@ -34,9 +35,9 @@ describe('Xưởng Tạo Kiểu', () => {
   it('brush dyes without changing length; blend fades top → bottom', () => {
     const s = studioRound('tuan');
     const len = measureHair(s.hair).avg;
-    s.studio!.colorA = '#ff0000';
-    s.studio!.colorB = '#0000ff';
-    s.studio!.blend = true;
+    s.art.colorA = '#ff0000';
+    s.art.colorB = '#0000ff';
+    s.art.blend = true;
     for (const p of [{ x: 200, y: 160 }, { x: 130, y: 230 }, { x: 270, y: 230 }]) brush(s, p);
     const m = measureHair(s.hair);
     expect(m.tintedFrac).toBeGreaterThan(0.1);
@@ -47,13 +48,13 @@ describe('Xưởng Tạo Kiểu', () => {
 
   it('stencils carve a pattern into the scalp, only on the head', () => {
     const s = studioRound('tuan');
-    s.studio!.stencil = 'bolt';
+    s.art.stencil = 'bolt';
     expect(carve(s, { x: 200, y: 175 })).not.toBeNull();
     expect(s.hair.carvings).toHaveLength(1);
     expect(s.hair.tufts.some((t) => t.len === 2)).toBe(true);
     expect(carve(s, { x: 30, y: 30 })).toBeNull();
-    s.studio!.stencil = 'text';
-    s.studio!.text = 'abc';
+    s.art.stencil = 'text';
+    s.art.text = 'abc';
     expect(carve(s, { x: 200, y: 190 })!.text).toBe('ABC');
   });
 
@@ -89,7 +90,7 @@ describe('Xưởng Tạo Kiểu', () => {
   it('saves to the book and reopens the exact creation (hair, carvings, persona, photo)', () => {
     const store = memoryStore();
     const s = studioRound('khoa');
-    s.studio!.colorA = '#00ff00';
+    s.art.colorA = '#00ff00';
     brush(s, { x: 200, y: 160 });
     carve(s, { x: 200, y: 175 });
     const c = snapCreation(s, 'Tên của tôi', 'Chú thích', photo);
