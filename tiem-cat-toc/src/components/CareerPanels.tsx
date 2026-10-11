@@ -1,6 +1,6 @@
 import { DEFAULT_NAME } from '../game/shopStyle';
 import { useState } from 'react';
-import { CareerState, DaySummary, canBuy, repairCost, shopLevel, vnd } from '../game/career';
+import { CareerState, DaySummary, WeekReport, canBuy, repairCost, shopLevel, vnd } from '../game/career';
 import { customerById } from '../game/customers';
 import { CATEGORY_LABEL, MACHINES, SHOP, ShopCategory } from '../game/shop';
 import { TOOLS } from '../game/tools';
@@ -115,6 +115,16 @@ export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook }: { c:
             Mỗi ngày có vài khách. Cắt khéo thì được tiền và <b>Uy tín</b>; cắt thảm họa có khi lại được <b>Viral</b>. Cuối ngày trả tiền thuê, tiền điện. Dành tiền mua đồ ở <b>Cửa hàng</b>.
           </p>
         )}
+        {TIPS[c.day] && (
+          <div className="tips-box" data-testid="day-tips">
+            <div className="intro-label">💡 Mẹo hôm nay</div>
+            <ul>
+              {TIPS[c.day].map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {c.today.events.length > 0 && (
           <div className="events" data-testid="day-events">
             {c.today.events.map((e) => (
@@ -182,6 +192,56 @@ export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook }: { c:
   );
 }
 
+/** Gentle help for the first days (days 1–3 are also easier in the chair). */
+const TIPS: Record<number, string[]> = {
+  1: [
+    'Ngày đầu khách dễ tính hơn: kiên nhẫn lâu hơn, ít quay đầu, có thêm 15 giây.',
+    'Bật “Đường viền xanh” và cắt theo nó; phiếu yêu cầu bên trái tích ✓ khi đúng.',
+    'Kéo một đường qua tóc để cắt. Tông đơ đứng yên một chỗ là trọc!',
+  ],
+  2: [
+    'Hôm nay khách vẫn dễ hơn một chút. Từ ngày 3 là thật sự rồi đấy.',
+    'Khách “tùy thợ” không có mẫu: xem gu Thích/Ghét trên phiếu và tự sáng tạo. Hợp gu từ 75% là kiểu đó vào cuốn mẫu.',
+  ],
+  3: [
+    'Khách có câu chuyện bắt đầu ghé: làm tốt chương này họ quay lại chương sau, cuối truyện có thưởng lớn.',
+    'Ngày 4 có Cuộc thi tóc của phường. Bấm “🎨 Trang trí tiệm” để đặt tên và sơn tiệm theo ý bạn.',
+  ],
+};
+
+function WeekBox({ w }: { w: WeekReport }) {
+  return (
+    <div className="week-box" data-testid="week-report">
+      <div className="intro-label">📊 Báo cáo tuần (ngày {w.from}–{w.to})</div>
+      <ul>
+        <li>
+          Phục vụ <b>{w.customers}</b> khách, hài lòng trung bình <b>{w.avgSat}%</b>, lãi cả tuần{' '}
+          <b className={w.net >= 0 ? 'up' : 'down'}>
+            {w.net >= 0 ? '+' : ''}
+            {vnd(w.net)}
+          </b>
+        </li>
+        {w.best && (
+          <li>
+            Khách ưng nhất: <b>{w.best.name}</b> với kiểu “{w.best.styleName}” ({w.best.sat}%)
+          </li>
+        )}
+        {w.topStyle && (
+          <li>
+            Kiểu làm nhiều nhất: <b>“{w.topStyle.name}”</b> ({w.topStyle.count} lần)
+          </li>
+        )}
+        {w.regulars.length > 0 && <li>Khách quen: {w.regulars.map((r) => `${r.name} (${r.visits} lần)`).join(', ')}</li>}
+        <li>
+          Đặt theo cuốn mẫu: {w.catalogOrders} · Khách tùy thợ: {w.freestyle}
+        </li>
+        {w.trophies.length > 0 && <li>Cúp: {w.trophies.join(', ')}</li>}
+        {w.stories.length > 0 && <li>Câu chuyện trọn vẹn: {w.stories.join(', ')}</li>}
+      </ul>
+    </div>
+  );
+}
+
 /** Evening: what came in, what went out, what tomorrow looks like. */
 export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onBook?(): void }) {
   const totalCost = sum.costs.reduce((a, x) => a + x.amount, 0);
@@ -204,6 +264,7 @@ export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerStat
             ))}
           </tbody>
         </table>
+        {sum.week && <WeekBox w={sum.week} />}
         {sum.served.some((x) => x.story || x.contest) && (
           <ul className="story-log" data-testid="story-log">
             {sum.served.map((x, i) =>

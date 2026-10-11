@@ -2759,3 +2759,23 @@ button {
 .share-challenge small {
   font-size: 11px;
 }
+
+/* ---------------- Mẹo ngày đầu, báo cáo tuần ---------------- */
+.tips-box,
+.week-box {
+  background: #eef7ff;
+  border: 2px solid #3d6fd8;
+  border-radius: 12px;
+  padding: 6px 10px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+.tips-box ul,
+.week-box ul {
+  margin: 2px 0 0;
+  padding-left: 18px;
+}
+.week-box {
+  background: #fff6d6;
+  border-color: #c9952b;
+}

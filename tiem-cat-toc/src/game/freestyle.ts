@@ -242,9 +242,9 @@ export const isContest = (t: Taste | null | undefined) => !!t && t.id.startsWith
 
 /** Contest prize by the judges' score. */
 export function contestPrize(score: number): { rank: 1 | 2 | 3; label: string; money: number; viral: number } | null {
-  if (score >= 90) return { rank: 1, label: 'Giải Nhất', money: 300000, viral: 8 };
-  if (score >= 75) return { rank: 2, label: 'Giải Nhì', money: 150000, viral: 5 };
-  if (score >= 60) return { rank: 3, label: 'Giải Ba', money: 80000, viral: 3 };
+  if (score >= 90) return { rank: 1, label: 'Giải Nhất', money: 200000, viral: 8 };
+  if (score >= 75) return { rank: 2, label: 'Giải Nhì', money: 120000, viral: 5 };
+  if (score >= 60) return { rank: 3, label: 'Giải Ba', money: 60000, viral: 3 };
   return null;
 }
 

@@ -182,7 +182,7 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
 
 **Cấp tiệm:** Tiệm Hẻm → Tiệm Mặt Phố → Salon Có Tiếng → Salon Nghệ Thuật → Học Viện Bất Ổn.
 
-- **Kinh nghiệm** đến từ kết quả thật: độ hài lòng, làm đúng mẫu, dùng nghệ thuật, nhiệm vụ, khách trùm.
+- **Kinh nghiệm** đến từ kết quả thật: độ hài lòng, làm đúng mẫu, khách tùy thợ, câu chuyện, cuộc thi, dùng nghệ thuật, nhiệm vụ, khách trùm. Mốc lên cấp: 80 / 220 / 430 / 700.
 - **Mỗi cấp mở thêm:**
   - Đồ nghề trong cửa hàng: Cọ Nhuộm ở cấp 2; Khuôn Cạo và Gương Thần ở cấp 3; Bảng Màu Mở Rộng ở cấp 4; Khuôn Cạo Cao Cấp ở cấp 5.
   - Mẫu khó hơn.
@@ -239,7 +239,7 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
   - *Đêm nhạc của Long Rốc* (từ ngày 6, cấp 3): quán cà phê, rồi sân khấu lớn. Thưởng 200k, Viral +12.
 - **Cuộc thi tóc của phường** (ngày 4, 11, 18…): một người mẫu đến, đề thi đổi theo tuần (Mùa Hè Rực Rỡ, Siêu Anh Hùng, Cổ Điển Lịch Lãm, Lễ Hội Ánh Sáng khi có Cọ Nhuộm).
   - Bạn tự sáng tạo theo đề; giám khảo chấm theo phiếu, có 90 giây.
-  - Giải Ba từ 60% (80k), Nhì từ 75% (150k), Nhất từ 90% (300k). Cúp được lưu lại.
+  - Giải Ba từ 60% (60k), Nhì từ 75% (120k), Nhất từ 90% (200k). Cúp được lưu lại.
 - Tiền thưởng hiện riêng trong sổ cuối ngày (“Giải thưởng & câu chuyện”). Bảng tổng kết kể lại diễn biến câu chuyện và báo trước ngày mai có ai quay lại hay có cuộc thi.
 
 ## Tiệm của riêng bạn và thách bạn bè
@@ -258,6 +258,22 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
 - **🔗 Thách bạn bè:** trong cuốn mẫu (mở từ màn sáng sớm hoặc tổng kết), mỗi mẫu có nút “Thách bạn bè” để tạo một link ngắn (mẫu được nén vào link, không cần máy chủ).
   - Người mở link được ngồi đúng khách đó, có đủ đồ nghề, cắt theo mẫu với “📐 Giống mẫu N%”.
   - Xong thì thấy “Bạn đạt N%” và có thể thử lại.
+
+## Cảm giác chơi và cân bằng
+
+- **Ngày đầu dễ thở:** ngày 1 khách kiên nhẫn lâu hơn (mất kiên nhẫn chậm hơn 45%), có thêm 15 giây và ít quay đầu hẳn; ngày 2 dễ bằng một nửa; từ ngày 3 là thật.
+- **Mẹo hôm nay:** ngày 1–3 buổi sáng có 2–3 mẹo ngắn theo đúng thứ sắp gặp (đường viền, khách tùy thợ, câu chuyện, cuộc thi, trang trí tiệm).
+- **📊 Báo cáo tuần** (tối ngày 7, 14, …) gồm:
+  - số khách, hài lòng trung bình, lãi cả tuần;
+  - khách ưng nhất và kiểu làm nhiều nhất;
+  - khách quen, số lượt đặt theo cuốn mẫu và số khách tùy thợ;
+  - cúp và câu chuyện trọn vẹn.
+- **Cân bằng bằng mô phỏng 14 ngày** (ba mức tay nghề, tự mua đồ khi dư tiền):
+  - Mốc lên cấp tăng lên 80 / 220 / 430 / 700 (trước đó người chơi giỏi đạt cấp 5 vào ngày 9–10).
+  - Tiền thuê tăng 15k mỗi cấp.
+  - Giải cuộc thi giảm còn 200k / 120k / 60k.
+  - Khách VIP (500k) đến muộn hơn (từ ngày 5, uy tín 62) và không bao giờ bị chọn làm người mẫu hay khách đặt mẫu.
+  - Kết quả mô phỏng: người chơi yếu không vỡ nợ, lên cấp 3–4 vào ngày 14; trung bình lên cấp 4 vào khoảng ngày 10; giỏi lên cấp 4–5 vào khoảng ngày 9–12.
 
 ## Cấu trúc code
 
@@ -287,9 +303,13 @@ src/game/creation.ts   cuốn mẫu: lưu tác phẩm, dựng lại trên đầu
 src/game/design.ts     cuốn mẫu: khách đặt theo mẫu, chấm độ giống mẫu
 src/game/templates.ts  9 mẫu có sẵn (công thức dựng trên đầu bất kỳ khách nào)
 src/game/level.ts      cấp tiệm, kinh nghiệm, mở khóa
+src/game/freestyle.ts  khách tùy thợ (9 gu) và đề Cuộc thi tóc của phường
+src/game/stories.ts    khách có câu chuyện nhiều ngày
+src/game/shopStyle.ts  tiệm của riêng bạn (tên, màu, sắp xếp tường) và link thách bạn bè
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
-                       MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, PhotoBook, PhotoComposition, ArtBar
+                       MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, PhotoBook, PhotoComposition, ArtBar,
+                       ShopLookPanel
 src/audio/sfx.ts       âm thanh và nhạc nền WebAudio
 ```
 

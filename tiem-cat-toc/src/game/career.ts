@@ -105,6 +105,51 @@ export interface DaySummary {
   questMoney?: number;
   /** Contest prizes and story rewards. */
   bonusMoney?: number;
+  /** Every seventh evening: the week in review. */
+  week?: WeekReport;
+}
+
+export interface WeekReport {
+  from: number;
+  to: number;
+  customers: number;
+  avgSat: number;
+  net: number;
+  best: { name: string; styleName: string; sat: number } | null;
+  /** Customers who came more than once this week. */
+  regulars: { name: string; visits: number }[];
+  /** The style the shop made most often. */
+  topStyle: { name: string; count: number } | null;
+  catalogOrders: number;
+  freestyle: number;
+  trophies: string[];
+  stories: string[];
+}
+
+/** Builds the weekly report from the days kept since the last one. */
+export function weekReport(days: DaySummary[]): WeekReport {
+  const served = days.flatMap((d) => d.served).filter((s) => !s.walkedOut);
+  const all = days.flatMap((d) => d.served);
+  const visits = new Map<string, number>();
+  for (const s of all) visits.set(s.name, (visits.get(s.name) ?? 0) + 1);
+  const styles = new Map<string, number>();
+  for (const s of served) styles.set(s.styleName, (styles.get(s.styleName) ?? 0) + 1);
+  const top = [...styles.entries()].sort((a, b) => b[1] - a[1])[0];
+  const best = [...served].sort((a, b) => b.sat - a.sat)[0];
+  return {
+    from: days[0]?.day ?? 0,
+    to: days.at(-1)?.day ?? 0,
+    customers: all.length,
+    avgSat: served.length ? Math.round(served.reduce((a, s) => a + s.sat, 0) / served.length) : 0,
+    net: days.reduce((a, d) => a + d.net, 0),
+    best: best ? { name: best.name, styleName: best.styleName, sat: best.sat } : null,
+    regulars: [...visits.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name, n]) => ({ name, visits: n })),
+    topStyle: top ? { name: top[0], count: top[1] } : null,
+    catalogOrders: all.filter((s) => s.reason === 'design').length,
+    freestyle: all.filter((s) => s.reason === 'freestyle').length,
+    trophies: all.filter((s) => s.contest && s.contest.money > 0).map((s) => `${s.contest!.label} “${s.contest!.theme}”`),
+    stories: all.filter((s) => s.story?.finished).map((s) => s.story!.title),
+  };
 }
 
 export interface Pending {
@@ -147,6 +192,8 @@ export interface CareerState {
   bonusWalkins?: number;
   /** Tiệm của riêng bạn: name, paint, sign, wall arrangement. */
   look?: ShopLook;
+  /** Days since the last weekly report (summaries, for the report). */
+  weekDays?: DaySummary[];
   /** Cúp từ Cuộc thi tóc của phường. */
   trophies?: { day: number; theme: string; rank: number; label: string }[];
   today: {
@@ -320,7 +367,8 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   //     planned in the morning. They order a template your tools can do or, every other
   //     day once you have some, a design you saved yourself.
   const artShop = c.owned.includes('brush') || c.owned.includes('stencil');
-  const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)) && (!d.appear.minLevel || shopLevel(c).level >= d.appear.minLevel) && !queue.some((q) => q.customer === d.id);
+  // Models for catalog orders, tùy thợ and the contest: ordinary customers who could walk in today (not the VIP).
+  const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.id !== 'copycat' && d.id !== 'vip' && eligible(c, d, ids) && !queue.some((q) => q.customer === d.id);
   const fresh = artShop ? catalog.find((x) => x.id === c.freshDesign) : undefined;
   c.freshDesign = null;
   const own = fresh ?? (artShop && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null);
@@ -431,6 +479,9 @@ export function repMultiplier(c: CareerState) {
 }
 
 /** Everything the round needs to know about the shop for the current customer. */
+/** The first two days are gentler: day 1 fully, day 2 half. */
+export const easeFor = (day: number) => (day <= 1 ? 1 : day === 2 ? 0.5 : 0);
+
 export function roundContext(c: CareerState): Partial<RoundContext> {
   const q = c.today.queue[c.today.index];
   const ids = c.today.events.map((e) => e.id);
@@ -446,6 +497,7 @@ export function roundContext(c: CareerState): Partial<RoundContext> {
     returnHair: snap ? unsnap(snap, q.customer) : null,
     taste: q?.tasteId ?? null,
     story: q?.storyId ? { id: q.storyId, step: q.storyStep ?? 0 } : null,
+    ease: easeFor(c.day),
   };
 }
 
@@ -613,7 +665,8 @@ export function applyRound(c: CareerState, s: RoundState): Served {
 /* ------------------------------------------------------------------ end of day */
 
 export function rentFor(c: CareerState) {
-  return BASE_RENT + (c.owned.includes('bench') ? 15000 : 0) + (c.owned.includes('neon') ? 10000 : 0);
+  // A bigger shop (Cấp tiệm) sits on a better street: the rent goes up with it.
+  return BASE_RENT + (shopLevel(c).level - 1) * 15000 + (c.owned.includes('bench') ? 15000 : 0) + (c.owned.includes('neon') ? 10000 : 0);
 }
 
 export function dayCosts(c: CareerState): CostLine[] {
@@ -646,7 +699,7 @@ export function endDay(c: CareerState): DaySummary {
   for (const p of c.pending.filter((p) => p.day === next)) tomorrow.push(`${customerById(p.customer).name}: ${p.note}`);
   if (next % 3 === 0) tomorrow.push('Ngày mai có chợ phiên trước cửa tiệm.');
   if (next % 7 === 0) tomorrow.push(`Ngày mai có khách trùm cuối tuần: ${customerById(BOSSES[(next / 7 - 1) % BOSSES.length]).name}!`);
-  if (next % 7 === 4) tomorrow.push('Ngày mai có Cuộc thi tóc của phường: một người mẫu sẽ đến, giải Nhất 300.000đ!');
+  if (next % 7 === 4) tomorrow.push('Ngày mai có Cuộc thi tóc của phường: một người mẫu sẽ đến, giải Nhất 200.000đ!');
   for (const st of STORIES) {
     const pr = c.stories?.[st.id];
     if (pr?.state === 'active' && pr.due === next) tomorrow.push(`${customerById(st.customer).name} quay lại: ${st.chapters[pr.step].note}`);
@@ -671,6 +724,12 @@ export function endDay(c: CareerState): DaySummary {
     questMoney,
     bonusMoney,
   };
+  // Báo cáo tuần: every seventh evening, the week in review.
+  c.weekDays = [...(c.weekDays ?? []), { ...summary, week: undefined }].slice(-7);
+  if (c.day % 7 === 0) {
+    summary.week = weekReport(c.weekDays);
+    c.weekDays = [];
+  }
   c.lastSummary = summary;
   c.stats.days++;
   c.today.phase = 'closed';

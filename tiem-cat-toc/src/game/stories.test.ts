@@ -42,7 +42,7 @@ describe('khách mới theo cấp', () => {
     const lv1 = seen(0);
     expect(lv1.has('gamer')).toBe(true);
     expect(lv1.has('bep') || lv1.has('bavien') || lv1.has('rocker')).toBe(false);
-    const lv3 = seen(200);
+    const lv3 = seen(260);
     expect(lv3.has('bep') && lv3.has('bavien') && lv3.has('rocker')).toBe(true);
   });
 
@@ -125,10 +125,10 @@ describe('cuộc thi tóc của phường', () => {
     const sv = serve(c, 92);
     expect(sv.contest?.label).toBe('Giải Nhất');
     expect(c.trophies?.length).toBe(1);
-    expect(c.money).toBe(money + sv.paid + sv.tip + 300000);
+    expect(c.money).toBe(money + sv.paid + sv.tip + 200000);
     while (c.today.index < c.today.queue.length) serve(c, 50);
     const sum = endDay(c);
-    expect(sum.bonusMoney).toBe(300000);
+    expect(sum.bonusMoney).toBe(200000);
     expect(contestPrize(59)).toBeNull();
     expect(contestPrize(75)?.label).toBe('Giải Nhì');
   });

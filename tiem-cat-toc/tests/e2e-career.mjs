@@ -79,6 +79,7 @@ async function playDay(page) {
   await page.screenshot({ path: `${OUT}/K1-morning.png` });
   check('Cấp tiệm: the morning shows the shop level and what comes next', (await page.locator('[data-testid=level-card]').count()) === 1 && (await page.getAttribute('[data-testid=hud-level]', 'data-value')) === '1');
   check('Cuốn mẫu: no catalog orders before buying a creative tool', !c0.today.queue.some((q) => q.reason === 'design') && (await page.locator('[data-testid=catalog-tip]').count()) === 1);
+  check('Ngày đầu: the morning shows tips and the round is gentler', (await page.locator('[data-testid=day-tips] li').count()) === 3 && (await page.evaluate(() => window.__tctbo.state().ease)) === 1);
   check('Nhiệm vụ: the morning shows today\'s goals', (await page.locator('[data-testid=quests] li').count()) === 3 && c0.today.quests.length === 3);
   await page.click('[data-testid=open-day]');
   await playDay(page);

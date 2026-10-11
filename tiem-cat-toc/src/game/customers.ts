@@ -761,7 +761,7 @@ export const CUSTOMERS: CustomerDef[] = [
     pay: { base: 500000, tip: 200000 },
     repWeight: 3,
     viralWeight: 1.5,
-    appear: { minDay: 3, minRep: 55, weight: 1 },
+    appear: { minDay: 5, minRep: 62, weight: 1 },
     returns: { onDisaster: false, onLove: true },
     startTool: 'scissors',
   },
