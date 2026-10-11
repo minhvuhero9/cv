@@ -5,6 +5,47 @@ import { RoundState } from '../game/session';
 import { ToolId, toolDef } from '../game/tools';
 import { Served, vnd } from '../game/career';
 import { ToolIcon } from './ToolIcons';
+import { lengthWord, requestSheet } from '../game/request';
+import { SheetChecklist } from './RequestSheet';
+import { ReplayPlayer } from './ReplayPlayer';
+import type { Zone } from '../game/hair';
+
+const ZONES: [Zone, string][] = [
+  ['left', 'Trái'],
+  ['top', 'Đỉnh'],
+  ['right', 'Phải'],
+  ['fringe', 'Mái'],
+];
+
+/** Why the score is what it is: the request sheet ticked off, and each zone vs. the target. */
+function ZoneReport({ s }: { s: RoundState }) {
+  const sheet = requestSheet(s);
+  const t = sheet.target;
+  return (
+    <div className="zone-report" data-testid="zone-report">
+      <SheetChecklist s={s} sheet={sheet} final />
+      {t && (
+        <div className="zone-bars">
+          {ZONES.map(([z, name]) => {
+            const v = s.metrics.zone[z];
+            const off = v - t[z];
+            const good = Math.abs(off) <= 0.16;
+            return (
+              <div key={z} className={`zone-bar ${good ? 'good' : 'off'}`} data-testid={`zone-${z}`} title={`Muốn: ${lengthWord(t[z])}`}>
+                <span className="zone-name">{name}</span>
+                <span className="zone-track">
+                  <span className="zone-fill" style={{ width: `${Math.min(100, (v / 1.5) * 100)}%` }} />
+                  <span className="zone-target" style={{ left: `${Math.min(100, (t[z] / 1.5) * 100)}%` }} />
+                </span>
+                <span className="zone-verdict">{good ? 'Chuẩn' : off > 0 ? 'Dài quá' : 'Ngắn quá'}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   s: RoundState;
@@ -15,11 +56,13 @@ interface Props {
   onNext(): void;
   /** Career mode: what this customer did to the shop, and the next step's label. */
   career?: { served: Served; nextLabel: string } | null;
+  /** Daily challenge: this run's score and today's local leaderboard. */
+  daily?: { date: string; score: number; rank: number | null; board: { score: number; sat: number; style: string }[]; streak: number } | null;
 }
 
 const TIER_LABEL = { love: 'Mê tít', ok: 'Tạm hài lòng', meh: 'Lấn cấn', bad: 'Bực mình', disaster: 'Thảm họa' } as const;
 
-export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career }: Props) {
+export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, daily }: Props) {
   const r = s.result!;
   const [card, setCard] = useState<{ url: string; blob: Blob } | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
@@ -86,6 +129,7 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career }:
           ) : (
             <div className="card-loading">Đang in ảnh…</div>
           )}
+          <ReplayPlayer s={s} />
         </div>
         <div className="result-info">
           {career && (
@@ -98,6 +142,11 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career }:
               <span className="up">🔥 Viral +{career.served.viralDelta}</span>
             </div>
           )}
+          {career?.served.quests?.map((q) => (
+            <div key={q} className="quest-done" data-testid="quest-done">
+              🎯 Hoàn thành nhiệm vụ: <b>{q}</b>
+            </div>
+          ))}
           {newTools.length > 0 && (
             <div className="new-tools" data-testid="new-tools">
               {newTools.map((id) => (
@@ -111,6 +160,21 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career }:
               ))}
             </div>
           )}
+          {daily && (
+            <div className="daily-result" data-testid="daily-result">
+              <div>
+                🗓 Thử thách {daily.date.split('-').reverse().join('/')}: <b data-testid="daily-score">{daily.score}</b> điểm
+                {daily.rank ? ` · hạng ${daily.rank} trên máy này` : ''} · chuỗi {daily.streak} ngày
+              </div>
+              <ol>
+                {daily.board.map((x, i) => (
+                  <li key={i} className={x.score === daily.score && i + 1 === daily.rank ? 'me' : ''}>
+                    <b>{x.score}</b> — {x.style} ({x.sat}%)
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           {r.walkedOut && <div className="walked-out">KHÁCH ĐÃ BỎ VỀ GIỮA CHỪNG</div>}
           <div className="result-label">Kiểu tóc</div>
           <h2 className="result-style" data-testid="style-name" data-style-id={r.style.id}>
@@ -120,6 +184,7 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career }:
           <blockquote className="result-quote" data-testid="reaction">
             “{r.line}”
           </blockquote>
+          <ZoneReport s={s} />
           <p className="result-caption" data-testid="caption">
             {r.caption}
           </p>
@@ -127,7 +192,7 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career }:
             <div>
               <dt>Yêu cầu</dt>
               <dd>
-                “{s.customer.request} {s.customer.catch}”
+                “{s.requestText} {s.customer.catch}”
               </dd>
             </div>
             <div>

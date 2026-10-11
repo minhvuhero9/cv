@@ -86,7 +86,7 @@ export interface BodySpec {
   idle?: Idle;
 }
 
-export type Prop = 'helmet' | 'phoneStick' | 'schoolBag' | 'briefcase' | 'fan' | 'ringLight' | 'moneyFan' | 'cane' | 'phone';
+export type Prop = 'helmet' | 'phoneStick' | 'schoolBag' | 'briefcase' | 'fan' | 'ringLight' | 'moneyFan' | 'cane' | 'phone' | 'clipboard';
 
 export interface CustomerLook {
   skin: string;

@@ -179,7 +179,7 @@ export async function renderCard(s: RoundState): Promise<HTMLCanvasElement> {
   // Original request + satisfaction.
   ctx.font = `600 30px ${FONT}`;
   ctx.fillStyle = '#5a4630';
-  const req = wrap(ctx, `Yêu cầu: “${s.customer.request} ${s.customer.catch}” — Hài lòng ${r.sat}%`, CARD_W - 140);
+  const req = wrap(ctx, `Yêu cầu: “${s.requestText} ${s.customer.catch}” — Hài lòng ${r.sat}%`, CARD_W - 140);
   y += 6;
   for (const l of req.slice(0, 2)) {
     ctx.fillText(l, CARD_W / 2, y);

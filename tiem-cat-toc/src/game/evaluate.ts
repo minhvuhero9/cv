@@ -85,6 +85,8 @@ export interface RoundFacts {
   wantStyle?: string | null;
   /** Multipliers from the shop/upgrades (career mode). */
   payBonus?: number;
+  /** Multi-step requests: steps met. */
+  stagesDone?: number;
 }
 
 export interface StyleName {
@@ -550,6 +552,7 @@ export function evaluateRound(f: RoundFacts, rng: Rng): RoundResult {
       viewers: f.viewers ?? 0,
       styleId: preStyle,
       wantStyle: f.wantStyle ?? null,
+      stagesDone: f.stagesDone ?? 0,
     }),
   );
   const tier = reactionTier(sat);

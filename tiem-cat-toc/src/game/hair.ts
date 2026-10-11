@@ -45,6 +45,8 @@ export interface Tuft {
   grow: number;
   /** Keo Vĩnh Cửu: gel that never softens. */
   eternal: boolean;
+  /** 0..1 natural stiffness (wiry hair barely droops). */
+  stiff: number;
 }
 
 export interface HairStyleInit {
@@ -63,7 +65,17 @@ export interface HairStyleInit {
   head?: Partial<HeadShape>;
   /** Angle range (degrees) of the outline rows; wider = fur down the cheeks. */
   phiRange?: [number, number];
+  /** Chất tóc: changes the look and how the tools behave. */
+  texture?: HairTexture;
+  /** The cut they walk in with. */
+  cut?: 'sidePart' | 'mullet' | 'bowl';
 }
+
+/**
+ * straight: the default. curly: wavy, frizzes under the dryer. thin: see-through,
+ * goes bald much faster under the clipper. wiry: stiff "rễ tre", blunts the scissors.
+ */
+export type HairTexture = 'straight' | 'curly' | 'thin' | 'wiry';
 
 /** Head geometry the hair grows on (every customer can have a different skull). */
 export interface HeadShape {
@@ -76,6 +88,7 @@ export interface HeadShape {
 export interface HairState {
   tufts: Tuft[];
   head: HeadShape;
+  texture: HairTexture;
 }
 
 export function headShape(init?: Partial<HeadShape>): HeadShape {
@@ -130,7 +143,7 @@ export function createHair(init: HairStyleInit): HairState {
   const push = (
     t: Omit<
       Tuft,
-      'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke' | 'tint' | 'thick' | 'curl' | 'sculpt' | 'steamed' | 'grow' | 'eternal'
+      'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke' | 'tint' | 'thick' | 'curl' | 'sculpt' | 'steamed' | 'grow' | 'eternal' | 'stiff'
     >,
   ) => {
     const variance = 1 + (noise(id) - 0.5) * 2 * mess;
@@ -155,6 +168,7 @@ export function createHair(init: HairStyleInit): HairState {
       steamed: 0,
       grow: 0,
       eternal: false,
+      stiff: 0,
     });
     id++;
   };
@@ -216,6 +230,9 @@ export function createHair(init: HairStyleInit): HairState {
       gel: init.gel.fringe ?? 0,
     });
   }
+  applyCut(tufts, head, init.cut);
+  const texture = init.texture ?? 'straight';
+  applyTexture(tufts, texture);
   if (init.preBald) {
     const b = { x: head.cx + (init.preBald.x - HEAD.cx) * sx, y: head.cy + (init.preBald.y - HEAD.cy) * sy, r: init.preBald.r * Math.max(sx, sy) };
     for (const t of tufts) {
@@ -225,11 +242,38 @@ export function createHair(init: HairStyleInit): HairState {
       }
     }
   }
-  return { tufts, head };
+  return { tufts, head, texture };
+}
+
+/** Starting haircut: only lengths change (and origLen with them), so scores stay relative. */
+function applyCut(tufts: Tuft[], head: HeadShape, cut: HairStyleInit['cut']) {
+  if (!cut) return;
+  for (const t of tufts) {
+    let k = 1;
+    if (cut === 'sidePart' && t.kind === 'fringe') k = t.root.x < head.cx ? 1.35 : 0.65;
+    if (cut === 'mullet') k = t.kind === 'edge' && t.root.y > head.cy - head.ry * 0.25 ? 1.8 : t.kind === 'crown' ? 0.7 : 1;
+    if (cut === 'bowl' && t.kind === 'edge' && t.root.y > head.cy - head.ry * 0.05) k = 0.55;
+    t.origLen *= k;
+    t.len *= k;
+  }
+}
+
+function applyTexture(tufts: Tuft[], texture: HairTexture) {
+  for (const t of tufts) {
+    if (texture === 'curly') {
+      t.curl = (t.id % 2 === 0 ? 1 : -1) * 0.17;
+      t.fluff = 0.2;
+    } else if (texture === 'thin') {
+      t.thick = 0.62;
+    } else if (texture === 'wiry') {
+      t.stiff = 0.75;
+      t.thick = 1.15;
+    }
+  }
 }
 
 export function cloneHair(h: HairState): HairState {
-  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root }, sculpt: t.sculpt ? { ...t.sculpt } : null })), head: { ...h.head } };
+  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root }, sculpt: t.sculpt ? { ...t.sculpt } : null })), head: { ...h.head }, texture: h.texture };
 }
 
 /** Centre-line of a tuft as 4 points (root, two bends, tip). */
@@ -260,7 +304,7 @@ export function tuftPoints(t: Tuft): Vec[] {
     maxA = Math.PI / 2 + 0.6;
     minA = -Math.PI / 2 - 2;
   } else {
-    droop = (1 - t.gel * 0.5) * clamp(t.len / 60, 0, 1.25) * (1 - t.fluff * 0.6) * (t.kind === 'crown' ? 1.3 : 1);
+    droop = (1 - t.gel * 0.5) * clamp(t.len / 60, 0, 1.25) * (1 - t.fluff * 0.6) * (t.kind === 'crown' ? 1.3 : 1) * (1 - (t.stiff ?? 0) * 0.7);
     // Crown hair is swept back, never onto the face.
     maxA = t.kind === 'crown' ? 0.15 : Math.PI / 2 + 0.12;
     minA = t.kind === 'crown' ? -Math.PI - 0.15 : (-3 * Math.PI) / 2 - 0.12;
@@ -390,7 +434,10 @@ export function scissorsSweep(h: HairState, a: Vec, b: Vec, stroke: number): Cut
   for (const t of h.tufts) {
     if (t.bald || t.len < 2) continue;
     const along = crossLength(t, a, b);
-    if (along !== null) shorten(t, Math.max(1.5, along), stroke, res);
+    if (along === null) continue;
+    // Wiry hair: the scissors only get part of the way through on each pass.
+    const target = (t.stiff ?? 0) > 0.5 ? along + (t.len - along) * 0.45 : along;
+    shorten(t, Math.max(1.5, target), stroke, res);
   }
   return res;
 }
@@ -443,9 +490,11 @@ export function dryerBlow(h: HairState, p: Vec, dt: number, invert = false): Dry
     // Anti-gravity hair flies towards the nozzle instead (no customer uses it at the moment).
     if (invert) wind += Math.PI;
     const start = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
-    const stiff = t.spiked ? 0.25 : 1 - t.gel * 0.6;
+    const stiff = (t.spiked ? 0.25 : 1 - t.gel * 0.6) * (1 - (t.stiff ?? 0) * 0.6);
     t.lean = clamp(t.lean + clamp(angleDiff(start, wind), -1, 1) * s * 2.2 * stiff, -1.4, 1.4);
-    t.fluff = clamp(t.fluff + s * 0.9 * (1 - t.gel * 0.7), 0, 1);
+    // Curly hair frizzes up under hot air.
+    const frizz = h.texture === 'curly' ? 1.7 : 1;
+    t.fluff = clamp(t.fluff + s * 0.9 * frizz * (1 - t.gel * 0.7), 0, 1);
   }
   return out;
 }

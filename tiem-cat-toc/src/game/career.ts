@@ -6,6 +6,7 @@ import { makeRng, pick } from './rng';
 import type { RoundContext, RoundState } from './session';
 import { ELECTRIC, MACHINES, SHOP, ShopItem, shopItem } from './shop';
 import { TOOLS, ToolId } from './tools';
+import { Quest, planQuests, settleQuests, updateQuests } from './quests';
 
 /**
  * Chế độ Mở Tiệm: the multi-day shop simulation. Pure functions over CareerState so the
@@ -19,7 +20,7 @@ export const BASE_CUSTOMERS = 3;
 /** Viral gained from one customer that turns their hairstyle into tomorrow's trend. */
 export const VIRAL_TREND = 6;
 
-export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip';
+export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip' | 'boss';
 
 export interface QueueEntry {
   customer: string;
@@ -50,6 +51,8 @@ export interface Served {
   viralDelta: number;
   walkedOut: boolean;
   reason: QueueReason;
+  /** Goals completed by this round (labels). */
+  quests?: string[];
 }
 
 export interface CostLine {
@@ -70,6 +73,9 @@ export interface DaySummary {
   tomorrow: string[];
   /** How messy the shop was at closing (tomorrow's inspection). */
   mess: number;
+  /** Today's goals as they ended, and the bonus money they paid. */
+  quests?: Quest[];
+  questMoney?: number;
 }
 
 export interface Pending {
@@ -110,6 +116,10 @@ export interface CareerState {
     usage: Partial<Record<ToolId, number>>;
     repStart: number;
     viralStart: number;
+    /** Nhiệm vụ trong ngày (older saves don't have them). */
+    quests?: Quest[];
+    /** Styles first collected today. */
+    newStyles?: string[];
   };
   lastSummary: DaySummary | null;
 }
@@ -249,6 +259,12 @@ export function planDay(c: CareerState) {
     queue.push({ customer: chosen.id, reason: chosen.id === 'vip' ? 'vip' : 'walkin', note: pick(rng, ['Khách vãng lai', 'Đi ngang qua thấy biển', 'Hàng xóm giới thiệu']) });
   }
 
+  // 4) Every seventh day a boss customer closes the week.
+  if (c.day % 7 === 0) {
+    const boss = BOSSES[(c.day / 7 - 1) % BOSSES.length];
+    queue.push({ customer: boss, reason: 'boss', note: 'Khách trùm cuối tuần — làm hài lòng để nhận thưởng lớn' });
+  }
+
   c.today = {
     phase: 'morning',
     queue,
@@ -259,8 +275,14 @@ export function planDay(c: CareerState) {
     usage: {},
     repStart: c.rep,
     viralStart: c.viral,
+    quests: [],
+    newStyles: [],
   };
+  c.today.quests = planQuests(c, rng);
 }
+
+/** Weekly bosses, in rotation. */
+export const BOSSES = ['chure', 'thanhtra'];
 
 /* ------------------------------------------------------------------ rounds */
 
@@ -342,7 +364,10 @@ export function applyRound(c: CareerState, s: RoundState): Served {
   c.stats.served++;
   c.stats.earned += r.paid + r.tip;
   if (r.walkedOut) c.stats.walkouts++;
-  if (!c.styles.includes(r.style.id)) c.styles.push(r.style.id);
+  if (!c.styles.includes(r.style.id)) {
+    c.styles.push(r.style.id);
+    (c.today.newStyles ??= []).push(r.style.id);
+  }
   for (const e of Object.keys(s.events)) if (!c.events.includes(e)) c.events.push(e);
   // Consumables used, machine wear, shop mess.
   for (const [k, n] of Object.entries(s.consumed)) c.stock[k] = Math.max(0, (c.stock[k] ?? 0) - n);
@@ -388,6 +413,8 @@ export function applyRound(c: CareerState, s: RoundState): Served {
     walkedOut: r.walkedOut,
     reason: q?.reason ?? 'walkin',
   };
+  const done = updateQuests(c, s, served);
+  if (done.length) served.quests = done.map((q) => q.label);
   c.today.served.push(served);
   c.today.index++;
   c.today.phase = c.today.index >= c.today.queue.length ? 'closed' : 'open';
@@ -413,6 +440,8 @@ export function dayCosts(c: CareerState): CostLine[] {
 
 /** Closes the day: pays the costs, decays viral, writes the summary. */
 export function endDay(c: CareerState): DaySummary {
+  settleQuests(c);
+  const questMoney = (c.today.quests ?? []).filter((q) => q.done).reduce((a, q) => a + q.reward.money, 0);
   const costs = dayCosts(c);
   const revenue = c.today.served.reduce((a, s) => a + s.paid, 0);
   const tips = c.today.served.reduce((a, s) => a + s.tip, 0);
@@ -426,6 +455,7 @@ export function endDay(c: CareerState): DaySummary {
   const next = c.day + 1;
   for (const p of c.pending.filter((p) => p.day === next)) tomorrow.push(`${customerById(p.customer).name}: ${p.note}`);
   if (next % 3 === 0) tomorrow.push('Ngày mai có chợ phiên trước cửa tiệm.');
+  if (next % 7 === 0) tomorrow.push(`Ngày mai có khách trùm cuối tuần: ${customerById(BOSSES[(next / 7 - 1) % BOSSES.length]).name}!`);
   if (next % 4 === 0) tomorrow.push(c.owned.includes('generator') ? 'Ngày mai cắt điện, nhưng tiệm có máy phát.' : 'Ngày mai cắt điện luân phiên: máy dùng điện sẽ nghỉ.');
   const low = MACHINES.filter((m) => (c.condition[m] ?? 100) < 25 && (m === 'clipper' || m === 'dryer' || c.owned.includes(m)));
   if (low.length) tomorrow.push(`Máy sắp hỏng: ${low.map((m) => TOOLS.find((t) => t.id === m)?.name).join(', ')} — nên bảo dưỡng ở Cửa hàng.`);
@@ -435,12 +465,14 @@ export function endDay(c: CareerState): DaySummary {
     revenue,
     tips,
     costs,
-    net: revenue + tips - total,
+    net: revenue + tips + questMoney - total,
     repDelta: Math.round((c.rep - c.today.repStart) * 10) / 10,
     viralDelta: Math.round((viralBefore - c.today.viralStart) * 10) / 10,
     moneyAfter: c.money,
     tomorrow,
     mess: c.today.mess,
+    quests: (c.today.quests ?? []).map((q) => ({ ...q, reward: { ...q.reward } })),
+    questMoney,
   };
   c.lastSummary = summary;
   c.stats.days++;

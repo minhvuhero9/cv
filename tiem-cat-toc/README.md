@@ -81,7 +81,7 @@ Cắt đẹp thì có uy tín và tiền boa. Thảm họa có thể thành vira
 
 **Sự kiện theo ngày (có nguyên nhân):** chợ phiên (cứ 3 ngày), cắt điện luân phiên (ngày chia hết cho 4; máy dùng điện nghỉ trừ khi có máy phát), clip viral, kiểm tra vệ sinh, báo phường khen (uy tín ≥ 70), đánh giá 1 sao (uy tín < 30), biển neon.
 
-### 15 khách hàng
+### Khách hàng
 
 | Khách | Điểm khác biệt khi chơi |
 |---|---|
@@ -153,12 +153,36 @@ Mỗi khách có hộp sọ riêng (kích thước/vị trí đầu trong `hair.
 
 Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có; Mở Tiệm: mua trong cửa hàng). Mỗi khách soi được một lần, chọn một trong 6 phong cách **hư cấu**: Nữ TikToker Sang Chảnh, Giang Hồ Mạng Phông Bạt, Dân Chơi Tóc Dựng, Idol Livestream, Đại Gia Thích Thể Hiện, Cô Tám Hóng Biến. Mỗi phong cách có trang phục/phụ kiện/bóng dáng riêng (nơ, lô cuốn, tai mèo, tai nghe mic, dây chuyền to bản, quạt tiền đồ chơi…), xử lý tóc đặc trưng (nhuộm, dựng, xoăn, vuốt keo), đường viền kiểu tóc cần cắt, lời thoại và phản ứng khi soi gương riêng. Khách “hợp gu” thì mê, khách “ghét” thì nổi giận; biến hình là một sự cố cộng Chaos và người xem livestream; tên kiểu tóc trên thẻ kết quả ghi “· Bản <phong cách>”. Không dùng khuôn mặt, ảnh hay phát ngôn của người thật. Dữ liệu: `src/game/mirror.ts`.
 
+## Bản cập nhật lớn (4 giai đoạn)
+
+**1. Dễ hiểu, đã tay hơn**
+- **Phiếu yêu cầu** cho mọi khách: ảnh mẫu thu nhỏ (khi khách có hình kiểu tóc), danh sách điều kiện tự tick ✓ khi đạt, nút bật/tắt **đường viền xanh** trên đầu khách. Khách không chấm theo hình (Khoa, Na Bông, Anh Hai, Anh Phúc, Tèo…) có điều kiện riêng: “thật kịch tính”, “nhiều màu”, “xong trong 25 giây”, “che chỗ hói”…
+- Màn kết quả có **bảng chấm theo vùng** (trái / đỉnh / phải / mái: chuẩn, dài quá, ngắn quá) và phiếu yêu cầu đã chấm.
+- Hiệu ứng: cạo trọc lần đầu → quay chậm, rung màn hình, băng rôn “TOANG RỒI!”; mỗi điều kiện vừa đạt → chữ “Chuẩn!” lấp lánh và tiếng “ting”; sự cố lớn và combo cũng rung màn hình.
+- **Nhạc nền** tự tạo bằng WebAudio (không có file nhạc), nhịp nhanh dần và thêm lớp nhạc theo Chaos; chỉnh âm lượng trong Cài đặt.
+- **Hướng dẫn lần đầu**: bong bóng nhỏ dẫn qua một lần cắt (chọn dụng cụ → rê để cắt → xem phiếu → soi gương), không chặn thao tác, có nút “Bỏ qua”.
+
+**2. Tóc có tính cách**
+- Chất tóc: **xoăn** (Na Bông, Chị Diễm — sấy là xù), **mỏng** (Cụ Tư, Anh Phúc — lộ da đầu, tông đơ làm trọc nhanh hơn), **cứng như rễ tre** (Thầy Long, Tí Sún — ít rủ, kéo phải cắt mấy lượt).
+- Kiểu tóc mang vào tiệm: **rẽ ngôi lệch** (Anh Tuấn, Khoa, Chị Linh), **mullet** (Anh Hai, Fan Trend), **bát úp** (Tèo). Điểm vẫn tính theo tỉ lệ so với tóc lúc vào.
+
+**3. Mở Tiệm có mục tiêu**
+- **Nhiệm vụ trong ngày** (3 nhiệm vụ mỗi sáng: làm hài lòng N khách, không cạo trọc ai, biến hình mà khách vẫn vui, xong một khách trong 30 giây, thu đủ tiền…), thưởng tiền / Uy tín / Viral, hiện ở buổi sáng, trên thanh trạng thái, màn kết quả và tổng kết.
+- **Khách trùm cuối tuần** (ngày 7, 14, …): **Anh Cường Chú Rể** (4 bước: mai cưới, mẹ vợ và thợ ảnh thay nhau thêm yêu cầu) và **Bà Thanh Tra Phường** (3 bước, càng về sau càng khó, bước cuối chấm độ sạch sẽ). Mỗi bước chỉ hiện khi xong bước trước.
+- **Đồ mua về hiện trong tiệm**: biển neon, đèn sống ảo, bằng khen, cây phong thủy, biển thú cưng, Gương Thần treo tường, ghế chờ, máy phát, điều hòa thay quạt, ghế massage tím.
+- **Album Gương Thần** (nút 📖): sưu tập mọi cặp khách × phong cách, giữ điểm cao nhất, ô ★ là cặp “hợp gu”.
+
+**4. Chơi lại và khoe**
+- **Thử thách hằng ngày** (chế độ tự do, nút “🗓 Thử thách hôm nay” hoặc `?mode=free&daily=1`): cùng khách, cùng hạt giống, cùng luật cho cả ngày (chỉ dùng kéo / 45 giây / bắt buộc Gương Thần / máy sấy hỏng); bảng xếp hạng 5 lượt tốt nhất và chuỗi ngày chơi lưu trên máy.
+- **Xem lại 5 giây** ở màn kết quả và **Tải video** (WebM hoặc MP4 tùy trình duyệt, quay bằng MediaRecorder ngay trong trình duyệt).
+- Hiệu năng: đo bằng Chromium giả lập CPU chậm trên khung điện thoại 390×844: ~60 fps ở tốc độ thường, ~35 fps khi chậm 4×, ~21 fps khi chậm 6×. Đã cache đường vẽ từng lọn tóc, cô lập vùng vẽ sân khấu và ghi nhớ ảnh mẫu; phần lớn thời gian còn lại là trình duyệt tô SVG.
+
 ## Cấu trúc code
 
 ```
 src/game/hair.ts       mô hình tóc (lọn tóc, hình học) + thao tác tông đơ, kéo, máy sấy
 src/game/metrics.ts    đo đạc mái tóc: độ dài từng vùng, chỗ trọc, vệt trọc, keo, độ lệch, độ lởm chởm
-src/game/customers.ts  dữ liệu 3 khách hàng + hàm tính mức hài lòng
+src/game/customers.ts  dữ liệu khách hàng (kể cả khách trùm nhiều bước) + mức hài lòng
 src/game/session.ts    trạng thái lượt chơi, game loop, bộ luật sự kiện, Chaos, kiên nhẫn
 src/game/evaluate.ts   đặt tên kiểu tóc, phản ứng cuối, chú thích, điểm
 src/game/dialogue.ts   câu thoại theo tính cách × tình huống
@@ -170,8 +194,16 @@ src/game/progress.ts   tiến trình chế độ tự do (lưu trong trình duy�
 src/game/career.ts     chế độ Mở Tiệm: ngày, hàng khách, sự kiện, tiền, uy tín, viral, lưu
 src/game/shop.ts       danh mục cửa hàng
 src/game/behaviors.ts  module hành vi khách (ngủ gật, võ sư, livestream, chó…)
-src/components/        Character (SVG nhân vật), Stage, Panels, ResultPanel
-src/audio/sfx.ts       âm thanh WebAudio
+src/game/look.ts       dữ liệu tạo hình (mặt, thân, phụ kiện)
+src/game/mirror.ts     Gương Thần Biến Hình: 6 phong cách hư cấu
+src/game/request.ts    phiếu yêu cầu: điều kiện từng khách, tick trực tiếp
+src/game/quests.ts     nhiệm vụ trong ngày
+src/game/album.ts      Album Gương Thần
+src/game/daily.ts      thử thách hằng ngày + bảng xếp hạng trên máy
+src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
+src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
+                       MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer
+src/audio/sfx.ts       âm thanh và nhạc nền WebAudio
 ```
 
 ## Kiểm thử
@@ -184,4 +216,4 @@ npm run e2e                   # chơi thử tự động bằng Playwright/Chrom
 BASE_URL=http://localhost:4173/ npm run e2e   # chạy với bản build (npm run preview)
 ```
 
-Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900. Phần đồ nghề: dụng cụ bị khóa với người chơi mới, mở khóa sau một lượt, từng dụng cụ phép thuật, cả ba combo, đổi dụng cụ giữa chừng, chơi lại để reset, và thanh công cụ trên điện thoại (62 kiểm tra).
+Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900. Phần đồ nghề: dụng cụ bị khóa với người chơi mới, mở khóa sau một lượt, từng dụng cụ phép thuật, cả ba combo, đổi dụng cụ giữa chừng, chơi lại để reset, và thanh công cụ trên điện thoại (87 kiểm tra, gồm Gương Thần, phiếu yêu cầu, hiệu ứng, hướng dẫn, chất tóc, khách trùm, album, thử thách hằng ngày và tải video xem lại).

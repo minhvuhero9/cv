@@ -207,6 +207,23 @@ function FxItem({ f, u }: { f: Fx; u: number }) {
         </g>
       );
     }
+    case 'praise':
+      return (
+        <text x={f.x} y={f.y - 20 - u * 34} textAnchor="middle" fontSize={20} fontWeight={900} fill="#1f9d55" stroke="#fff" strokeWidth={5} paintOrder="stroke" opacity={fade} transform={`rotate(-6 ${f.x} ${f.y})`}>
+          {f.text}
+        </text>
+      );
+    case 'banner': {
+      const sc = u < 0.12 ? 2.2 - (u / 0.12) * 1.2 : 1;
+      return (
+        <g transform={`translate(200,${f.y}) scale(${sc.toFixed(2)}) rotate(-4)`} opacity={u > 0.8 ? (1 - u) / 0.2 : 1}>
+          <rect x={-130} y={-30} width={260} height={56} rx={10} fill="#d6332f" stroke="#2b1a12" strokeWidth={5} />
+          <text y={12} textAnchor="middle" fontSize={34} fontWeight={900} fill="#ffd23f" stroke="#2b1a12" strokeWidth={3} paintOrder="stroke">
+            {f.text}
+          </text>
+        </g>
+      );
+    }
     case 'overheat':
       return (
         <text x={f.x} y={f.y - 30 - u * 30} textAnchor="middle" fontSize={18} fontWeight={900} fill="#e0201a" stroke="#fff" strokeWidth={4} paintOrder="stroke" opacity={fade}>

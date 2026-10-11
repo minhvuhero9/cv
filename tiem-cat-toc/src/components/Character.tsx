@@ -40,7 +40,7 @@ function bezier(p: Vec[], t: number): Vec {
   return { x: a * p[0].x + b * p[1].x + c * p[2].x + d * p[3].x, y: a * p[0].y + b * p[1].y + c * p[2].y + d * p[3].y };
 }
 
-function bladePath(t: Tuft): string {
+function bladePathRaw(t: Tuft): string {
   const pts = tuftPoints(t);
   if (t.bald || t.len < 1) return '';
   if (t.spiked) {
@@ -72,7 +72,7 @@ function bladePath(t: Tuft): string {
   return `M${left.join('L')}L${right.reverse().join('L')}Z`;
 }
 
-function massPath(t: Tuft): string {
+function massPathRaw(t: Tuft): string {
   if (t.bald || t.len < 1 || t.spiked) return '';
   const [a, b, c, d] = tuftPoints(t);
   const f = (v: Vec) => `${v.x.toFixed(1)},${v.y.toFixed(1)}`;
@@ -95,6 +95,26 @@ function ghostPath(hair: HairState, ghost: Record<Zone, number>): string {
   const b = fringe.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L');
   return `M${a}M${b}`;
 }
+
+/**
+ * Tuft paths are the expensive part of a frame. Tufts are mutated in place, so cache by
+ * object and recompute only when something that shapes the tuft changed.
+ */
+const pathCache = new WeakMap<Tuft, { key: string; blade: string; mass: string }>();
+function shapeKey(t: Tuft): string {
+  const sc = t.sculpt ? `${t.sculpt.x.toFixed(1)},${t.sculpt.y.toFixed(1)}` : '';
+  return `${t.len.toFixed(2)}|${t.bald ? 1 : 0}|${t.spiked ? 1 : 0}|${t.lean.toFixed(3)}|${t.fluff.toFixed(3)}|${t.thick.toFixed(3)}|${t.curl.toFixed(3)}|${t.gel.toFixed(2)}|${t.stiff}|${t.root.x.toFixed(1)},${t.root.y.toFixed(1)}|${sc}`;
+}
+function cached(t: Tuft) {
+  const key = shapeKey(t);
+  const hit = pathCache.get(t);
+  if (hit && hit.key === key) return hit;
+  const v = { key, blade: bladePathRaw(t), mass: massPathRaw(t) };
+  pathCache.set(t, v);
+  return v;
+}
+const bladePath = (t: Tuft) => cached(t).blade;
+const massPath = (t: Tuft) => cached(t).mass;
 
 export function Character({ look, hair, metrics, mood, headOffset, ghost, highlightZone, pulse = 0, idPrefix, showDanger, t }: CharacterProps) {
   const off = headOffset ?? { x: 0, y: 0 };
@@ -133,7 +153,7 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
         {!dog && <path d={`M${f1(cx - g.rx * 0.6)},${f1(g.chinY - 8)} Q${cx},${f1(g.chinY + 4)} ${f1(cx + g.rx * 0.6)},${f1(g.chinY - 8)}`} fill="none" stroke={look.skinShade} strokeWidth={2} opacity={0.3} />}
 
         {/* hair base */}
-        <path d={capPath(g)} fill={look.hairColor} stroke={look.hairShade} strokeWidth={2} />
+        <path d={capPath(g)} fill={look.hairColor} stroke={look.hairShade} strokeWidth={2} opacity={hair.texture === 'thin' ? 0.45 : 1} />
         {/* bald patches on top of the base */}
         <g clipPath={`url(#${clipId})`}>
           {bald.map((tf) => (

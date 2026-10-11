@@ -3,6 +3,7 @@ import { BALD_DWELL, CLIPPER_RADIUS, DRYER_RADIUS } from '../game/hair';
 import type { Vec } from '../game/geometry';
 import { RoundState, Tool, currentMood } from '../game/session';
 import { Character } from './Character';
+import { requestSheet } from '../game/request';
 import { FxLayer, MagicCursor } from './MagicLayer';
 import { isMagic } from '../game/gear';
 
@@ -12,6 +13,10 @@ export const VIEW_NARROW = { x: 40, y: 20, w: 320, h: 500 };
 
 interface Props {
   s: RoundState;
+  /** Show the green outline of the target for any customer that has one. */
+  ghostOn?: boolean;
+  /** Barber chair: the Ghế Massage upgrade looks different. */
+  chair?: 'basic' | 'massage';
   narrow: boolean;
   now: number;
   onDown(p: Vec): void;
@@ -106,7 +111,7 @@ function maxDwell(s: RoundState): number {
   return m;
 }
 
-export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) {
+export function Stage({ s, ghostOn, chair = 'basic', narrow, now, onDown, onMove, onUp, onLeave }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const toStage = (e: React.PointerEvent): Vec => {
     const svg = svgRef.current!;
@@ -126,6 +131,8 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
   const warn = s.motion?.stage === 'warn';
   const shake = warn ? Math.sin(now / 25) * 1.6 : 0;
   const offset = { x: s.headOffset.x + shake, y: s.headOffset.y + (s.walkout ? -26 : 0) };
+  const sk = s.time < s.shakeUntil ? s.shakeAmp * Math.min(1, (s.shakeUntil - s.time) / 0.25) : 0;
+  const shakeT = sk > 0.2 ? `translate(${(Math.sin(now / 17) * sk).toFixed(1)},${(Math.cos(now / 23) * sk * 0.6).toFixed(1)})` : undefined;
 
   return (
     <svg
@@ -147,9 +154,26 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
       onPointerCancel={() => onUp()}
       onPointerLeave={() => onLeave()}
     >
+      <g transform={shakeT}>
       {/* chair back */}
-      <path d="M70,520 L84,330 Q200,300 316,330 L330,520Z" fill="#8b2e2a" stroke="#5a1b18" strokeWidth={4} />
-      <path d="M96,520 L106,345 Q200,322 294,345 L304,520Z" fill="#a93a34" />
+      {chair === 'massage' ? (
+        <g data-chair="massage">
+          <path d="M62,520 L76,322 Q200,288 324,322 L338,520Z" fill="#4b2a7a" stroke="#24123f" strokeWidth={4} />
+          <path d="M90,520 L100,340 Q200,314 300,340 L310,520Z" fill="#6a3fb0" />
+          <g fill="#9b7bdf" stroke="#24123f" strokeWidth={2}>
+            <circle cx={84} cy={370} r={7} />
+            <circle cx={316} cy={370} r={7} />
+            <circle cx={88} cy={410} r={7} />
+            <circle cx={312} cy={410} r={7} />
+          </g>
+          <circle cx={316} cy={330} r={5} fill="#3aff9a" />
+        </g>
+      ) : (
+        <g>
+          <path d="M70,520 L84,330 Q200,300 316,330 L330,520Z" fill="#8b2e2a" stroke="#5a1b18" strokeWidth={4} />
+          <path d="M96,520 L106,345 Q200,322 294,345 L304,520Z" fill="#a93a34" />
+        </g>
+      )}
       <g transform={mirror ? `translate(400,0) scale(-1,1)` : undefined}>
         <Character
           look={s.customer.look}
@@ -157,7 +181,7 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
           metrics={s.metrics}
           mood={mood}
           headOffset={offset}
-          ghost={showPhoto || (s.persona && cutting) ? s.customer.target : null}
+          ghost={cutting && (showPhoto || ghostOn) ? requestSheet(s).target : null}
           highlightZone={cutting && s.demand ? s.demand.zone : null}
           pulse={pulse}
           idPrefix="live"
@@ -182,6 +206,7 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
         ))}
       </g>
       <FxLayer s={s} />
+      </g>
       {showPhoto && <Phone s={s} />}
       {(warn || s.walkout) && (
         <g transform={`translate(${s.hair.head.cx + s.hair.head.rx + 6},${s.hair.head.cy - s.hair.head.ry - 20})`}>

@@ -31,6 +31,7 @@ export function setSfxVolume(masterVol: number, sfxVol: number) {
 export function setMuted(m: boolean) {
   muted = m;
   if (master) master.gain.value = m ? 0 : level;
+  if (musicGain) musicGain.gain.value = m ? 0 : musicLevel;
   if (m) stopLoop();
 }
 
@@ -86,6 +87,11 @@ let lastSnip = 0;
 export function playSfx(s: Sfx) {
   if (muted) return;
   switch (s) {
+    case 'good':
+      tone(880, 0.09, 'triangle', 0.22);
+      tone(1320, 0.12, 'triangle', 0.22, undefined, 0.08);
+      tone(1760, 0.16, 'sine', 0.16, undefined, 0.16);
+      break;
     case 'snip': {
       const now = performance.now();
       if (now - lastSnip < 70) return;
@@ -237,4 +243,104 @@ export function setToolLoop(tool: Tool | null) {
 function stopLoop() {
   loop?.stop();
   loop = null;
+}
+
+
+/* ------------------------------------------------------------------ music
+ * A small looping tune made on the fly (no files): bass, chords and a pentatonic
+ * melody. Tempo and layers follow the Chaos meter, so the shop gets frantic with it.
+ */
+let musicGain: GainNode | null = null;
+let musicLevel = 0.5 * 0.4;
+let musicTimer: ReturnType<typeof setInterval> | null = null;
+let nextNote = 0;
+let step = 0;
+let musicChaos = 0;
+let musicOn = false;
+
+export function setMusicVolume(masterVol: number, musicVol: number) {
+  musicLevel = 0.5 * masterVol * musicVol * 0.8;
+  if (musicGain) musicGain.gain.value = muted ? 0 : musicLevel;
+}
+
+/** Called every frame: 0..100 chaos; playing=false fades the music out (menus, results). */
+export function setMusicState(chaos: number, playing: boolean) {
+  musicChaos = chaos;
+  if (playing && !musicOn) startMusic();
+  else if (!playing && musicOn) stopMusic();
+  if (musicGain && ctx) musicGain.gain.setTargetAtTime(muted ? 0 : musicLevel, ctx.currentTime, 0.2);
+}
+
+// C major pentatonic, bouncy "cải lương meets chiptune" phrase (16 steps).
+const MELODY = [72, 0, 76, 79, 81, 0, 79, 76, 74, 0, 72, 74, 76, 0, 0, 0, 79, 0, 81, 84, 81, 0, 79, 76, 74, 76, 72, 0, 69, 0, 72, 0];
+const BASS = [48, 48, 55, 55, 45, 45, 52, 52];
+
+function midi(n: number) {
+  return 440 * Math.pow(2, (n - 69) / 12);
+}
+
+function note(c: AudioContext, freq: number, at: number, dur: number, type: OscillatorType, vol: number) {
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(vol, at + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  o.connect(g).connect(musicGain!);
+  o.start(at);
+  o.stop(at + dur + 0.02);
+}
+
+function hat(c: AudioContext, at: number, vol: number) {
+  const len = 0.04;
+  const b = c.createBuffer(1, Math.floor(c.sampleRate * len), c.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = c.createBufferSource();
+  src.buffer = b;
+  const f = c.createBiquadFilter();
+  f.type = 'highpass';
+  f.frequency.value = 7000;
+  const g = c.createGain();
+  g.gain.value = vol;
+  src.connect(f).connect(g).connect(musicGain!);
+  src.start(at);
+}
+
+function schedule() {
+  const c = ctx;
+  if (!c || !musicGain) return;
+  const bpm = 104 + musicChaos * 0.7;
+  const sixteenth = 60 / bpm / 4;
+  while (nextNote < c.currentTime + 0.25) {
+    const i = step % 32;
+    const tier = musicChaos >= 70 ? 3 : musicChaos >= 45 ? 2 : musicChaos >= 20 ? 1 : 0;
+    if (i % 4 === 0) note(c, midi(BASS[(i / 4) % 8]), nextNote, sixteenth * 3.5, 'triangle', 0.3);
+    if (MELODY[i]) note(c, midi(MELODY[i] + (tier >= 3 ? 1 : 0)), nextNote, sixteenth * 1.8, 'square', 0.06 + tier * 0.015);
+    if (tier >= 1 && i % 2 === 0) hat(c, nextNote, 0.05 + tier * 0.02);
+    if (tier >= 2 && i % 8 === 4) note(c, 90, nextNote, 0.12, 'sine', 0.35);
+    nextNote += sixteenth;
+    step++;
+  }
+}
+
+function startMusic() {
+  const c = ac();
+  if (!c) return;
+  if (!musicGain) {
+    musicGain = c.createGain();
+    musicGain.gain.value = 0;
+    musicGain.connect(c.destination);
+  }
+  musicOn = true;
+  nextNote = c.currentTime + 0.05;
+  if (!musicTimer) musicTimer = setInterval(schedule, 60);
+}
+
+function stopMusic() {
+  musicOn = false;
+  if (musicTimer) clearInterval(musicTimer);
+  musicTimer = null;
+  if (musicGain && ctx) musicGain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
 }

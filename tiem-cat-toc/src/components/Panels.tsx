@@ -6,6 +6,9 @@ import { GearStatus, gearStatus } from '../game/gear';
 import { RoundState, CHAOS_TIER_LABEL, Tool, chaosTier, timeLeft } from '../game/session';
 import { RARITY_LABEL, Rarity, TOOLS, ToolDef, ToolId, toolDef, unlockText } from '../game/tools';
 import { ToolIcon } from './ToolIcons';
+import { requestSheet } from '../game/request';
+import { DailyChallenge, RULE_TEXT } from '../game/daily';
+import { RefPicture, SheetChecklist } from './RequestSheet';
 
 export function Meter({ label, value, kind, testId, note }: { label: string; value: number; kind: 'patience' | 'chaos' | 'nerves'; testId: string; note?: string }) {
   return (
@@ -21,9 +24,10 @@ export function Meter({ label, value, kind, testId, note }: { label: string; val
   );
 }
 
-export function RequestCard({ s }: { s: RoundState }) {
+export function RequestCard({ s, ghost, onGhost }: { s: RoundState; ghost: boolean; onGhost(): void }) {
   const c = s.customer;
   const tier = chaosTier(s.chaos);
+  const sheet = requestSheet(s);
   return (
     <div className="request-card" data-testid="request-card">
       <div className="request-who">
@@ -31,9 +35,21 @@ export function RequestCard({ s }: { s: RoundState }) {
         <span className="request-title">{c.title}</span>
       </div>
       <p className="request-quote">
-        “{c.request} <em>{c.catch}</em>”
+        “{s.requestText} <em>{c.catch}</em>”
       </p>
       <p className="request-hint">{c.hint}</p>
+      <div className="req-sheet">
+        {sheet.target && <RefPicture s={s} target={sheet.target} />}
+        <div className="req-body">
+          <div className="req-title">Phiếu yêu cầu</div>
+          <SheetChecklist s={s} sheet={sheet} />
+          {sheet.target && (
+            <button className={`ghost-toggle ${ghost ? 'on' : ''}`} onClick={onGhost} data-testid="ghost-toggle" aria-pressed={ghost}>
+              {ghost ? '◉' : '○'} Đường viền xanh
+            </button>
+          )}
+        </div>
+      </div>
       <div className="meters">
         <Meter label="Kiên nhẫn" value={s.patience} kind="patience" testId="patience" />
         <Meter label={`Chaos · ${CHAOS_TIER_LABEL[tier]}`} value={s.chaos} kind="chaos" testId="chaos" />
@@ -157,11 +173,30 @@ export function Toolbar({ s, onTool, onFinish, extra }: { s: RoundState; onTool(
   );
 }
 
-export function IntroCard({ s, onStart, onPick, note }: { s: RoundState; onStart(): void; onPick?(c: CustomerDef): void; note?: string }) {
+export function IntroCard({
+  s,
+  onStart,
+  onPick,
+  note,
+  daily,
+  onDaily,
+}: {
+  s: RoundState;
+  onStart(): void;
+  onPick?(c: CustomerDef): void;
+  note?: string;
+  daily?: DailyChallenge | null;
+  onDaily?(): void;
+}) {
   const c = s.customer;
   return (
     <div className="overlay intro" data-testid="intro">
       <div className="intro-card">
+        {daily && (
+          <div className="daily-banner" data-testid="daily-banner">
+            🗓 <b>Thử thách ngày {daily.date.split('-').reverse().join('/')}</b> · {RULE_TEXT[daily.rule]}
+          </div>
+        )}
         <div className="intro-label">{note ?? 'Khách mới vào tiệm'}</div>
         <h2>{c.name}</h2>
         <div className="intro-title">{c.title}</div>
@@ -187,10 +222,15 @@ export function IntroCard({ s, onStart, onPick, note }: { s: RoundState; onStart
         <button className="primary-btn" onClick={onStart} data-testid="start" autoFocus>
           Mời ngồi — Bắt đầu cắt ✂
         </button>
+        {onDaily && !daily && (
+          <button className="daily-btn" onClick={onDaily} data-testid="daily">
+            🗓 Thử thách hôm nay — cùng khách, cùng luật với mọi người
+          </button>
+        )}
         {onPick && (
           <div className="queue">
             <span>Đổi khách:</span>
-            {CUSTOMERS.filter((o) => o.appear.weight > 0).map((o) => (
+            {CUSTOMERS.filter((o) => o.appear.weight > 0 || o.boss).map((o) => (
               <button key={o.id} className={`chip ${o.id === c.id ? 'is-active' : ''}`} onClick={() => onPick(o)} data-testid={`pick-${o.id}`}>
                 {o.name}
               </button>

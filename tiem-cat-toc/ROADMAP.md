@@ -50,6 +50,12 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] Bỏ Khách X-79; save cũ được làm sạch khi tải
 - [x] Gương Thần Biến Hình: 6 phong cách hư cấu, Bé Ba Hóa Thân thay chỗ khách cũ, mua trong shop
 
+## 12. Bản cập nhật 4 giai đoạn (đã xong)
+- [x] GĐ1: phiếu yêu cầu cho mọi khách, đường viền bật/tắt, chấm theo vùng, rung/quay chậm/“Chuẩn!”, nhạc nền theo Chaos, hướng dẫn lần đầu
+- [x] GĐ2: chất tóc xoăn/mỏng/cứng ảnh hưởng hình vẽ và dụng cụ; kiểu tóc mang vào (rẽ ngôi, mullet, bát úp)
+- [x] GĐ3: nhiệm vụ trong ngày, khách trùm cuối tuần nhiều bước, đồ mua hiện trong tiệm, Album Gương Thần
+- [x] GĐ4: thử thách hằng ngày + bảng xếp hạng trên máy, xem lại 5 giây + tải video, đo và giảm tải hiệu năng
+
 ## Việc tiếp theo nếu làm tiếp
 - [ ] Cân bằng kinh tế bằng người chơi thật (hiện mới cân chỉnh bằng mô phỏng)
 - [ ] Con Dấu Phán Quyết, Pháo Hoa Tạo Kiểu
