@@ -5,6 +5,7 @@ import { nameHairstyle } from '../game/evaluate';
 import { measureHair } from '../game/metrics';
 import type { RoundState } from '../game/session';
 import { downloadBlob } from '../game/share';
+import { challengeUrl } from '../game/shopStyle';
 import {
   BOOK_MAX,
   Creation,
@@ -217,6 +218,7 @@ function BookItem({ c, confirm, onAsk, onDelete }: { c: Creation; confirm: boole
         {c.orders ? ` · được đặt ${c.orders} lần` : ''}
       </small>
       <div className="book-actions">
+        <ShareChallenge c={c} />
         {confirm ? (
           <button className="secondary-btn danger" onClick={onDelete} data-testid="book-delete-confirm">
             Xóa thật?
@@ -228,5 +230,29 @@ function BookItem({ c, confirm, onAsk, onDelete }: { c: Creation; confirm: boole
         )}
       </div>
     </div>
+  );
+}
+
+/** Thách bạn bè: the design packed into a link; whoever opens it must copy it. */
+function ShareChallenge({ c }: { c: Creation }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const make = () => {
+    const u = challengeUrl(c);
+    setUrl(u);
+    navigator.clipboard?.writeText(u).then(
+      () => setCopied(true),
+      () => setCopied(false),
+    );
+  };
+  return url ? (
+    <div className="share-challenge" data-testid="challenge-link">
+      <input readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Link thử thách" />
+      <small>{copied ? 'Đã chép link! Gửi cho bạn bè để họ cắt thử.' : 'Chép link này gửi bạn bè.'}</small>
+    </div>
+  ) : (
+    <button className="secondary-btn" onClick={make} data-testid="book-challenge">
+      🔗 Thách bạn bè
+    </button>
   );
 }

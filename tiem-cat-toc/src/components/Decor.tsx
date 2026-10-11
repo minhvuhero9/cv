@@ -19,15 +19,38 @@ function WorkFrame({ c }: { c: Creation }) {
   );
 }
 
-/** Things bought in the shop, hung on the wall / placed on the floor (career mode). */
-export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Creation[] }) {
+export function TrophyShelf({ trophies }: { trophies: { rank: number; theme: string }[] }) {
+  const cups = trophies.slice(-5);
+  const color = (r: number) => (r === 1 ? '#ffd23f' : r === 2 ? '#d7dde4' : '#d08a4a');
+  return (
+    <svg viewBox="0 0 80 64">
+      <rect x={2} y={52} width={76} height={6} rx={2} fill="#8a5a33" />
+      {cups.map((t, i) => {
+        const x = 10 + i * 15;
+        return (
+          <g key={i} transform={`translate(${x},0)`}>
+            <path d="M-6,26 h12 v6 c0,6 -4,9 -6,9 c-2,0 -6,-3 -6,-9z" fill={color(t.rank)} stroke="#7a5a12" strokeWidth={1.2} />
+            <path d="M-6,28 c-4,0 -4,6 0,6 M6,28 c4,0 4,6 0,6" fill="none" stroke="#7a5a12" strokeWidth={1.2} />
+            <rect x={-2} y={41} width={4} height={6} fill="#7a5a12" />
+            <rect x={-5} y={47} width={10} height={5} rx={1} fill="#5a3a20" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Things bought in the shop, hung on the wall / placed on the floor (career mode), in the player's order. */
+export function WallDecor({ owned, works = [], trophies = [], order }: { owned: string[]; works?: Creation[]; trophies?: { rank: number; theme: string }[]; order?: string[] }) {
   const has = (id: string) => owned.includes(id);
-  const items: { id: string; label: string; art: ReactNode }[] = [];
+  const items: { id: string; group: string; label: string; art: ReactNode }[] = [];
   // Tường tác phẩm: the newest pages of the catalog, framed.
-  for (const w of works) items.push({ id: `work-${w.id}`, label: w.name, art: <WorkFrame c={w} /> });
+  for (const w of works) items.push({ id: `work-${w.id}`, group: 'works', label: w.name, art: <WorkFrame c={w} /> });
+  if (trophies.length) items.push({ id: 'trophies', group: 'trophies', label: `Cúp (${trophies.length})`, art: <TrophyShelf trophies={trophies} /> });
   if (has('award'))
     items.push({
       id: 'award',
+      group: 'award',
       label: 'Bằng khen',
       art: (
         <svg viewBox="0 0 80 64">
@@ -44,6 +67,7 @@ export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Crea
   if (has('mirror'))
     items.push({
       id: 'mirror',
+      group: 'mirror',
       label: 'Gương Thần',
       art: (
         <span className="decor-mirror">
@@ -54,6 +78,7 @@ export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Crea
   if (has('petSign'))
     items.push({
       id: 'petSign',
+      group: 'petSign',
       label: 'Cho phép thú cưng',
       art: (
         <svg viewBox="0 0 80 64">
@@ -72,6 +97,7 @@ export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Crea
   if (has('plant'))
     items.push({
       id: 'plant',
+      group: 'plant',
       label: 'Cây phong thủy',
       art: (
         <svg viewBox="0 0 80 64">
@@ -83,6 +109,7 @@ export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Crea
   if (has('bench'))
     items.push({
       id: 'bench',
+      group: 'bench',
       label: 'Ghế chờ',
       art: (
         <svg viewBox="0 0 80 64">
@@ -95,6 +122,7 @@ export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Crea
   if (has('generator'))
     items.push({
       id: 'generator',
+      group: 'generator',
       label: 'Máy phát',
       art: (
         <svg viewBox="0 0 80 64">
@@ -105,10 +133,11 @@ export function WallDecor({ owned, works = [] }: { owned: string[]; works?: Crea
         </svg>
       ),
     });
-  if (!items.length) return null;
+  const shown = order ? order.flatMap((g) => items.filter((i) => i.group === g)) : items;
+  if (!shown.length) return null;
   return (
     <div className="wall-decor" data-testid="wall-decor">
-      {items.map((i) => (
+      {shown.map((i) => (
         <div key={i.id} className="decor-item" data-decor={i.id} title={i.label}>
           {i.art}
           <small>{i.label}</small>
@@ -144,5 +173,33 @@ export function StageDecor({ owned }: { owned: string[] }) {
       )}
       {owned.includes('ringLight') && <div className="ring-light" data-decor="ringLight" aria-hidden />}
     </>
+  );
+}
+
+/** Cấp tiệm on the wall: a plaque that grows with the shop. */
+export function LevelPlaque({ level, name }: { level: number; name: string }) {
+  return (
+    <div className={`level-plaque lv-${level}`} data-testid="level-plaque" data-level={level}>
+      <small>Cấp {level}</small>
+      <b>{name}</b>
+      <span aria-hidden>{'★'.repeat(level)}</span>
+    </div>
+  );
+}
+
+/** Level 5: a chandelier over the mirror. */
+export function Chandelier() {
+  return (
+    <svg className="chandelier" viewBox="0 0 120 60" aria-hidden data-decor="chandelier">
+      <path d="M60,0 v12" stroke="#b8862b" strokeWidth={3} />
+      <path d="M20,22 Q60,46 100,22" fill="none" stroke="#c9952b" strokeWidth={4} />
+      {[20, 40, 60, 80, 100].map((x, i) => (
+        <g key={x}>
+          <path d={`M${x},${i === 2 ? 34 : i % 2 ? 30 : 22} v8`} stroke="#c9952b" strokeWidth={2} />
+          <path d={`M${x - 4},${i === 2 ? 42 : i % 2 ? 38 : 30} l4,10 l4,-10z`} fill="#bfefff" stroke="#7fb3d5" strokeWidth={1} />
+          <circle cx={x} cy={i === 2 ? 30 : i % 2 ? 26 : 18} r={4} fill="#fff3b0" />
+        </g>
+      ))}
+    </svg>
   );
 }

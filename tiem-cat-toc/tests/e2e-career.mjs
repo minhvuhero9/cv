@@ -216,6 +216,73 @@ async function playDay(page) {
   await ctx.close();
 }
 
+/* ---------------- Tiệm của riêng bạn + thách bạn bè ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.evaluate(() => {
+    localStorage.setItem('tctbo-coach', '4');
+    const s = window.__tctbo.state();
+    const c = {
+      id: 'e2e-ch',
+      name: 'Mẫu Thách Đấu',
+      caption: '',
+      customer: s.baseCustomer.id,
+      persona: null,
+      tufts: s.hair.tufts.map((t, i) => [t.zone === 'top' ? t.len : t.len * 0.5, t.bald ? 1 : 0, 0, i % 3 === 0 ? '#ff3fa4' : null, 0, 0, 1, 0, 0, null, null]),
+      carvings: [],
+      photo: { mood: 'happy', bg: 'salon', frame: 'none', stickers: [] },
+      at: Date.now(),
+    };
+    localStorage.setItem('tctbo-studio-book', JSON.stringify([c]));
+    const car = window.__tctbo.career();
+    car.owned.push('plant', 'award');
+    car.trophies = [{ day: 4, theme: 'Mùa Hè Rực Rỡ', rank: 1, label: 'Giải Nhất' }];
+  });
+  await page.click('[data-testid=morning-look]');
+  await page.waitForSelector('[data-testid=look-panel]');
+  await page.fill('[data-testid=look-name]', 'Tiệm Tóc Cô Ba');
+  await page.click('[data-testid=look-name-save]');
+  await page.click('[data-testid=look-wall-pink]');
+  await page.click('[data-testid=look-sign-gold]');
+  // Tap-tap: move the plant to the first slot.
+  await page.click('[data-testid=look-slot-plant]');
+  await page.click('[data-testid=look-slot-trophies]');
+  const slots = await page.$$eval('[data-testid=look-wall] li', (els) => els.map((e) => e.getAttribute('data-testid')));
+  check('Trang trí: tap-tap moves a wall item', slots.indexOf('look-slot-plant') < slots.indexOf('look-slot-award'), slots.join(','));
+  await page.click('[data-testid=look-hide-award]');
+  await page.screenshot({ path: `${OUT}/K6-look-panel.png` });
+  await page.click('[data-testid=look-close]');
+  check('Trang trí: the sign shows the shop name', (await page.textContent('[data-testid=shop-name]')) === 'TIỆM TÓC CÔ BA' || (await page.textContent('[data-testid=shop-name]')) === 'Tiệm Tóc Cô Ba');
+  const wall = await page.evaluate(() => getComputedStyle(document.querySelector('.app')).getPropertyValue('--wall').trim());
+  check('Trang trí: wall paint applied', wall === '#f8d3e2', wall);
+  const look = (await career(page)).look;
+  check('Trang trí: saved with the career', look && look.wall === 'pink' && look.sign === 'gold' && look.hidden.includes('award'), JSON.stringify(look));
+  // Thách bạn bè: make a link from the catalog (open from the morning).
+  await page.click('[data-testid=morning-book]');
+  await page.waitForSelector('[data-testid=book-item]');
+  await page.click('[data-testid=book-challenge]');
+  const link = await page.inputValue('[data-testid=challenge-link] input');
+  check('Thách bạn bè: the catalog makes a link', /\?challenge=[A-Za-z0-9_-]+$/.test(link), link.slice(0, 80));
+  await page.click('[data-testid=book-close]');
+  await page.click('[data-testid=open-day]');
+  await page.waitForSelector('[data-testid=start]');
+  check('Trang trí: hidden item is off the wall, trophies are on it', (await page.locator('[data-decor=award]').count()) === 0 && (await page.locator('[data-decor=trophies]').count()) === 1);
+  check('Cấp tiệm: plaque on the wall', (await page.getAttribute('[data-testid=level-plaque]', 'data-level')) === '1');
+  await page.screenshot({ path: `${OUT}/K7-own-shop.png` });
+  await page.goto(link);
+  await page.waitForSelector('[data-testid=start]');
+  await page.click('[data-testid=start]');
+  await page.waitForSelector('[data-testid=challenge-banner]');
+  check('Thách bạn bè: the link opens the friend\'s design to copy', (await page.locator('[data-testid=design-score]').count()) === 1 && /Mẫu Thách Đấu/.test(await page.textContent('[data-testid=challenge-banner]')));
+  await page.click('[data-testid=finish]');
+  await page.waitForSelector('[data-testid=mirror]');
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=challenge-score]');
+  check('Thách bạn bè: the result shows how close you got', /Bạn đạt \d+%/.test(await page.textContent('[data-testid=challenge-score]')));
+  check('Trang trí & thách: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 /* ---------------- Sound settings: volume and mute persist ---------------- */
 {
   const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);

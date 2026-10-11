@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playSfx, setMuted, setMusicState, setMusicVolume, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
 import { AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
 import { MirrorButton, MirrorPicker } from './components/MirrorPicker';
 import { Coach } from './components/Coach';
-import { AirCon, StageDecor, WallDecor } from './components/Decor';
+import { AirCon, Chandelier, LevelPlaque, StageDecor, WallDecor } from './components/Decor';
+import { ShopLookPanel } from './components/ShopLookPanel';
+import { DEFAULT_NAME, SIGNS, WALLS, arrange, decorIds, defaultLook, unpackChallenge } from './game/shopStyle';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
-import { deleteFromBook, loadBook, saveToBook, snapCreation } from './game/creation';
+import { Creation, deleteFromBook, loadBook, saveToBook, snapCreation } from './game/creation';
 import { isContest, tasteScore } from './game/freestyle';
 import { BookPanel, PhotoPanel } from './components/PhotoBook';
 import { careerKit, fullKit } from './game/art';
@@ -29,6 +31,7 @@ import {
   resetCareer,
   roundContext,
   saveCareer,
+  shopLevel,
 } from './game/career';
 import { CUSTOMERS, CustomerId } from './game/customers';
 import {
@@ -51,7 +54,7 @@ import { loadProgress, recordRound, saveProgress } from './game/progress';
 import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
 
 type Mode = 'career' | 'free';
-type Overlay = 'shop' | 'settings' | 'album' | 'photo' | 'book' | null;
+type Overlay = 'shop' | 'settings' | 'album' | 'photo' | 'book' | 'look' | null;
 
 const params = new URLSearchParams(location.search);
 /** `?unlock=all` opens the whole Bộ Đồ Nghề without earning it (for trying things out). */
@@ -59,11 +62,14 @@ const unlockAll = params.get('unlock') === 'all';
 const seedParam = params.get('seed') ? Number(params.get('seed')) || undefined : undefined;
 /** Each new shop meets its own customers; a fixed ?seed keeps tests reproducible. */
 const newShopSeed = () => (seedParam !== undefined ? 0 : 1 + Math.floor(Math.random() * 1e6));
+/** `?challenge=<code>`: a friend's design to copy (thách bạn bè). */
+const challenge = params.get('challenge') ? unpackChallenge(params.get('challenge')!) : null;
 /** `?daily=1` (today) or `?daily=YYYY-MM-DD` opens the daily challenge. */
 const dailyParam = params.get('daily');
 const dailyDate = () => (dailyParam && /^\d{4}-\d{2}-\d{2}$/.test(dailyParam) ? dailyParam : todayKey());
 
 function initialMode(): Mode {
+  if (challenge) return 'free';
   const m = params.get('mode');
   if (m === 'free' || m === 'career') return m;
   try {
@@ -110,6 +116,11 @@ function careerRound(c: CareerState): RoundState {
 
 /** The shop's catalog = the player's saved creations. */
 const catalog = () => loadBook().map((x) => ({ id: x.id, customer: x.customer, name: x.name }));
+
+/** Thách bạn bè: the friend's customer, every tool, scored by how close it is to their design. */
+function challengeRound(cr: Creation): RoundState {
+  return createRound(cr.customer, seedParam ?? 1, { unlocked: TOOLS.map((t) => t.id), kit: fullKit(), ctx: { design: cr } });
+}
 
 function dailyRound(d: DailyChallenge, p: Progress): RoundState {
   return createRound(d.customer, d.seed, dailyOptions(d, freeTools(p)));
@@ -158,7 +169,9 @@ export default function App() {
     current:
       mode === 'career'
         ? careerRound(careerRef.current)
-        : dailyParam
+        : challenge
+          ? challengeRound(challenge)
+          : dailyParam
           ? dailyRound(dailyFor(dailyDate()), progressRef.current)
           : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
   }));
@@ -337,16 +350,22 @@ export default function App() {
   const bubble = s.bubble;
   const career = mode === 'career';
   const showMorning = career && c.today.phase === 'morning' && !overlay;
+  const shopLook = c.look ?? defaultLook();
+  const wallIds = decorIds(c.owned, wallWorks.length, c.trophies?.length ?? 0);
+  const wallOrder = arrange(wallIds, shopLook);
+  const wallTheme = WALLS.find((w) => w.id === shopLook.wall) ?? WALLS[0];
+  const signTheme = SIGNS.find((g) => g.id === shopLook.sign) ?? SIGNS[0];
+  const appStyle = career ? ({ '--wall': wallTheme.a, '--wall-dark': wallTheme.b, '--red': signTheme.bg, '--sign-text': signTheme.text } as CSSProperties) : undefined;
   const showSummary = career && c.today.phase === 'closed' && c.lastSummary?.day === c.day && !overlay;
   const q = c.today.queue[c.today.index];
   const introNote = career && q ? `Khách ${c.today.index + 1}/${c.today.queue.length} · ${q.reason === 'walkin' ? 'Khách vãng lai' : q.note}` : undefined;
 
   return (
-    <div className={`app customer-${s.customer.id} phase-${s.phase} mode-${mode}`}>
+    <div className={`app customer-${s.customer.id} phase-${s.phase} mode-${mode} ${career ? `shop-lv-${shopLevel(c).level} wall-${shopLook.wall}` : ''}`} style={appStyle}>
       <header className="sign" ref={headerRef}>
         <div className="sign-board">
           <span className="sign-pole" aria-hidden />
-          <h1>TIỆM CẮT TÓC BẤT ỔN</h1>
+          <h1 data-testid="shop-name">{career ? shopLook.name : DEFAULT_NAME}</h1>
           <span className="sign-pole" aria-hidden />
         </div>
         {career ? (
@@ -381,6 +400,7 @@ export default function App() {
         <section className="stage-box">
           <div className="mirror-frame">
             {career && <StageDecor owned={c.owned} />}
+            {career && shopLevel(c).level >= 5 && <Chandelier />}
             <Stage
               s={s}
               chair={career && c.owned.includes('chair') ? 'massage' : 'basic'}
@@ -421,6 +441,22 @@ export default function App() {
               <small>{s.taste.name}</small>
             </div>
           )}
+          {challenge && s.design?.id === challenge.id && (
+            <div className="challenge-banner" data-testid="challenge-banner">
+              🔗 Thử thách từ bạn bè: cắt y như mẫu “{challenge.name}”
+              {s.result && !s.result.walkedOut && (
+                <b data-testid="challenge-score">
+                  {' '}
+                  · Bạn đạt {s.result.sat}% {s.result.sat >= 90 ? '🏆' : s.result.sat >= 70 ? '👍' : '😅'}
+                </b>
+              )}
+              {s.result && (
+                <button className="link-btn light" onClick={() => replaceRound(challengeRound(challenge))} data-testid="challenge-again">
+                  Thử lại
+                </button>
+              )}
+            </div>
+          )}
           {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && (
             <div className="viewers" data-testid="viewers">
               🔴 LIVE · {Math.round(s.viewers).toLocaleString('vi-VN')} người xem
@@ -455,7 +491,8 @@ export default function App() {
             <div className="price-strike">Cắt giống ảnh .. ??k</div>
             <div className="price-note">Cắt hỏng không hoàn tiền!!</div>
           </div>
-          {career && <WallDecor owned={c.owned} works={wallWorks} />}
+          {career && <WallDecor owned={c.owned} works={wallWorks} trophies={c.trophies ?? []} order={wallOrder} />}
+          {career && <LevelPlaque level={shopLevel(c).level} name={shopLevel(c).name} />}
           {career && c.owned.includes('aircon') ? (
             <AirCon />
           ) : (
@@ -547,6 +584,8 @@ export default function App() {
           }}
           onShop={() => setOverlay('shop')}
           onFree={() => switchMode('free')}
+          onLook={() => setOverlay('look')}
+          onBook={() => setOverlay('book')}
         />
       )}
       {showSummary && c.lastSummary && (
@@ -560,6 +599,18 @@ export default function App() {
             saveCareer(c);
             replaceRound(careerRound(c));
           }}
+        />
+      )}
+      {overlay === 'look' && (
+        <ShopLookPanel
+          look={shopLook}
+          ids={wallIds}
+          onChange={(l) => {
+            c.look = l;
+            saveCareer(c);
+            rerender();
+          }}
+          onClose={() => setOverlay(null)}
         />
       )}
       {overlay === 'shop' && (

@@ -5,6 +5,7 @@ import { HairState, Tuft, createHair } from './hair';
 import { makeRng, pick } from './rng';
 import { CONTESTS, contestPrize, tasteById, tasteDesignName, tastesFor } from './freestyle';
 import { STORIES, StoryProgress, storyById } from './stories';
+import type { ShopLook } from './shopStyle';
 import type { RoundContext, RoundState } from './session';
 import { ELECTRIC, MACHINES, SHOP, ShopItem, shopItem } from './shop';
 import { TOOLS, ToolId } from './tools';
@@ -144,6 +145,8 @@ export interface CareerState {
   stories?: Record<string, StoryProgress>;
   /** Friends a finished story brings tomorrow. */
   bonusWalkins?: number;
+  /** Tiệm của riêng bạn: name, paint, sign, wall arrangement. */
+  look?: ShopLook;
   /** Cúp từ Cuộc thi tóc của phường. */
   trophies?: { day: number; theme: string; rank: number; label: string }[];
   today: {

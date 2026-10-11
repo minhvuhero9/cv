@@ -1,3 +1,4 @@
+import { DEFAULT_NAME } from '../game/shopStyle';
 import { useState } from 'react';
 import { CareerState, DaySummary, canBuy, repairCost, shopLevel, vnd } from '../game/career';
 import { customerById } from '../game/customers';
@@ -103,12 +104,12 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
 const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu', freestyle: 'Khách tùy thợ', story: 'Khách có câu chuyện', contest: 'Cuộc thi tóc của phường' } as const;
 
 /** Morning: what happens today (with causes) and who is coming. */
-export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void }) {
+export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void; onLook?(): void; onBook?(): void }) {
   return (
     <div className="overlay" data-testid="morning">
       <div className="panel">
         <div className="intro-label">Sáng sớm</div>
-        <h2>Ngày {c.day} — Tiệm Cắt Tóc Bất Ổn mở cửa</h2>
+        <h2>Ngày {c.day} — {c.look?.name && c.look.name !== DEFAULT_NAME ? c.look.name : 'Tiệm Cắt Tóc Bất Ổn'} mở cửa</h2>
         {c.day === 1 && (
           <p className="panel-note">
             Mỗi ngày có vài khách. Cắt khéo thì được tiền và <b>Uy tín</b>; cắt thảm họa có khi lại được <b>Viral</b>. Cuối ngày trả tiền thuê, tiền điện. Dành tiền mua đồ ở <b>Cửa hàng</b>.
@@ -162,6 +163,16 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
           <button className="secondary-btn" onClick={onShop} data-testid="morning-shop">
             🛒 Cửa hàng
           </button>
+          {onLook && (
+            <button className="secondary-btn" onClick={onLook} data-testid="morning-look">
+              🎨 Trang trí tiệm
+            </button>
+          )}
+          {onBook && (
+            <button className="secondary-btn" onClick={onBook} data-testid="morning-book">
+              📒 Cuốn mẫu
+            </button>
+          )}
         </div>
         <button className="link-btn" onClick={onFree} data-testid="to-free">
           Chơi chế độ cắt tự do (không tính tiền)

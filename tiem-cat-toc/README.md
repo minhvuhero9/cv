@@ -242,6 +242,23 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
   - Giải Ba từ 60% (80k), Nhì từ 75% (150k), Nhất từ 90% (300k). Cúp được lưu lại.
 - Tiền thưởng hiện riêng trong sổ cuối ngày (“Giải thưởng & câu chuyện”). Bảng tổng kết kể lại diễn biến câu chuyện và báo trước ngày mai có ai quay lại hay có cuộc thi.
 
+## Tiệm của riêng bạn và thách bạn bè
+
+- **🎨 Trang trí tiệm** (nút ở màn sáng sớm; `shopStyle.ts`, `ShopLookPanel.tsx`):
+  - Đặt tên tiệm (hiện trên biển hiệu và lời chào buổi sáng).
+  - Chọn màu tường (Bạc hà, Hồng phấn, Vàng nắng, Xanh đêm, Gỗ ấm) và màu biển hiệu (Đỏ, Xanh, Đen vàng, Tím).
+  - Sắp xếp tường tiệm: kéo thả bằng chuột, hoặc chạm một món rồi chạm chỗ mới (điện thoại). Món nào không muốn treo thì “Cất đi”, lúc nào cũng “Treo lên” lại được.
+  - Đồ treo được: tường tác phẩm, kệ cúp (từ Cuộc thi tóc), bằng khen, Gương Thần, biển thú cưng, cây, ghế chờ, máy phát.
+- **Tiệm lớn dần theo cấp:**
+  - Bảng cấp tiệm treo trên tường.
+  - Từ cấp 2: mái hiên sọc dưới biển hiệu.
+  - Từ cấp 3: khung gương mạ vàng có đèn.
+  - Từ cấp 4: tường vẽ màu nghệ thuật.
+  - Cấp 5: đèn chùm trên gương, sàn tím sang trọng.
+- **🔗 Thách bạn bè:** trong cuốn mẫu (mở từ màn sáng sớm hoặc tổng kết), mỗi mẫu có nút “Thách bạn bè” để tạo một link ngắn (mẫu được nén vào link, không cần máy chủ).
+  - Người mở link được ngồi đúng khách đó, có đủ đồ nghề, cắt theo mẫu với “📐 Giống mẫu N%”.
+  - Xong thì thấy “Bạn đạt N%” và có thể thử lại.
+
 ## Cấu trúc code
 
 ```
