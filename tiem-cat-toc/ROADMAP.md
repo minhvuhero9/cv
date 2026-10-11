@@ -12,7 +12,6 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - Cắt tóc: mô hình khoảng 110 lọn tóc (`hair.ts`). Dụng cụ cơ bản: tông đơ, kéo, máy sấy. Bộ Đồ Nghề Bất Ổn có 6 dụng cụ phép (`tools.ts`, `magic.ts`, `gear.ts`) và 3 combo.
 - Chaos = hư hại trên đầu + sự cố gần đây. Bộ luật sự kiện nằm trong `session.ts`. Chấm điểm và đặt tên kiểu tóc nằm trong `evaluate.ts`. Thẻ PNG vẽ bằng `card.ts`.
 - Lưu trữ: `progress.ts` (localStorage) lưu số lượt, kiểu tóc đã mở, sự kiện đã gặp.
-- Giới hạn môi trường TTS: chỉ có CPU (4 nhân, 15 GB RAM, không GPU). huggingface.co bị chặn, nên không tải được model KhanhTTS-OmniVoice hay voice Piper tiếng Việt. Cài được eSpeak NG (giọng `vi`, `vi-vn-x-central`, `vi-vn-x-south`) từ Ubuntu.
 
 ## 2. Khách hàng dữ liệu và Cậu Vàng
 - [x] Mở rộng `CustomerDef`: mô tả, sở thích, phản ứng theo dụng cụ, câu thoại riêng, phản ứng soi gương, giá, tip, trọng số uy tín, điều kiện xuất hiện và quay lại, giọng đọc
@@ -39,19 +38,13 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] Khách quay lại đòi sửa (mang theo mái tóc hôm trước), khách bắt chước kiểu viral
 - [x] Sự kiện ngày có nguyên nhân hiển thị (chợ phiên, cắt điện, clip viral, kiểm tra vệ sinh, báo khen, đánh giá 1 sao)
 
-## 7. TTS miễn phí và pipeline
-- [x] Xuất danh sách thoại từ dữ liệu, script batch tạo file, kiểm tra file, manifest, danh sách thiếu (1109/1109 file, 0 lỗi)
-- [x] Hỗ trợ engine: eSpeak NG (đã chạy), Piper và KhanhTTS (đã viết sẵn đường chạy; cần máy truy cập được HuggingFace)
-
-## 8. Lồng tiếng trong game
-- [x] VoiceManager: hàng đợi, ưu tiên, chống lặp, âm lượng, tắt tiếng, xử lý file lỗi, autoplay (đã kiểm thử trong Chromium)
+## 7–8. Lồng tiếng (đã gỡ bỏ)
+- Đã có pipeline TTS (eSpeak NG, 1109 câu) và VoiceManager, nhưng **gỡ bỏ theo yêu cầu**. Game chỉ còn thoại dạng chữ và hiệu ứng âm thanh tổng hợp bằng WebAudio. Code cũ vẫn nằm trong lịch sử Git (commit `5e60171`) nếu cần khôi phục.
 
 ## 9–10. Giao diện, cân bằng, kiểm thử toàn luồng
 - [x] Shop, tổng kết ngày, HUD tiền/uy tín/viral, cài đặt âm lượng
-- [x] E2E: chơi 3 ngày, lưu/tải lại, mua đồ, Cậu Vàng, thoại phát được (`tests/e2e-career.mjs`, 28 kiểm tra)
+- [x] E2E: chơi 3 ngày, lưu/tải lại, mua đồ, Cậu Vàng, cài đặt âm thanh (`tests/e2e-career.mjs`)
 
 ## Việc tiếp theo nếu làm tiếp
-- [ ] Tạo lại toàn bộ giọng bằng KhanhTTS-OmniVoice hoặc Piper trên máy truy cập được HuggingFace (và đọc giấy phép từng voice)
 - [ ] Cân bằng kinh tế bằng người chơi thật (hiện mới cân chỉnh bằng mô phỏng)
 - [ ] Con Dấu Phán Quyết, Pháo Hoa Tạo Kiểu
-- [ ] Nhép miệng nhân vật theo âm thanh (hiện chỉ có viền sáng ở bong bóng thoại)

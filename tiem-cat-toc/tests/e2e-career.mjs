@@ -1,4 +1,4 @@
-// Sandbox playtest: several days through the real UI, shop, save/reload, voice, Cậu Vàng.
+// Sandbox playtest: several days through the real UI, shop, save/reload, settings, Cậu Vàng.
 // Usage: npm run dev, then `npm run e2e:career` (BASE_URL to override).
 import { chromium } from 'playwright';
 import fs from 'node:fs';
@@ -126,54 +126,24 @@ async function playDay(page) {
   await ctx.close();
 }
 
-/* ---------------- Voice: real audio files play, volume and mute work ---------------- */
+/* ---------------- Sound settings: volume and mute persist ---------------- */
 {
   const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
   await page.waitForSelector('[data-testid=open-day]');
-  const st0 = await page.evaluate(() => window.__tctbo.voice.status());
-  check('Voice: manifest loaded', st0.loaded && st0.lines > 1000, `${st0.lines} lines, engine ${st0.engine}`);
-  await page.click('[data-testid=open-day]');
-  await page.waitForFunction(() => window.__tctbo.voice.status().currentTime > 0.2, null, { timeout: 8000 });
-  const st1 = await page.evaluate(() => window.__tctbo.voice.status());
-  check('Voice: a narrator clip actually plays after the click', !st1.paused || st1.currentTime > 0.2, `${st1.src.split('/').slice(-2).join('/')} @ ${st1.currentTime.toFixed(2)}s/${st1.duration.toFixed(2)}s`);
-  await page.waitForFunction(() => window.__tctbo.voice.status().played.length >= 2, null, { timeout: 10000 });
-  const st2 = await page.evaluate(() => window.__tctbo.voice.status());
-  const cust = (await round(page)).customer;
-  check('Voice: then the customer’s own line plays (correct speaker)', st2.src.includes(`/voice/${cust}/`), st2.src.split('/').slice(-2).join('/'));
-  // The file served is a real MP3.
-  const res = await page.request.get(st2.src);
-  const body = await res.body();
-  check('Voice: the file is a real MP3', res.ok() && (body.subarray(0, 3).toString() === 'ID3' || (body[0] === 0xff && (body[1] & 0xe0) === 0xe0)), `${body.length} bytes`);
-  // Volume and mute from settings.
   await page.click('[data-testid=open-settings]');
-  await page.locator('[data-testid=vol-voice]').fill('0.3');
-  const vol = await page.evaluate(() => window.__tctbo.voice.status().volume);
-  check('Voice: volume slider changes voice volume', Math.abs(vol - 0.3) < 0.01, `${vol}`);
+  check('Settings: no voice-over slider any more', (await page.locator('[data-testid=vol-voice]').count()) === 0);
+  await page.locator('[data-testid=vol-sfx]').fill('0.3');
   await page.check('[data-testid=mute]');
-  const muted = await page.evaluate(() => window.__tctbo.voice.status());
-  check('Voice: mute stops and silences voice', muted.muted && muted.paused);
   await page.goto(`${BASE}?seed=4`);
   await page.waitForSelector('[data-testid=start], [data-testid=morning]');
-  const persisted = await page.evaluate(() => window.__tctbo.voice.status());
-  check('Voice: audio settings persist after reload', persisted.muted && Math.abs(persisted.volume - 0.3) < 0.01);
-  check('Voice: no console errors', errors.length === 0, errors.join(' | '));
-  await ctx.close();
-}
-
-/* ---------------- Voice: a missing file does not break the game ---------------- */
-{
-  const { ctx, page, errors } = await open(`${BASE}?mode=free&seed=4`);
-  await page.route('**/voice/narrator/**', (r) => r.fulfill({ status: 404, body: 'nope' }));
-  await page.route('**/voice/tuan/**', (r) => r.fulfill({ status: 404, body: 'nope' }));
-  await page.click('[data-testid=start]');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tctbo-audio')));
+  check('Settings: volume and mute persist after reload', saved.muted === true && Math.abs(saved.sfx - 0.3) < 0.01, JSON.stringify(saved));
+  const voiceReq = [];
+  page.on('request', (r) => r.url().includes('/voice/') && voiceReq.push(r.url()));
+  await page.click('[data-testid=start], [data-testid=open-day]');
   await page.waitForTimeout(1500);
-  await page.click('[data-testid=finish]');
-  await page.waitForSelector('[data-testid=mirror]');
-  await page.click('[data-testid=mirror]');
-  await page.waitForSelector('[data-testid=result]');
-  const st = await page.evaluate(() => window.__tctbo.voice.status());
-  check('Voice: missing files are skipped, the round still finishes', st.broken.length >= 1, `broken=${st.broken.length}`);
-  check('Voice: no page errors with missing files', errors.length === 0, errors.join(' | '));
+  check('No voice files are requested', voiceReq.length === 0, voiceReq.join(' '));
+  check('Settings: no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
 

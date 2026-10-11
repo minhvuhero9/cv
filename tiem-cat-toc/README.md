@@ -113,13 +113,9 @@ Cắt đẹp thì có uy tín và tiền boa. Thảm họa có thể thành vira
 
 ### Thêm nội dung bằng dữ liệu
 
-- **Khách mới:** thêm một mục vào `CUSTOMERS` (`src/game/customers.ts`): ngoại hình, tóc, `wants` (mức hài lòng tính từ dữ liệu bằng `fromWants`), `behaviors` (tái sử dụng module trong `behaviors.ts`), `toolReactions`, `lines`, `mirror`, `pay`, `repWeight`/`viralWeight`, `appear` (điều kiện xuất hiện), `returns`, `voice`. Sau đó chạy `npm run voice` để lồng tiếng.
+- **Khách mới:** thêm một mục vào `CUSTOMERS` (`src/game/customers.ts`): ngoại hình, tóc, `wants` (mức hài lòng tính từ dữ liệu bằng `fromWants`), `behaviors` (tái sử dụng module trong `behaviors.ts`), `toolReactions`, `lines`, `mirror`, `pay`, `repWeight`/`viralWeight`, `appear` (điều kiện xuất hiện), `returns`.
 - **Vật phẩm mới:** thêm vào `SHOP` (`src/game/shop.ts`). Nếu vật phẩm cho dụng cụ mới thì thêm vào `TOOLS` (`tools.ts`) và xử lý trong `gear.ts`; nâng cấp thì đọc qua `s.ctx.items` trong `session.ts`.
-- **Thoại:** xem `VOICE.md`.
-
-## Lồng tiếng
-
-1109 câu thoại tiếng Việt cho 15 khách và người dẫn, đã tạo bằng eSpeak NG chạy local, miễn phí. Chi tiết engine, giấy phép, giới hạn và cách thay bằng KhanhTTS/Piper nằm trong [`VOICE.md`](VOICE.md).
+- **Thoại:** thêm câu vào `lines` của khách, hoặc vào bảng `NEUTRAL` / `DOG_LINES` trong `dialogue.ts`.
 
 ## Bộ Đồ Nghề Bất Ổn (dụng cụ phép thuật)
 
@@ -166,9 +162,6 @@ src/game/progress.ts   tiến trình chế độ tự do (lưu trong trình duy�
 src/game/career.ts     chế độ Mở Tiệm: ngày, hàng khách, sự kiện, tiền, uy tín, viral, lưu
 src/game/shop.ts       danh mục cửa hàng
 src/game/behaviors.ts  module hành vi khách (ngủ gật, võ sư, livestream, chó…)
-src/game/voiceLines.ts danh sách thoại cần lồng tiếng
-src/audio/voice.ts     VoiceManager (phát thoại, hàng đợi, âm lượng)
-scripts/voice/         pipeline TTS (xuất câu, tạo file, kiểm tra, manifest)
 src/components/        Character (SVG nhân vật), Stage, Panels, ResultPanel
 src/audio/sfx.ts       âm thanh WebAudio
 ```
@@ -176,8 +169,8 @@ src/audio/sfx.ts       âm thanh WebAudio
 ## Kiểm thử
 
 ```bash
-npm test                      # 86 bài kiểm thử logic (Vitest): dụng cụ, combo, khách, hành vi, nhiều ngày, cửa hàng, lưu, thoại
-npm run e2e:career            # chơi thử sandbox trong trình duyệt: 3 ngày, cửa hàng, tải lại trang, thoại, Cậu Vàng, điện thoại
+npm test                      # kiểm thử logic (Vitest): dụng cụ, combo, khách, hành vi, nhiều ngày, cửa hàng, lưu
+npm run e2e:career            # chơi thử sandbox trong trình duyệt: 3 ngày, cửa hàng, tải lại trang, cài đặt âm thanh, Cậu Vàng, điện thoại
 npm run dev &                 # rồi:
 npm run e2e                   # chơi thử tự động bằng Playwright/Chromium, chụp màn hình vào test-results/
 BASE_URL=http://localhost:4173/ npm run e2e   # chạy với bản build (npm run preview)

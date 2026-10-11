@@ -2,9 +2,3 @@ node_modules
 dist
 test-results
 *.tsbuildinfo
-# TTS models / caches never go into git
-*.onnx
-*.onnx.json
-*.wav
-.cache
-voice/refs/

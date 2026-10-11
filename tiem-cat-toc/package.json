@@ -10,9 +10,6 @@
     "test": "vitest run",
     "e2e": "node tests/e2e.mjs",
     "build:pages": "tsc -b && vite build --outDir ../game --emptyOutDir",
-    "voice:export": "vite-node scripts/voice/export-lines.ts",
-    "voice:generate": "node scripts/voice/generate.mjs",
-    "voice": "npm run voice:export && npm run voice:generate",
     "e2e:career": "node tests/e2e-career.mjs"
   },
   "dependencies": {

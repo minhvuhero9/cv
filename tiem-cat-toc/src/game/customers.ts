@@ -143,8 +143,6 @@ export interface CustomerDef {
   appear: { minDay: number; minRep?: number; minViral?: number; needsItem?: string; weight: number };
   /** Come back tomorrow after a disaster (to get it fixed) or after loving it (as a regular). */
   returns: { onDisaster: boolean; onLove: boolean };
-  /** TTS voice (eSpeak NG voice + variant; pitch/speed kept mild so Vietnamese stays clear). */
-  voice: { espeak: string; variant: string; pitch: number; speed: number };
   startTool?: ToolId;
   /** Round length override (seconds). */
   timeLimit?: number;
@@ -227,7 +225,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1,
     appear: { minDay: 1, weight: 3 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi', variant: 'm3', pitch: 50, speed: 165 },
     startTool: 'clipper',
   },
   {
@@ -277,7 +274,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 0.6,
     appear: { minDay: 1, weight: 3 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi-vn-x-south', variant: 'grandpa', pitch: 38, speed: 150 },
     startTool: 'scissors',
   },
   {
@@ -327,7 +323,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1.4,
     appear: { minDay: 1, weight: 3 },
     returns: { onDisaster: true, onLove: false },
-    voice: { espeak: 'vi-vn-x-central', variant: 'm1', pitch: 55, speed: 175 },
     startTool: 'dryer',
   },
 
@@ -382,7 +377,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 0.7,
     appear: { minDay: 1, weight: 2 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi', variant: 'f2', pitch: 58, speed: 185 },
     startTool: 'scissors',
     timeLimit: 50,
   },
@@ -433,7 +427,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 0.5,
     appear: { minDay: 1, weight: 2 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi', variant: 'grandpa', pitch: 35, speed: 140 },
     startTool: 'clipper',
   },
   {
@@ -483,7 +476,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1.5,
     appear: { minDay: 2, weight: 2 },
     returns: { onDisaster: true, onLove: false },
-    voice: { espeak: 'vi-vn-x-south', variant: 'm5', pitch: 60, speed: 180 },
     startTool: 'clipper',
   },
   {
@@ -531,7 +523,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 2.5,
     appear: { minDay: 2, minViral: 15, weight: 2 },
     returns: { onDisaster: false, onLove: true },
-    voice: { espeak: 'vi', variant: 'f4', pitch: 65, speed: 180 },
     startTool: 'scissors',
   },
   {
@@ -579,7 +570,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 0.8,
     appear: { minDay: 1, weight: 2 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi-vn-x-south', variant: 'm2', pitch: 48, speed: 200 },
     startTool: 'clipper',
     timeLimit: 40,
   },
@@ -628,7 +618,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1,
     appear: { minDay: 2, weight: 2 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi', variant: 'm7', pitch: 40, speed: 155 },
     startTool: 'clipper',
   },
   {
@@ -678,7 +667,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1,
     appear: { minDay: 2, weight: 2 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi', variant: 'm4', pitch: 52, speed: 170 },
     startTool: 'scissors',
   },
   {
@@ -728,7 +716,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1.5,
     appear: { minDay: 3, minRep: 55, weight: 1 },
     returns: { onDisaster: false, onLove: true },
-    voice: { espeak: 'vi', variant: 'f1', pitch: 52, speed: 160 },
     startTool: 'scissors',
   },
   {
@@ -775,7 +762,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 2.2,
     appear: { minDay: 3, minViral: 45, needsItem: 'neon', weight: 1 },
     returns: { onDisaster: false, onLove: true },
-    voice: { espeak: 'vi', variant: 'UniRobot', pitch: 50, speed: 150 },
     startTool: 'ray',
   },
   {
@@ -820,7 +806,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1.2,
     appear: { minDay: 1, weight: 2 },
     returns: { onDisaster: true, onLove: false },
-    voice: { espeak: 'vi', variant: 'm6', pitch: 68, speed: 185 },
     startTool: 'scissors',
   },
   {
@@ -877,7 +862,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 2,
     appear: { minDay: 2, needsItem: 'petSign', weight: 2 },
     returns: { onDisaster: true, onLove: true },
-    voice: { espeak: 'vi-vn-x-south', variant: 'grandma', pitch: 45, speed: 155 },
     startTool: 'scissors',
   },
   {
@@ -917,7 +901,6 @@ export const CUSTOMERS: CustomerDef[] = [
     viralWeight: 1.5,
     appear: { minDay: 99, weight: 0 },
     returns: NO_RETURN,
-    voice: { espeak: 'vi', variant: 'm1', pitch: 60, speed: 180 },
     startTool: 'scissors',
   },
 ];
