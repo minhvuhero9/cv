@@ -177,6 +177,8 @@ export interface RoundState {
     travel: number;
     /** A magic tool changed the hair during this stroke. */
     magicUsed: boolean;
+    /** Recent stage points of the scissors (drawn as a faint cut line). */
+    trail: Vec[];
   };
   headOffset: Vec;
   motion: Motion | null;
@@ -357,7 +359,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     phase: 'intro',
     time: 0,
     tool: opts.onlyTools ? (opts.onlyTools.includes('scissors') ? 'scissors' : opts.onlyTools[0]) : customer.startTool && [...BASIC_TOOLS, ...(opts.unlocked ?? [])].includes(customer.startTool) ? customer.startTool : 'scissors',
-    pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0, magicUsed: false },
+    pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0, magicUsed: false, trail: [] },
     headOffset: { x: 0, y: 0 },
     motion: null,
     nextTurnCheck: 4,
@@ -608,6 +610,7 @@ export function pointerDown(s: RoundState, p: Vec) {
   const local = toLocal(s, p);
   ptr.lastLocal = local;
   ptr.travel = 0;
+  ptr.trail = [p];
   if (isMagic(s.tool)) {
     if (!gearDown(s, local)) ptr.down = false;
     return;
@@ -650,6 +653,8 @@ export function pointerMove(s: RoundState, p: Vec) {
   } else if (s.tool === 'brush') {
     artBrush(s, local);
   } else if (s.tool === 'scissors') {
+    ptr.trail.push(p);
+    if (ptr.trail.length > 14) ptr.trail.shift();
     const r = scissorsSweep(s.hair, prev, local, ptr.stroke);
     if (r.cut.length) s.sfx.push('snip');
     if (r.cut.length && s.hair.texture === 'wiry' && !s.textureSaid) {

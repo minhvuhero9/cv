@@ -273,6 +273,12 @@ export function Stage({ s, ghostOn, chair = 'basic', narrow, now, onDown, onMove
       </g>
       <FxLayer s={s} />
       </g>
+      {cutting && s.tool === 'scissors' && s.pointer.down && s.pointer.trail.length > 1 && (
+        <g pointerEvents="none" fill="none" strokeLinecap="round" strokeLinejoin="round" data-testid="cut-trail">
+          <polyline points={s.pointer.trail.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ')} stroke="#2b1a12" strokeWidth={7} opacity={0.3} />
+          <polyline points={s.pointer.trail.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ')} stroke="#ffffff" strokeWidth={3} opacity={0.85} strokeDasharray="6 4" />
+        </g>
+      )}
       {showPhoto && <Phone s={s} />}
       {(warn || s.walkout) && (
         <g transform={`translate(${s.hair.head.cx + s.hair.head.rx + 6},${s.hair.head.cy - s.hair.head.ry - 20})`}>

@@ -111,7 +111,9 @@ export function headShape(init?: Partial<HeadShape>): HeadShape {
 export const CLIPPER_GUARD = 9;
 export const CLIPPER_RADIUS = 17;
 export const BALD_DWELL = 0.5;
-export const SCISSOR_SNIP_RADIUS = 13;
+export const SCISSOR_SNIP_RADIUS = 18;
+/** Half-width of the scissor blade: locks this close to the drag line are cut (the hair is drawn thick). */
+export const SCISSOR_BLADE = 8;
 export const DRYER_RADIUS = 78;
 
 /** Hairline: forehead in the middle, dropping towards the temples. */
@@ -446,8 +448,14 @@ export function scissorsSweep(h: HairState, a: Vec, b: Vec, stroke: number): Cut
   if (dist(a, b) < 0.5) return res;
   for (const t of h.tufts) {
     if (t.bald || t.len < 2) continue;
-    const along = crossLength(t, a, b);
-    if (along === null) continue;
+    // An exact crossing first; otherwise the closest point if the blade passes within reach.
+    let along = crossLength(t, a, b);
+    if (along === null) {
+      const c = closestOnTuft(t, a, b);
+      // Never stub a lock at its root from a near miss (that would look like a bald spot).
+      if (c.d > SCISSOR_BLADE * (t.thick ?? 1) || c.along < 6) continue;
+      along = c.along;
+    }
     // Wiry hair: the scissors only get part of the way through on each pass.
     const target = (t.stiff ?? 0) > 0.5 ? along + (t.len - along) * 0.45 : along;
     shorten(t, Math.max(1.5, target), stroke, res);
