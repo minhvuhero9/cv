@@ -53,6 +53,8 @@ interface Props {
   /** Tools unlocked by finishing this round. */
   newTools: ToolId[];
   onReplay(): void;
+  /** Open the photo mode with this result (and keep it in the book). */
+  onPhoto?(): void;
   onNext(): void;
   /** Career mode: what this customer did to the shop, and the next step's label. */
   career?: { served: Served; nextLabel: string } | null;
@@ -62,7 +64,7 @@ interface Props {
 
 const TIER_LABEL = { love: 'Mê tít', ok: 'Tạm hài lòng', meh: 'Lấn cấn', bad: 'Bực mình', disaster: 'Thảm họa' } as const;
 
-export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, daily }: Props) {
+export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, daily, onPhoto }: Props) {
   const r = s.result!;
   const [card, setCard] = useState<{ url: string; blob: Blob } | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
@@ -246,6 +248,11 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, d
             <button className="secondary-btn" onClick={download} disabled={!card} data-testid="download">
               ⬇ Tải ảnh
             </button>
+            {onPhoto && !r.walkedOut && (
+              <button className="secondary-btn" onClick={onPhoto} data-testid="result-photo" title="Chụp ảnh tác phẩm và lưu vào Sổ kiểu tóc (thành mẫu trong cuốn mẫu)">
+                📷 Chụp ảnh &amp; lưu mẫu
+              </button>
+            )}
             {canShareFiles && (
               <button className="secondary-btn" onClick={share} data-testid="share">
                 Chia sẻ

@@ -39,6 +39,11 @@ export interface HairMetrics {
   thickAvg: number;
   /** Average |curl| of live tufts. */
   curlAvg: number;
+  /* đồ nghề sáng tạo */
+  /** Patterns shaved in with the Khuôn Cạo Hình. */
+  carvingCount: number;
+  /** A word shaved in (text stencil). */
+  hasText: boolean;
 }
 
 /** Sideways push of one tuft's tip vs. its natural fall, per unit length. */
@@ -124,6 +129,8 @@ export function measureHair(h: HairState): HairMetrics {
     maxTouches: Math.max(0, ...tufts.map((t) => t.touches)),
     tintedFrac: tufts.filter((t) => !t.bald && t.tint).length / tufts.length,
     colorCount: new Set(tufts.filter((t) => !t.bald && t.tint).map((t) => t.tint)).size,
+    carvingCount: h.carvings?.length ?? 0,
+    hasText: !!h.carvings?.some((c) => c.kind === 'text'),
     longFrac: tufts.filter((t) => !t.bald && t.len >= t.origLen * 1.6).length / tufts.length,
     sculptedFrac: tufts.filter((t) => !t.bald && t.sculpt).length / tufts.length,
     steamedFrac: tufts.filter((t) => !t.bald && t.steamed > 0.3).length / tufts.length,

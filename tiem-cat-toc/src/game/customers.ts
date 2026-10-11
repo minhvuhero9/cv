@@ -1,5 +1,5 @@
 import { clamp } from './geometry';
-import { HairStyleInit, Zone } from './hair';
+import { HairState, HairStyleInit, Zone } from './hair';
 import { HairMetrics } from './metrics';
 import type { ToolId } from './tools';
 import type { CustomerLook } from './look';
@@ -57,6 +57,8 @@ export interface SatisfactionCtx {
   wantStyle: string | null;
   /** Steps of a multi-step request already met. */
   stagesDone?: number;
+  /** The finished hair itself (design orders compare colours and patterns tuft by tuft). */
+  hair?: HairState;
 }
 
 /** Data description of what a customer wants; turned into a satisfaction function by fromWants(). */
@@ -130,6 +132,8 @@ export interface CustomerDef {
   timeLimit?: number;
   /** Which lines to use for events this customer doesn't override (default 'neutral'). */
   fallback?: 'personality' | 'neutral' | 'dog';
+  /** Points per shaved-in pattern (max 3 counted): + loves art on their head, − hates it. */
+  artTaste?: number;
   /** Weekly boss: never a walk-in, scheduled by the career every seventh day. */
   boss?: boolean;
   /** Multi-step request: each step is revealed when the previous one is met. */
@@ -214,7 +218,9 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Ảnh mẫu', 'Hai bên ngắn gọn'],
     dislikes: ['Phía trên bị ngắn', 'Chỗ trọc', 'Màu mè'],
     behaviors: ['photoCheck'],
+    artTaste: -8,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Ơ, ảnh mẫu đâu có hình này em?'] },
       clipper: { kind: 'hate', patience: -5, chaos: 10, when: 'topTooShort' },
     },
     pay: { base: 60000, tip: 20000 },
@@ -265,7 +271,10 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Tỉa nhẹ', 'Hai bên bằng nhau', 'Kéo'],
     dislikes: ['Tông đơ', 'Màu mè', 'Bị cãi'],
     behaviors: ['demands'],
+    artTaste: -22,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Cạo hình gì trên đầu chú thế này?!'] },
+      brush: { kind: 'hate', patience: -8, chaos: 5, lines: ['Nhuộm tóc à? Chú già rồi!'] },
       clipper: { kind: 'hate', patience: -10, chaos: 10 },
     },
     pay: { base: 50000, tip: 10000 },
@@ -316,7 +325,10 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Máy sấy', 'Keo vuốt', 'Sự kịch tính'],
     dislikes: ['Bị cắt nhiều', 'Tông đơ', 'Trọc'],
     behaviors: ['nervous'],
+    artTaste: 12,
     toolReactions: {
+      stencil: { kind: 'love', patience: 8, chaos: 0, lines: ['Đúng rồi! Phải khác người! Cạo thêm đi!'] },
+      brush: { kind: 'love', patience: 6, chaos: 0, lines: ['Nhuộm! Lột xác hoàn toàn!'] },
       clipper: { kind: 'fear', patience: -5, chaos: 10, nerves: 20 },
       dryer: { kind: 'love', patience: 0, chaos: 0 },
     },
@@ -357,7 +369,10 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Gọn gàng', 'Nhanh', 'Lược'],
     dislikes: ['Đồ phép thuật', 'Tóc màu', 'Mất thời gian'],
     behaviors: ['deadline'],
+    artTaste: -18,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Chị đi họp sếp tổng đấy, cạo hình gì!'] },
+      brush: { kind: 'hate', patience: -8, chaos: 5, lines: ['Màu này sếp tổng nhìn là duyệt nghỉ việc!'] },
       ray: { kind: 'hate', patience: -15, chaos: 12, lines: ['Em bắn cái gì vào đầu chị thế?! Chị đi họp đấy!'] },
       storm: { kind: 'hate', patience: -12, chaos: 10, lines: ['Tóc chị! Chị vừa sấy sáng nay!'] },
       wand: { kind: 'hate', patience: -6, chaos: 6, lines: ['Gậy gì đấy? Chị không có thời gian xem ảo thuật!'] },
@@ -411,7 +426,9 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Tông đơ', 'Ngắn gọn', 'Yên tĩnh'],
     dislikes: ['Tiếng ồn khi đang ngủ', 'Màu mè', 'Tóc dài'],
     behaviors: ['sleepy'],
+    artTaste: -14,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Hở? Ông già rồi, vẽ vời gì…'] },
       clipper: { kind: 'love', patience: 2, chaos: 0 },
       ray: { kind: 'hate', patience: -10, chaos: 8, lines: ['Đạn pháo! Nằm xuống!'] },
     },
@@ -464,7 +481,9 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Súng Tóc 3000', 'Máy Sấy Bão', 'Tóc dựng'],
     dislikes: ['Tóc xẹp', 'Trọc'],
     behaviors: ['flex'],
+    artTaste: 18,
     toolReactions: {
+      stencil: { kind: 'love', patience: 8, chaos: 0, lines: ['Tia sét! Giống cầu thủ thật! Thêm cái nữa!'] },
       ray: { kind: 'love', patience: 8, chaos: 0, lines: ['Pằng pằng! Ngầu quá anh ơi!'] },
       storm: { kind: 'love', patience: 8, chaos: 0, lines: ['Gió lên! Em như siêu anh hùng!'] },
     },
@@ -513,7 +532,10 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Màu', 'Combo', 'Người xem đông'],
     dislikes: ['Nhàm chán', 'Trọc'],
     behaviors: ['livestream'],
+    artTaste: 12,
     toolReactions: {
+      stencil: { kind: 'love', patience: 8, chaos: 0, lines: ['Cả nhà ơi nhìn nè, hình trên đầu Na!'] },
+      brush: { kind: 'love', patience: 6, chaos: 0, lines: ['Màu này lên hình đẹp xỉu!'] },
       ray: { kind: 'love', patience: 6, chaos: 0, lines: ['Wow cả nhà ơi, màu mới nè!'] },
       cooker: { kind: 'love', patience: 6, chaos: 0, lines: ['Nồi cơm tạo kiểu! Có ai thấy bao giờ chưa!'] },
     },
@@ -562,6 +584,7 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Nhanh', 'Tông đơ'],
     dislikes: ['Chờ đợi', 'Nồi cơm điện'],
     behaviors: ['rush'],
+    artTaste: 0,
     toolReactions: {
       cooker: { kind: 'hate', patience: -15, chaos: 8, lines: ['Úp nồi một phút rưỡi?! Đơn của anh!'] },
       clipper: { kind: 'love', patience: 3, chaos: 0 },
@@ -612,7 +635,9 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Tông đơ', 'Gọn gàng', 'Sự tĩnh lặng'],
     dislikes: ['Tiếng nổ', 'Gió bão', 'Bất ngờ'],
     behaviors: ['reflex'],
+    artTaste: -18,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Võ sư mà cạo hình hoa lá thì còn gì uy!'] },
       clipper: { kind: 'love', patience: 3, chaos: 0 },
       ray: { kind: 'fear', patience: -8, chaos: 6 },
       storm: { kind: 'fear', patience: -8, chaos: 6 },
@@ -662,7 +687,9 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Gậy Như Ý', 'Thuốc mọc tóc', 'Chải che'],
     dislikes: ['Tông đơ', 'Máy hút', 'Chỗ trọc mới'],
     behaviors: ['fearBald'],
+    artTaste: -6,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Đừng cạo thêm chỗ nào nữa em ơi!'] },
       clipper: { kind: 'fear', patience: -12, chaos: 8, lines: ['TÔNG ĐƠ?! Em định giết nốt mấy sợi cuối à?!'] },
       vacuum: { kind: 'fear', patience: -15, chaos: 10, lines: ['Máy hút?! Anh còn có mấy sợi thôi!'] },
       wand: { kind: 'love', patience: 10, chaos: 0, lines: ['Cây gậy đó… làm tóc mọc được hả em?!'] },
@@ -713,7 +740,9 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Phồng nhẹ', 'Lược Rồng', 'Sự chu đáo'],
     dislikes: ['Màu mè', 'Dựng đứng', 'Hỗn loạn'],
     behaviors: ['vip'],
+    artTaste: -6,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Chị là chủ tịch hội, không phải ca sĩ!'] },
       ray: { kind: 'hate', patience: -20, chaos: 15, lines: ['Em có biết chị là ai không?!'] },
       vacuum: { kind: 'hate', patience: -15, chaos: 12, lines: ['Máy hút bụi?! Chị là khách VIP!'] },
       comb: { kind: 'love', patience: 6, chaos: 0, lines: ['Ừ, chải nhẹ tay thế mới là phục vụ.'] },
@@ -759,7 +788,9 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Gương Thần Biến Hình', 'Được làm nhân vật chính'],
     dislikes: ['Bị cắt mà chưa được biến hình'],
     behaviors: ['transform'],
+    artTaste: 8,
     toolReactions: {
+      stencil: { kind: 'love', patience: 8, chaos: 0, lines: ['Ối, nhân vật chính phải có hình này!'] },
       ray: { kind: 'love', patience: 6, chaos: 0, lines: ['Ồ, có màu rồi! Giờ biến hình nốt đi!'] },
     },
     lines: {
@@ -805,7 +836,10 @@ export const CUSTOMERS: CustomerDef[] = [
     likes: ['Thay đổi lớn', 'Gậy Như Ý'],
     dislikes: ['Trọc', 'Bị phát hiện'],
     behaviors: ['duck'],
-    toolReactions: {},
+    artTaste: 18,
+    toolReactions: {
+      stencil: { kind: 'love', patience: 8, chaos: 0, lines: ['Có hình này bố em chắc chắn không nhận ra!'] },
+      brush: { kind: 'love', patience: 6, chaos: 0, lines: ['Màu này thì bố em chịu!'] },},
     lines: {
       duckWarn: ['Ơ… bố em!', 'Chết, cô chủ nhiệm!', 'Suỵt! Có người quen!'],
       turnStray: ['Em thụp xuống có tí mà!'],
@@ -910,7 +944,10 @@ export const CUSTOMERS: CustomerDef[] = [
       { say: 'Thợ ảnh bảo: “Vuốt keo dựng lên cho có khí chất!” Sấy giúp anh!', label: 'Phía trên dựng lên (sấy tóc có keo)', check: (m) => m.spikedFrac >= 0.12 },
       { say: 'Cuối cùng… đừng để trọc chỗ nào nhé, mai cưới rồi!', label: 'Không trọc chỗ nào', check: (m) => m.baldFrac < 0.02 },
     ],
+    artTaste: -20,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Mai cưới rồi! Mẹ vợ thấy hình này là hủy hôn!'] },
+      brush: { kind: 'hate', patience: -8, chaos: 5, lines: ['Nhuộm gì, mai cưới!'] },
       ray: { kind: 'hate', patience: -10, chaos: 8, lines: ['Nhuộm màu?! Mẹ vợ anh mà thấy là hủy cưới!'] },
     },
     lines: {
@@ -959,7 +996,10 @@ export const CUSTOMERS: CustomerDef[] = [
       { say: 'Tiếp theo: mái phải thẳng như thước kẻ.', label: 'Mái thẳng một đường', check: (m) => m.fringeTipSpread <= 9 && m.zone.fringe <= 0.85 },
       { say: 'Cuối cùng: tiệm phải sạch. Không sự cố, không để tóc bay tứ tung!', label: 'Tối đa 1 sự cố, ít tóc rơi', check: (_m, s) => s.log.length <= 1 && s.mess < 4 },
     ],
+    artTaste: -16,
     toolReactions: {
+      stencil: { kind: 'hate', patience: -10, chaos: 6, lines: ['Ghi biên bản: cạo hình không đúng quy định!'] },
+      brush: { kind: 'hate', patience: -8, chaos: 5, lines: ['Ghi biên bản: màu mè!'] },
       ray: { kind: 'hate', patience: -14, chaos: 10, lines: ['Ghi biên bản: sử dụng thiết bị không rõ nguồn gốc!'] },
       vacuum: { kind: 'love', patience: 8, chaos: 0, lines: ['Có máy hút. Tốt. Cộng điểm vệ sinh.'] },
     },

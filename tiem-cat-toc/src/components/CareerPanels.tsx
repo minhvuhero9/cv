@@ -70,7 +70,7 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
   );
 }
 
-const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần' } as const;
+const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu' } as const;
 
 /** Morning: what happens today (with causes) and who is coming. */
 export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void }) {
@@ -100,6 +100,11 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
             <div className="intro-label">Nhiệm vụ hôm nay</div>
             <QuestList quests={c.today.quests!} />
           </div>
+        )}
+        {c.day >= 2 && !c.today.queue.some((q) => q.reason === 'design') && (
+          <p className="panel-note" data-testid="catalog-tip">
+            💡 Chưa có khách đặt theo <b>cuốn mẫu</b>. Tối nay sau khi đóng cửa, bấm “🎨 Ra Xưởng tạo mẫu”, tạo kiểu rồi “Lưu vào sổ”: từ hôm sau sẽ có khách chọn mẫu của bạn.
+          </p>
         )}
         <div className="queue-list" data-testid="queue">
           <div className="intro-label">Khách hôm nay</div>
@@ -132,7 +137,7 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
 }
 
 /** Evening: what came in, what went out, what tomorrow looks like. */
-export function SummaryPanel({ c, sum, onShop, onNext }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void }) {
+export function SummaryPanel({ c, sum, onShop, onNext, onStudio }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onStudio?(): void }) {
   const totalCost = sum.costs.reduce((a, x) => a + x.amount, 0);
   return (
     <div className="overlay" data-testid="summary">
@@ -215,6 +220,11 @@ export function SummaryPanel({ c, sum, onShop, onNext }: { c: CareerState; sum: 
           <button className="secondary-btn" onClick={onShop} data-testid="summary-shop">
             🛒 Cửa hàng
           </button>
+          {onStudio && (
+            <button className="secondary-btn studio-cta" onClick={onStudio} data-testid="summary-studio" title="Tạo mẫu tóc mới cho cuốn mẫu của tiệm">
+              🎨 Ra Xưởng tạo mẫu
+            </button>
+          )}
           <button className="primary-btn" onClick={onNext} data-testid="next-day" autoFocus>
             Sang ngày {sum.day + 1} →
           </button>

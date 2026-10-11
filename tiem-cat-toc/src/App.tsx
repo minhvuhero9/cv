@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playSfx, setMuted, setMusicState, setMusicVolume, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
 import { AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
 import { MirrorButton, MirrorPicker } from './components/MirrorPicker';
@@ -6,9 +6,9 @@ import { Coach } from './components/Coach';
 import { AirCon, StageDecor, WallDecor } from './components/Decor';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
-import { Creation, brush, carve, deleteFromBook, loadBook, openCreation, pushUndo, redo, resetHair, saveToBook, studioRound, undo } from './game/studio';
-import { BookPanel, PhotoPanel, StudioPanel } from './components/StudioPanels';
-import type { Vec } from './game/geometry';
+import { Creation, StudioOptions, deleteFromBook, loadBook, openCreation, pushUndo, redo, resetHair, saveToBook, studioRound, undo } from './game/studio';
+import { BookPanel, PhotoPanel, STUDIO_MODELS, StudioPanel } from './components/StudioPanels';
+import { careerKit, fullKit } from './game/art';
 import { DailyChallenge, dailyFor, dailyOptions, dailyScore, loadBoard, recordDaily, streak, todayKey } from './game/daily';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
 import { ResultPanel } from './components/ResultPanel';
@@ -44,7 +44,6 @@ import {
   skipMirror,
   startCutting,
   tick,
-  toLocal,
 } from './game/session';
 import { loadProgress, recordRound, saveProgress } from './game/progress';
 import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
@@ -95,8 +94,18 @@ declare global {
 function careerRound(c: CareerState): RoundState {
   const q = c.today.queue[Math.min(c.today.index, c.today.queue.length - 1)];
   const unlocked = unlockAll ? [...new Set([...careerTools(c), ...unlockedTools({ rounds: 0, styles: [], events: [] }, true)])] : careerTools(c);
-  return createRound(q?.customer ?? 'tuan', seedParam ?? (c.day * 1000 + c.today.index), { unlocked, mirror: unlockAll, ctx: roundContext(c) });
+  // Cuốn mẫu: the saved creation this customer ordered (if it is still in the book).
+  const design = q?.designId ? (loadBook().find((x) => x.id === q.designId) ?? null) : null;
+  return createRound(q?.customer ?? 'tuan', seedParam ?? (c.day * 1000 + c.today.index), {
+    unlocked,
+    mirror: unlockAll,
+    kit: unlockAll ? fullKit() : careerKit(c.owned),
+    ctx: { ...roundContext(c), design },
+  });
 }
+
+/** The shop's catalog = the player's saved creations. */
+const catalog = () => loadBook().map((x) => ({ id: x.id, customer: x.customer, name: x.name }));
 
 function dailyRound(d: DailyChallenge, p: Progress): RoundState {
   return createRound(d.customer, d.seed, dailyOptions(d, freeTools(p)));
@@ -116,6 +125,10 @@ export default function App() {
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [mirrorOpen, setMirrorOpen] = useState(false);
   const [newAlbum, setNewAlbum] = useState(false);
+  /** Bumped whenever the Sổ kiểu tóc changes (it lives in localStorage). */
+  const [bookVer, setBookVer] = useState(0);
+  const bookList = useMemo(() => loadBook(), [bookVer, overlay]);
+  const wallWorks = useMemo(() => bookList.slice(0, 3), [bookList]);
   const [daily, setDaily] = useState<DailyChallenge | null>(() => (dailyParam && initialMode() === 'free' ? dailyFor(dailyDate()) : null));
   const dailyRef = useRef(daily);
   dailyRef.current = daily;
@@ -221,7 +234,13 @@ export default function App() {
     progressRef.current = next;
     setProgress(next);
     if (mode === 'career') {
-      setServed(applyRound(c, s));
+      const sv = applyRound(c, s);
+      setServed(sv);
+      if (sv.designId) {
+        const cr = loadBook().find((x) => x.id === sv.designId);
+        if (cr) saveToBook({ ...cr, orders: (cr.orders ?? 0) + 1 });
+        setBookVer((v) => v + 1);
+      }
       setNewTools([]);
       saveCareer(c);
       playSfx('cash');
@@ -292,28 +311,29 @@ export default function App() {
     } else newFreeRound('tuan');
   };
 
+  /** Career: after closing, the Xưởng with what the shop owns, on customers already met. */
+  const careerStudioOpts = (): StudioOptions => ({
+    tools: unlockAll ? undefined : careerTools(c),
+    kit: unlockAll ? fullKit() : careerKit(c.owned),
+    from: 'career',
+    mirror: unlockAll || c.owned.includes('mirror'),
+  });
+  const careerModels = () => {
+    const met = STUDIO_MODELS.filter((d) => c.history[d.id] && d.look.species !== 'dog');
+    return met.length ? met : STUDIO_MODELS.filter((d) => d.id === 'tuan');
+  };
+  const openCareerStudio = () => {
+    setMode('studio');
+    setOverlay(null);
+    setEditing(null);
+    replaceRound(studioRound(careerModels()[0].id, 7, careerStudioOpts()));
+  };
+  const studioOpts = (): StudioOptions => (s.studio?.from === 'career' ? careerStudioOpts() : {});
+
   /* Xưởng Tạo Kiểu */
   const [editing, setEditing] = useState<Creation | null>(null);
   const studio = mode === 'studio' && !!s.studio;
-  const studioDown = (p: Vec): boolean => {
-    const st = roundRef.current;
-    if (!st.studio || st.studio.mode === 'tool') return false;
-    pushUndo(st);
-    const local = toLocal(st, p);
-    if (st.studio.mode === 'brush') {
-      if (!brush(st, local)) st.studio.undo.pop();
-      brushing.current = true;
-      return true;
-    }
-    if (st.studio.mode === 'stencil') {
-      if (carve(st, local)) playSfx('bald');
-      else st.studio.undo.pop();
-      rerender();
-      return true;
-    }
-    return false;
-  };
-  const brushing = useRef(false);
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -354,8 +374,8 @@ export default function App() {
         ) : mode === 'studio' ? (
           <div className="sign-sub">
             Xưởng Tạo Kiểu ·{' '}
-            <button className="link-btn light" onClick={() => switchMode('free')} data-testid="studio-exit">
-              Về cắt tự do
+            <button className="link-btn light" onClick={() => switchMode(s.studio?.from === 'career' ? 'career' : 'free')} data-testid="studio-exit">
+              {s.studio?.from === 'career' ? '← Về tiệm' : 'Về cắt tự do'}
             </button>
           </div>
         ) : (
@@ -388,11 +408,11 @@ export default function App() {
           {studio ? (
             <StudioPanel
               s={s}
+              models={s.studio?.from === 'career' ? careerModels() : STUDIO_MODELS}
               onModel={(id) => {
                 setEditing(null);
-                replaceRound(studioRound(id));
+                replaceRound(studioRound(id, 7, studioOpts()));
               }}
-              onChange={rerender}
               onUndo={() => undo(roundRef.current)}
               onRedo={() => redo(roundRef.current)}
               onReset={() => resetHair(roundRef.current)}
@@ -418,27 +438,12 @@ export default function App() {
               now={now}
               onDown={(p) => {
                 unlockAudio();
-                if (studioDown(p)) return;
                 if (roundRef.current.studio) pushUndo(roundRef.current);
                 pointerDown(roundRef.current, p);
               }}
-              onMove={(p) => {
-                const st = roundRef.current;
-                if (st.studio && brushing.current) {
-                  st.pointer.stage = p;
-                  brush(st, toLocal(st, p));
-                  return;
-                }
-                pointerMove(st, p);
-              }}
-              onUp={() => {
-                brushing.current = false;
-                pointerUp(roundRef.current);
-              }}
-              onLeave={() => {
-                brushing.current = false;
-                pointerLeave(roundRef.current);
-              }}
+              onMove={(p) => pointerMove(roundRef.current, p)}
+              onUp={() => pointerUp(roundRef.current)}
+              onLeave={() => pointerLeave(roundRef.current)}
             />
           </div>
           {bubble && (
@@ -488,7 +493,7 @@ export default function App() {
             <div className="price-strike">Cắt giống ảnh .. ??k</div>
             <div className="price-note">Cắt hỏng không hoàn tiền!!</div>
           </div>
-          {career && <WallDecor owned={c.owned} />}
+          {career && <WallDecor owned={c.owned} works={wallWorks} />}
           {career && c.owned.includes('aircon') ? (
             <AirCon />
           ) : (
@@ -511,21 +516,24 @@ export default function App() {
 
       <Toolbar s={s} onTool={onTool} onFinish={studio ? () => setOverlay('photo') : onFinish} finishLabel={studio ? ['Chụp!', 'Ảnh & lưu'] : undefined} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
       {!overlay && !mirrorOpen && !studio && <Coach s={s} />}
-      {overlay === 'photo' && studio && (
+      {overlay === 'photo' && (studio || s.result) && (
         <PhotoPanel
           s={s}
           editing={editing}
           onClose={() => setOverlay(null)}
           onSaved={(cr) => {
             const ok = saveToBook(cr);
-            if (ok) setEditing(cr);
+            if (ok) {
+              setEditing(cr);
+              setBookVer((v) => v + 1);
+            }
             return ok;
           }}
         />
       )}
       {overlay === 'book' && (
         <BookPanel
-          book={loadBook()}
+          book={bookList}
           onClose={() => setOverlay(null)}
           onOpen={(cr) => {
             if (mode !== 'studio') {
@@ -537,13 +545,13 @@ export default function App() {
               }
             }
             setEditing(cr);
-            replaceRound(openCreation(cr));
+            replaceRound(openCreation(cr, studioOpts()));
             setOverlay(null);
           }}
           onDelete={(id) => {
             deleteFromBook(id);
             if (editing?.id === id) setEditing(null);
-            rerender();
+            setBookVer((v) => v + 1);
           }}
         />
       )}
@@ -579,6 +587,7 @@ export default function App() {
           unlocked={career ? c.styles : progress.styles}
           newTools={newTools}
           onReplay={() => (daily ? startDaily(true) : newFreeRound(s.customer.id, true))}
+          onPhoto={() => setOverlay('photo')}
           daily={daily && dailyResult ? { ...dailyResult, date: daily.date } : null}
           onNext={career ? nextCareer : nextFree}
           career={career && served ? { served, nextLabel: c.today.phase === 'closed' ? 'Đóng cửa, tổng kết ngày →' : `Khách tiếp theo (${c.today.index + 1}/${c.today.queue.length}) →` } : null}
@@ -602,8 +611,9 @@ export default function App() {
           c={c}
           sum={c.lastSummary}
           onShop={() => setOverlay('shop')}
+          onStudio={openCareerStudio}
           onNext={() => {
-            nextDay(c);
+            nextDay(c, catalog());
             saveCareer(c);
             replaceRound(careerRound(c));
           }}

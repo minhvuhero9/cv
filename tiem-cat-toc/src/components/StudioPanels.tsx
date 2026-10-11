@@ -8,12 +8,9 @@ import { downloadBlob } from '../game/share';
 import {
   BOOK_MAX,
   Creation,
-  PALETTE,
   PhotoBg,
   PhotoFrame,
   PhotoSettings,
-  STENCILS,
-  StudioMode,
   creationHair,
   snapCreation,
 } from '../game/studio';
@@ -21,7 +18,6 @@ import { Character } from './Character';
 import { applyLook, personaById } from '../game/mirror';
 import { BG_LABEL, FRAME_LABEL, PHOTO_H, PHOTO_W, PhotoComposition, STICKERS, StickerArt } from './PhotoComposition';
 
-const MODE_LABEL: Record<StudioMode, string> = { tool: '✂ Dụng cụ', brush: '🖌 Cọ nhuộm', stencil: '⚡ Cạo hình' };
 const MOODS: [Mood, string][] = [
   ['neutral', 'Bình thường'],
   ['happy', 'Vui'],
@@ -38,7 +34,7 @@ export const STUDIO_MODELS = CUSTOMERS.filter((c) => c.id !== 'copycat');
 export function StudioPanel({
   s,
   onModel,
-  onChange,
+  models,
   onUndo,
   onRedo,
   onReset,
@@ -47,7 +43,8 @@ export function StudioPanel({
 }: {
   s: RoundState;
   onModel(id: string): void;
-  onChange(): void;
+  /** Models to choose from (career: customers already met). */
+  models: { id: string; name: string }[];
   onUndo(): void;
   onRedo(): void;
   onReset(): void;
@@ -55,76 +52,23 @@ export function StudioPanel({
   onBook(): void;
 }) {
   const st = s.studio!;
-  const set = (f: () => void) => {
-    f();
-    onChange();
-  };
   return (
     <div className="studio-panel" data-testid="studio-panel">
       <div className="studio-title">🎨 Xưởng Tạo Kiểu</div>
-      <p className="studio-note">Không chấm điểm, không tính giờ. Khách ngồi yên cho bạn sáng tạo.</p>
+      <p className="studio-note">
+        {st.from === 'career' ? 'Sáng tạo mẫu cho cuốn mẫu của tiệm bằng đồ nghề bạn đã mua. Khách sẽ đặt kiểu theo mẫu bạn lưu.' : 'Không chấm điểm, không tính giờ. Khách ngồi yên cho bạn sáng tạo.'}
+      </p>
       <label className="studio-row">
         <span>Người mẫu</span>
         <select value={s.baseCustomer.id} onChange={(e) => onModel(e.target.value)} data-testid="studio-model">
-          {STUDIO_MODELS.map((c) => (
+          {models.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </select>
       </label>
-      <div className="studio-modes" role="tablist">
-        {(Object.keys(MODE_LABEL) as StudioMode[]).map((m) => (
-          <button key={m} role="tab" aria-selected={st.mode === m} className={`chip ${st.mode === m ? 'is-active' : ''}`} onClick={() => set(() => (st.mode = m))} data-testid={`studio-mode-${m}`}>
-            {MODE_LABEL[m]}
-          </button>
-        ))}
-      </div>
-      {st.mode === 'tool' && <p className="studio-hint">Dùng mọi dụng cụ ở thanh dưới. Súng Tóc 3000 bắn đúng màu bạn chọn.</p>}
-      {st.mode === 'brush' && <p className="studio-hint">Rê cọ lên tóc để nhuộm, không làm đổi kiểu tóc.</p>}
-      {st.mode === 'stencil' && <p className="studio-hint">Chạm lên da đầu để cạo hình theo khuôn.</p>}
-
-      <div className="studio-sub">Màu</div>
-      <div className="swatches">
-        {PALETTE.map((c, i) => (
-          <button key={c} className={`swatch ${st.colorA === c ? 'on' : ''}`} style={{ background: c }} onClick={() => set(() => (st.colorA = c))} aria-label={`Màu ${c}`} data-testid={`studio-color-${i}`} />
-        ))}
-      </div>
-      <div className="studio-row">
-        <label>
-          Màu 1 <input type="color" value={st.colorA} onChange={(e) => set(() => (st.colorA = e.target.value))} data-testid="studio-color-a" />
-        </label>
-        <label>
-          <input type="checkbox" checked={st.blend} onChange={(e) => set(() => (st.blend = e.target.checked))} data-testid="studio-blend" /> Loang sang
-        </label>
-        <input type="color" value={st.colorB} onChange={(e) => set(() => (st.colorB = e.target.value))} disabled={!st.blend} aria-label="Màu 2" data-testid="studio-color-b" />
-      </div>
-
-      <div className="studio-sub">Khuôn cạo hình</div>
-      <div className="stencils">
-        {STENCILS.map((x) => (
-          <button
-            key={x.id}
-            className={`chip ${st.stencil === x.id ? 'is-active' : ''}`}
-            onClick={() =>
-              set(() => {
-                st.stencil = x.id;
-                st.mode = 'stencil';
-              })
-            }
-            data-testid={`studio-stencil-${x.id}`}
-          >
-            {x.name}
-          </button>
-        ))}
-      </div>
-      <div className="studio-row">
-        <label>
-          Cỡ <input type="range" min={0.6} max={1.6} step={0.1} value={st.size} onChange={(e) => set(() => (st.size = Number(e.target.value)))} data-testid="studio-size" />
-        </label>
-        {st.stencil === 'text' && <input className="studio-text" value={st.text} maxLength={8} onChange={(e) => set(() => (st.text = e.target.value))} aria-label="Chữ để cạo" data-testid="studio-text" />}
-      </div>
-
+      <p className="studio-hint">Dùng mọi dụng cụ ở thanh dưới. Chọn 🖌 Cọ Nhuộm hoặc ⚡ Khuôn Cạo Hình để tô màu, cạo hình.</p>
       <div className="studio-actions">
         <button className="secondary-btn" onClick={onUndo} disabled={!st.undo.length} data-testid="studio-undo" title="Hoàn tác (Ctrl+Z)">
           ↶ Hoàn tác
@@ -137,7 +81,7 @@ export function StudioPanel({
         </button>
       </div>
       <div className="studio-actions">
-        <button className="primary-btn" onClick={onPhoto} data-testid="studio-photo">
+        <button className="primary-btn" onClick={onPhoto} data-testid="studio-photo" title="Chụp ảnh và lưu vào cuốn mẫu">
           📷 Chụp ảnh
         </button>
         <button className="secondary-btn" onClick={onBook} data-testid="studio-book">
@@ -167,7 +111,7 @@ export function PhotoPanel({
   }, [s]);
   const [name, setName] = useState(editing?.name ?? suggested);
   const [caption, setCaption] = useState(editing?.caption ?? `Tác phẩm trên đầu ${s.baseCustomer.name}`);
-  const [photo, setPhoto] = useState<PhotoSettings>(editing?.photo ?? { mood: 'happy', bg: 'salon', frame: 'polaroid', stickers: [] });
+  const [photo, setPhoto] = useState<PhotoSettings>(editing?.photo ?? { mood: s.result && !s.result.walkedOut ? s.result.mood : 'happy', bg: 'salon', frame: 'polaroid', stickers: [] });
   const [sticker, setSticker] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -318,7 +262,7 @@ export function BookPanel({ book, onOpen, onDelete, onClose }: { book: Creation[
           </button>
         </div>
         <p className="panel-note">
-          {book.length}/{BOOK_MAX} tác phẩm, lưu trong trình duyệt này. Mở lại để sửa tiếp hoặc chụp ảnh mới.
+          {book.length}/{BOOK_MAX} tác phẩm, lưu trong trình duyệt này. Đây cũng là <b>cuốn mẫu của tiệm</b>: từ ngày 2 ở chế độ Mở Tiệm, mỗi ngày có khách chọn một mẫu để đặt cắt.
         </p>
         {book.length === 0 && <p className="panel-note">Chưa có tác phẩm nào. Tạo kiểu xong, bấm “📷 Chụp ảnh” → “Lưu vào sổ”.</p>}
         <div className="book-grid">
@@ -344,6 +288,7 @@ function BookItem({ c, confirm, onOpen, onAsk, onDelete }: { c: Creation; confir
       <b>{c.name}</b>
       <small>
         {d.name} · {new Date(c.at).toLocaleDateString('vi-VN')}
+        {c.orders ? ` · được đặt ${c.orders} lần` : ''}
       </small>
       <div className="book-actions">
         <button className="secondary-btn" onClick={onOpen} data-testid="book-open">

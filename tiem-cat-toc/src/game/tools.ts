@@ -17,7 +17,9 @@ export type ToolId =
   | 'gel'
   | 'auto'
   | 'stamp'
-  | 'fireworks';
+  | 'fireworks'
+  | 'brush'
+  | 'stencil';
 
 export type Rarity = 'thuong' | 'hiem' | 'sutthi' | 'huyenthoai';
 export const RARITY_LABEL: Record<Rarity, string> = {
@@ -67,13 +69,39 @@ export interface ToolDef {
   effect: string;
   rarity: Rarity;
   input: InputKind;
-  group: 'basic' | 'magic';
+  group: 'basic' | 'magic' | 'art';
   unlock: Unlock;
   energy: Energy | null;
   hotkey?: string;
 }
 
 export const TOOLS: ToolDef[] = [
+  {
+    id: 'brush',
+    name: 'Cọ Nhuộm',
+    blurb: 'Tô màu lên tóc như tô tranh. Không mất sợi nào.',
+    howTo: 'Rê lên tóc để nhuộm. Chọn màu ở bảng màu phía trên thanh công cụ.',
+    effect: 'Nhuộm các lọn dưới cọ (màu đơn hoặc loang 2 màu nếu có Bảng Màu Mở Rộng).',
+    rarity: 'hiem',
+    input: 'drag',
+    group: 'art',
+    unlock: { kind: 'rounds', n: 1 },
+    energy: null,
+    hotkey: '8',
+  },
+  {
+    id: 'stencil',
+    name: 'Khuôn Cạo Hình',
+    blurb: 'Tia sét, ngôi sao, sọc… cạo thẳng vào đầu khách.',
+    howTo: 'Chọn khuôn rồi chạm lên da đầu để cạo hình.',
+    effect: 'Cạo một hình vào tóc; lọn nằm trên nét cạo bị cắt sát da.',
+    rarity: 'hiem',
+    input: 'tap',
+    group: 'art',
+    unlock: { kind: 'rounds', n: 2 },
+    energy: null,
+    hotkey: '9',
+  },
   {
     id: 'clipper',
     name: 'Tông đơ',

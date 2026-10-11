@@ -1,3 +1,4 @@
+import type { HairState } from './hair';
 import { CustomerDef, Personality } from './customers';
 import { HairMetrics, LEAN_RUNAWAY } from './metrics';
 import { Rng, pick } from './rng';
@@ -87,6 +88,8 @@ export interface RoundFacts {
   payBonus?: number;
   /** Multi-step requests: steps met. */
   stagesDone?: number;
+  /** The finished hair (for customers who compare it with a design). */
+  hair?: HairState;
 }
 
 export interface StyleName {
@@ -165,6 +168,24 @@ export const STYLE_RULES: StyleRule[] = [
     name: 'Bão Cấp 12 Vừa Đi Qua',
     why: 'Tóc dài bất thường bị gió thổi tung về một phía.',
     when: (f) => !!f.events.comboStormLong && f.metrics.fluffAvg >= 0.3,
+  },
+  {
+    id: 'signature',
+    name: 'Đầu Có Chữ Ký',
+    why: 'Một dòng chữ được cạo thẳng lên đầu. Ai đi qua cũng đọc được.',
+    when: (f) => f.metrics.hasText && f.metrics.baldFrac < 0.1,
+  },
+  {
+    id: 'street-art',
+    name: 'Tranh Tường Di Động',
+    why: 'Nhiều hình cạo trên đầu như một bức graffiti biết đi.',
+    when: (f) => f.metrics.carvingCount >= 2 && f.metrics.baldFrac < 0.1,
+  },
+  {
+    id: 'ombre',
+    name: 'Hoàng Hôn Trên Đỉnh Đầu',
+    why: 'Màu tóc loang dần từ đỉnh xuống đuôi như trời chiều.',
+    when: (f) => f.metrics.tintedFrac >= 0.4 && f.metrics.colorCount >= 6,
   },
   {
     id: 'rainbow',
@@ -283,6 +304,12 @@ export const STYLE_RULES: StyleRule[] = [
     name: 'Cắt Một Lần, Nhớ Cả Đời',
     why: 'Có một mảng trọc không ai yêu cầu.',
     when: (f) => f.metrics.baldCount > 0,
+  },
+  {
+    id: 'one-mark',
+    name: 'Một Nét Cá Tính',
+    why: 'Một hình cạo nhỏ, đủ để cả xóm bàn tán.',
+    when: (f) => f.metrics.carvingCount >= 1 && f.metrics.baldFrac < 0.1,
   },
   {
     id: 'untouched',
@@ -544,7 +571,7 @@ export function evaluateRound(f: RoundFacts, rng: Rng): RoundResult {
   // Name from the hair first (some customers judge by the style they got), then judge.
   const preStyle = nameHairstyle(f, 0).id;
   // (sat is computed with the customer's own context below)
-  const sat = Math.round(
+  let sat = Math.round(
     f.customer.satisfaction(f.metrics, {
       before: f.before,
       timeUsed: f.timeUsed ?? 0,
@@ -553,8 +580,12 @@ export function evaluateRound(f: RoundFacts, rng: Rng): RoundResult {
       styleId: preStyle,
       wantStyle: f.wantStyle ?? null,
       stagesDone: f.stagesDone ?? 0,
+      hair: f.hair,
     }),
   );
+  // Đồ nghề sáng tạo: some customers love art on their head, others hate it.
+  const art = f.customer.artTaste ? Math.min(3, f.metrics.carvingCount) * f.customer.artTaste : 0;
+  if (art) sat = Math.max(0, Math.min(100, sat + art));
   const tier = reactionTier(sat);
   const style = nameHairstyle(f, sat);
   const p = f.customer.personality;

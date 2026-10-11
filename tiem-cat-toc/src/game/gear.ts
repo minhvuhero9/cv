@@ -1,4 +1,4 @@
-import { colorFor } from './studio';
+import { colorFor } from './art';
 import type { MagicLineKey } from './dialogue';
 import type { EventId, Mood } from './evaluate';
 import { Vec, angleDiff, clamp, dist } from './geometry';
@@ -266,11 +266,11 @@ export function gearDown(s: RoundState, p: Vec): boolean {
       return true;
     }
     case 'ray': {
-      // In the Xưởng the Súng Tóc fires the colours picked in the palette.
-      const st = s.studio;
-      const color = st ? st.colorA : RAY_COLORS[m.rayShots % RAY_COLORS.length];
+      // In the Xưởng (or with the Bảng Màu Mở Rộng) the Súng Tóc fires the colours picked in the palette.
+      const own = !!s.studio || s.ctx.items.includes('paletteXL');
+      const color = own ? s.art.colorA : RAY_COLORS[m.rayShots % RAY_COLORS.length];
       m.rayShots++;
-      const hit = rayBlast(s.hair, p, st ? (t) => colorFor(st, s.hair, t.root) : color);
+      const hit = rayBlast(s.hair, p, own ? (t) => colorFor(s.art, s.hair, t.root) : color);
       const def = toolDef('ray').energy!;
       spend(s, 'ray', def.costPerUse!);
       s.gear.ray.nextUseAt = s.time + (def.gap ?? 0);

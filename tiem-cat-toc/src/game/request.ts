@@ -4,6 +4,7 @@ import type { HairMetrics } from './metrics';
 import { personaById } from './mirror';
 import type { RoundState } from './session';
 import { STYLE_RULES } from './evaluate';
+import { carvingLabel, carvingsMatched, colorMatch } from './design';
 
 /**
  * Phiếu yêu cầu: what this customer actually checks, as a short live checklist.
@@ -107,6 +108,16 @@ export function requestSheet(s: RoundState): RequestSheet {
   if (s.wantStyle) {
     const name = STYLE_RULES.find((r) => r.id === s.wantStyle)?.name ?? s.wantStyle;
     return { target: null, items: [{ id: 'copy', label: `Y hệt kiểu “${name}”`, check: (_m, st) => (st.result ? st.result.style.id === st.wantStyle : null) }] };
+  }
+  if (s.design) {
+    const o = s.design;
+    const items = zoneItems(o.target);
+    if (o.tinted) items.push({ id: 'd-color', label: 'Màu giống mẫu', check: (_m, rs) => colorMatch(rs.hair, o.hair) >= 0.8 });
+    (o.hair.carvings ?? []).forEach((cv, i) =>
+      items.push({ id: `d-carve${i}`, label: `Cạo hình ${carvingLabel(cv.kind, cv.text)}`, check: (_m, rs) => carvingsMatched(rs.hair, o.hair).matched[i] }),
+    );
+    items.push(noBald);
+    return { target: o.target, items };
   }
   if (c.stages?.length) {
     const st = c.stages;

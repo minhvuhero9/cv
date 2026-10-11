@@ -44,6 +44,11 @@ export const SHOP: ShopItem[] = [
   { id: 'wand', name: 'Gậy Như Ý', category: 'tool', price: 300000, tool: 'wand', desc: 'Kéo dài, thu ngắn, phóng to từng lọn.', effect: 'Thêm dụng cụ Gậy Như Ý vào thanh công cụ.', unlock: { day: 2 } },
   { id: 'ray', name: 'Súng Tóc 3000', category: 'tool', price: 250000, tool: 'ray', desc: 'Bắn màu, dựng tóc, phóng to.', effect: 'Thêm dụng cụ Súng Tóc 3000.', unlock: { day: 2 } },
   { id: 'comb', name: 'Lược Rồng', category: 'tool', price: 200000, tool: 'comb', desc: 'Chải hướng, phồng, xoăn.', effect: 'Thêm dụng cụ Lược Rồng.', unlock: { day: 2 } },
+  // ---- đồ nghề sáng tạo
+  { id: 'brush', name: 'Cọ Nhuộm', category: 'tool', price: 160000, tool: 'brush', desc: 'Tô màu lên tóc như tô tranh.', effect: 'Thêm Cọ Nhuộm (4 màu cơ bản). Khách mê màu sẽ trả thêm.', unlock: { day: 1 } },
+  { id: 'stencil', name: 'Khuôn Cạo Hình', category: 'tool', price: 200000, tool: 'stencil', desc: 'Bộ khuôn tia sét, ngôi sao, sọc.', effect: 'Thêm Khuôn Cạo Hình (3 khuôn cơ bản). Khách thích cá tính sẽ mê.', unlock: { day: 2 } },
+  { id: 'paletteXL', name: 'Bảng Màu Mở Rộng', category: 'upgrade', price: 180000, desc: '10 màu, pha màu tự do, loang hai màu.', effect: 'Cọ Nhuộm và Súng Tóc dùng đủ 10 màu, màu tự chọn và nhuộm loang.', unlock: { day: 2 } },
+  { id: 'stencilPro', name: 'Khuôn Cạo Cao Cấp', category: 'upgrade', price: 220000, desc: 'Trái tim, răng cưa, khắc chữ, chỉnh cỡ.', effect: 'Thêm khuôn trái tim, răng cưa, chữ tự gõ và chỉnh cỡ khuôn.', unlock: { day: 3 } },
   { id: 'storm', name: 'Máy Sấy Bão', category: 'machine', price: 350000, tool: 'storm', desc: 'Bão cấp 12 trong lòng bàn tay.', effect: 'Thêm dụng cụ Máy Sấy Bão.', unlock: { day: 3, event: 'gelSpikes', eventLabel: 'Từng gây sự cố “Gió Đổi Chiều”' } },
   { id: 'cooker', name: 'Nồi Cơm Điện Tạo Kiểu', category: 'machine', price: 280000, tool: 'cooker', desc: 'Hấp tóc phồng như bánh bao.', effect: 'Thêm dụng cụ Nồi Cơm Điện.', unlock: { day: 3 } },
   { id: 'vacuum', name: 'Máy Hút Tóc Vũ Trụ', category: 'machine', price: 450000, tool: 'vacuum', desc: 'Hút tóc thừa. Và tóc không thừa.', effect: 'Thêm Máy Hút; dọn sạch tiệm: miễn phạt vệ sinh.', unlock: { viral: 25 } },
