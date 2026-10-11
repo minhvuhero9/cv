@@ -75,6 +75,7 @@ Cắt đẹp thì có uy tín và tiền boa. Thảm họa có thể thành vira
 **Hậu quả kéo sang hôm sau:**
 - Khách bị cắt hỏng quay lại đòi sửa, **mang theo đúng mái tóc hôm trước**. Nếu vẫn hỏng, họ bỏ tiệm luôn.
 - Khách mê tay nghề quay lại sau hai ngày.
+- Khách đa dạng: mỗi tiệm mới có thứ tự khách riêng. Mỗi ngày tối đa 1 người quay lại đòi sửa (những người khác giận bỏ hẳn) và 1 khách quen (người còn lại hẹn hôm sau). Ngày nào cũng có ít nhất 2 khách mới, còn người vừa ghé trong 2 ngày qua thì hiếm khi vào lại.
 - Một kiểu tóc viral khiến hôm sau xuất hiện "Fan Cuồng Trend" đòi y hệt kiểu đó.
 - Cậu Vàng rũ lông làm tiệm bừa bộn → hôm sau đoàn kiểm tra vệ sinh đến (bị phạt nếu không có Máy Hút).
 - Máy móc mòn theo số lần dùng; dưới 25% thì bắt đầu trục trặc.

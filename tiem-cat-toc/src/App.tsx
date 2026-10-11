@@ -56,6 +56,8 @@ const params = new URLSearchParams(location.search);
 /** `?unlock=all` opens the whole Bộ Đồ Nghề without earning it (for trying things out). */
 const unlockAll = params.get('unlock') === 'all';
 const seedParam = params.get('seed') ? Number(params.get('seed')) || undefined : undefined;
+/** Each new shop meets its own customers; a fixed ?seed keeps tests reproducible. */
+const newShopSeed = () => (seedParam !== undefined ? 0 : 1 + Math.floor(Math.random() * 1e6));
 /** `?daily=1` (today) or `?daily=YYYY-MM-DD` opens the daily challenge. */
 const dailyParam = params.get('daily');
 const dailyDate = () => (dailyParam && /^\d{4}-\d{2}-\d{2}$/.test(dailyParam) ? dailyParam : todayKey());
@@ -119,7 +121,7 @@ export default function App() {
   progressRef.current = progress;
   const [careerRef] = useState<{ current: CareerState }>(() => {
     const c = params.get('fresh') === '1' ? null : loadCareer();
-    return { current: c ?? newCareer() };
+    return { current: c ?? newCareer(newShopSeed()) };
   });
   const [newTools, setNewTools] = useState<ToolId[]>([]);
   const [served, setServed] = useState<Served | null>(null);
@@ -581,7 +583,7 @@ export default function App() {
           onClose={() => setOverlay(null)}
           onReset={() => {
             resetCareer();
-            careerRef.current = newCareer();
+            careerRef.current = newCareer(newShopSeed());
             saveCareer(careerRef.current);
             setOverlay(null);
             if (mode === 'career') replaceRound(careerRound(careerRef.current));
