@@ -77,6 +77,8 @@ async function playDay(page) {
   const c0 = await career(page);
   check('Career: day 1 starts with a planned queue', c0.day === 1 && c0.today.queue.length >= 3, `queue=${c0.today.queue.length}`);
   await page.screenshot({ path: `${OUT}/K1-morning.png` });
+  check('Cấp tiệm: the morning shows the shop level and what comes next', (await page.locator('[data-testid=level-card]').count()) === 1 && (await page.getAttribute('[data-testid=hud-level]', 'data-value')) === '1');
+  check('Cuốn mẫu: no catalog orders before buying a creative tool', !c0.today.queue.some((q) => q.reason === 'design') && (await page.locator('[data-testid=catalog-tip]').count()) === 1);
   check('Nhiệm vụ: the morning shows today\'s goals', (await page.locator('[data-testid=quests] li').count()) === 3 && c0.today.quests.length === 3);
   await page.click('[data-testid=open-day]');
   await playDay(page);
@@ -85,39 +87,47 @@ async function playDay(page) {
   check('Nhiệm vụ: goals are listed on the evening summary', (await page.locator('[data-testid=summary] [data-testid=quests] li').count()) === 3);
   check('Career: day 1 ledger has revenue and costs', c1.lastSummary && c1.lastSummary.costs.length >= 2 && c1.lastSummary.served.length >= 3, `net=${c1.lastSummary?.net}`);
   check('Career: reputation moved from real results', c1.rep !== 50, `rep=${c1.rep}`);
-  // Creative loop: after closing, make a design in the Xưởng and save it to the catalog.
+  // Creative loop: save a finished cut to the catalog, and a customer orders it on an even day.
   await page.evaluate(() => {
-    localStorage.removeItem('tctbo-studio-book');
     localStorage.setItem('tctbo-coach', '4');
+    const s = window.__tctbo.state();
+    const c = {
+      id: 'e2e',
+      name: 'Mẫu Số Một',
+      caption: '',
+      customer: s.baseCustomer.id,
+      persona: null,
+      tufts: s.hair.tufts.map((t) => [t.len, t.bald ? 1 : 0, t.spiked ? 1 : 0, t.tint, t.lean, t.fluff, t.thick, t.curl, t.gel, null, null]),
+      carvings: [],
+      photo: { mood: 'happy', bg: 'salon', frame: 'none', stickers: [] },
+      at: Date.now(),
+    };
+    localStorage.setItem('tctbo-studio-book', JSON.stringify([c]));
   });
-  await page.click('[data-testid=summary-studio]');
-  await page.waitForSelector('[data-testid=studio-panel]');
-  const studioTools = await page.evaluate(() => window.__tctbo.state().unlocked);
-  check('Xưởng sau giờ: only the tools the shop owns', !studioTools.includes('brush') && !studioTools.includes('wand') && studioTools.includes('scissors'), studioTools.join(','));
-  const sa = await toClient(page, 110, 232);
-  const sb = await toClient(page, 290, 232);
-  await page.mouse.move(sa.x, sa.y);
-  await page.mouse.down();
-  await page.mouse.move(sb.x, sb.y, { steps: 10 });
-  await page.mouse.up();
-  await page.click('[data-testid=studio-photo]');
-  await page.fill('[data-testid=photo-name]', 'Mẫu Số Một');
-  await page.click('[data-testid=photo-save]');
-  await page.click('[data-testid=photo-close]');
-  await page.click('[data-testid=studio-exit]');
-  await page.waitForSelector('[data-testid=next-day]');
-  check('Xưởng sau giờ: back to the shop summary', (await career(page)).day === 1);
+  check('Xưởng Tạo Kiểu đã bỏ: no studio button after closing', (await page.locator('[data-testid=summary-studio]').count()) === 0);
+  // Reach shop level 2 and buy the Cọ Nhuộm this evening: customers start ordering tomorrow.
+  await page.evaluate(() => {
+    window.__tctbo.career().money += 400000;
+    window.__tctbo.career().xp = 80;
+  });
+  await page.click('[data-testid=summary-shop]');
+  await page.click('[data-testid=buy-brush]');
+  await page.click('[data-testid=close-shop]');
+  check('Cuốn mẫu: buying the brush does not change today', !(await career(page)).today.queue.some((q) => q.reason === 'design'));
+  await page.click('[data-testid=summary-book]');
+  await page.waitForSelector('[data-testid=book-item]');
+  check('Cuốn mẫu: opens from the evening summary', (await page.locator('[data-testid=book-item]').count()) === 1);
+  await page.click('[data-testid=book-close]');
   await page.click('[data-testid=next-day]');
   await page.waitForSelector('[data-testid=morning]');
-  const qd = (await career(page)).today.queue.filter((x) => x.reason === 'design');
-  check('Cuốn mẫu: the next day a customer orders the saved design', qd.length === 1, JSON.stringify(qd));
+  const qd = (await career(page)).today.queue.filter((x) => x.reason === 'design' && x.designId === 'e2e');
+  check('Cuốn mẫu: on day 2 a customer orders the saved design', qd.length === 1, JSON.stringify(qd));
   // Day 2: give the shop some money, buy a tool and check it really appears in the toolbar.
   await page.evaluate(() => {
     window.__tctbo.career().money += 400000;
   });
   await page.click('[data-testid=morning-shop]');
   await page.click('[data-testid=buy-wand]');
-  await page.click('[data-testid=buy-brush]');
   await page.click('[data-testid=shop-tab-decor]');
   await page.click('[data-testid=buy-plant]');
   await page.screenshot({ path: `${OUT}/K3-shop.png` });

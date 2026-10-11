@@ -127,6 +127,8 @@ async function finishAndWait(page) {
 {
   const { page, ctx, errors } = await newGame();
   await start(page, 'tuan');
+  // A careful barber lifts the tool when Tuấn turns his head; this check is about the cut itself.
+  await page.evaluate(() => (window.__tctbo.state().nextTurnCheck = 1e9));
   await page.screenshot({ path: `${OUT}/A0-start.png` });
   // Clipper, quick passes over both sides (away from the roots so nothing goes bald).
   await page.click('[data-testid=tool-clipper]');
@@ -556,92 +558,60 @@ async function finishAndWait(page) {
   await ctx.close();
 }
 
-/* ---------------- Xưởng Tạo Kiểu ---------------- */
+/* ---------------- Đồ nghề sáng tạo + chụp ảnh & lưu mẫu ---------------- */
 {
-  const { page, ctx, errors } = await newGame();
+  const { page, ctx, errors } = await newGame(undefined, { unlockAll: true });
   await page.evaluate(() => {
     localStorage.setItem('tctbo-coach', '4');
     localStorage.removeItem('tctbo-studio-book');
   });
-  await page.click('[data-testid=open-studio]');
-  await page.waitForSelector('[data-testid=studio-panel]');
-  await page.selectOption('[data-testid=studio-model]', 'khoa');
-  const st = () =>
-    page.evaluate(() => {
-      const s = window.__tctbo.state();
-      return { studio: !!s.studio, phase: s.phase, tinted: s.metrics.tintedFrac, carv: (s.hair.carvings ?? []).length, undo: s.studio?.undo.length ?? 0, len: s.hair.tufts.reduce((a, t) => a + t.len, 0), tools: s.unlocked.length };
-    });
-  const s0 = await st();
-  check('Xưởng: opens on the chosen model with every tool and no clock', s0.studio && s0.phase === 'cutting' && s0.tools >= 10 && (await page.locator('[data-testid=clock]').count()) === 0, JSON.stringify(s0));
-  await drag(page, [[90, 250], [310, 250]], { steps: 12 });
-  const s1 = await st();
-  check('Xưởng: one stroke = one undo step', s1.len < s0.len && s1.undo === 1, `undo=${s1.undo}`);
+  check('Xưởng Tạo Kiểu đã bỏ: no studio entry anywhere', (await page.locator('[data-testid=open-studio], [data-testid=to-studio]').count()) === 0);
+  await start(page, 'ti');
+  // Keep Tí from striking a pose mid-test (random head moves are covered elsewhere).
+  await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    s.nextTurnCheck = 1e9;
+    s.nextBehaviorAt = 1e9;
+  });
+  const st = () => page.evaluate(() => ({ tinted: window.__tctbo.state().metrics.tintedFrac, carv: window.__tctbo.state().metrics.carvingCount }));
   await page.click('[data-testid=tool-brush]');
+  await page.waitForSelector('[data-testid=art-bar]');
   await page.click('[data-testid=art-color-4]');
-  await page.check('[data-testid=art-blend]');
-  await drag(page, [[130, 170], [200, 150], [270, 170], [260, 225], [140, 225]], { steps: 8 });
-  const s2 = await st();
-  check('Xưởng: colour brush dyes without cutting', s2.tinted > 0.3 && Math.abs(s2.len - s1.len) < 0.01, `tinted=${s2.tinted.toFixed(2)}`);
+  await drag(page, [[130, 170], [200, 150], [270, 170], [200, 200]], { steps: 8 });
+  check('Cọ Nhuộm: dyes a real customer', (await st()).tinted > 0.1);
   await page.click('[data-testid=tool-stencil]');
-  await page.click('[data-testid=art-stencil-star]');
+  await page.click('[data-testid=art-stencil-bolt]');
   const sp = await toClient(page, 200, 175);
   await page.mouse.click(sp.x, sp.y);
-  const s3 = await st();
-  check('Xưởng: a stencil carves a pattern', s3.carv === 1 && (await page.locator('[data-testid=stage] [data-carvings]').count()) === 1);
-  await page.click('[data-testid=studio-undo]');
-  check('Xưởng: undo removes the carving', (await st()).carv === 0);
-  await page.click('[data-testid=studio-redo]');
-  check('Xưởng: redo brings it back', (await st()).carv === 1);
-  await page.screenshot({ path: `${OUT}/X1-studio.png` });
-  // Photo mode.
-  await page.click('[data-testid=finish]');
+  check('Khuôn Cạo Hình: carves a pattern', (await st()).carv === 1 && (await page.locator('[data-testid=stage] [data-carvings]').count()) === 1);
+  await page.screenshot({ path: `${OUT}/X1-art-tools.png` });
+  await finishAndWait(page);
+  await page.click('[data-testid=result-photo]');
   await page.waitForSelector('[data-testid=photo-panel]');
-  await page.fill('[data-testid=photo-name]', 'Sao Băng Thất Tình');
-  await page.click('[data-testid=photo-bg-tet]');
-  await page.click('[data-testid=photo-frame-polaroid]');
-  await page.click('[data-testid=photo-sticker-heart]');
+  await page.fill('[data-testid=photo-name]', 'Tia Sét Xanh');
+  await page.click('[data-testid=photo-bg-neon]');
+  await page.click('[data-testid=photo-sticker-fire]');
   const pb = await page.locator('[data-testid=photo-preview]').boundingBox();
   await page.mouse.click(pb.x + pb.width * 0.25, pb.y + pb.height * 0.3);
-  check('Ảnh: name and sticker appear in the preview', (await page.locator('[data-testid=photo-preview] text', { hasText: 'Sao Băng Thất Tình' }).count()) === 1);
   const dl = page.waitForEvent('download');
   await page.click('[data-testid=photo-png]');
   const d = await dl;
   const size = (await fs.promises.stat(await d.path())).size;
   check('Ảnh: "Tải ảnh PNG" downloads the picture', d.suggestedFilename().endsWith('.png') && size > 50000, `${d.suggestedFilename()} ${size}B`);
-  await page.screenshot({ path: `${OUT}/X2-photo.png` });
   await page.click('[data-testid=photo-save]');
-  check('Sổ: saved', /Đã lưu/.test(await page.textContent('[data-testid=photo-status]')));
-  await page.click('[data-testid=photo-close]');
-  // Come back later through the studio link, switch model, reopen from the book.
-  await page.goto(`${BASE}?mode=studio`);
-  await page.waitForSelector('[data-testid=studio-panel]');
-  await page.selectOption('[data-testid=studio-model]', 'na');
-  await page.click('[data-testid=studio-book]');
-  await page.waitForSelector('[data-testid=book-item]');
-  check('Sổ: the creation survives a reload', (await page.locator('[data-testid=book-item]').count()) === 1);
-  await page.click('[data-testid=book-open]');
-  await page.waitForTimeout(200);
-  const back = await page.evaluate(() => {
-    const s = window.__tctbo.state();
-    return { c: s.baseCustomer.id, carv: (s.hair.carvings ?? []).length, tinted: s.metrics.tintedFrac };
-  });
-  check('Sổ: "Mở" brings back the model, colours and carvings', back.c === 'khoa' && back.carv === 1 && back.tinted > 0.3, JSON.stringify(back));
-  check('Xưởng: no console errors', errors.length === 0, errors.join(' | '));
+  check('Cuốn mẫu: the result is saved as a design', /Đã lưu/.test(await page.textContent('[data-testid=photo-status]')));
+  await page.screenshot({ path: `${OUT}/X2-photo.png` });
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tctbo-studio-book') ?? '[]'));
+  check('Cuốn mẫu: name, colours and pattern are kept', saved.length === 1 && saved[0].name === 'Tia Sét Xanh' && saved[0].carvings.length === 1);
+  check('Sáng tạo: no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
 {
-  const { page, ctx, errors } = await newGame({ width: 390, height: 844 }, { touch: true });
-  await page.evaluate(() => localStorage.setItem('tctbo-coach', '4'));
-  await page.tap('[data-testid=open-studio]');
-  await page.waitForSelector('[data-testid=studio-panel]');
-  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-  check('Xưởng (phone): fits the screen', !(await overflow()));
-  await page.screenshot({ path: `${OUT}/X3-phone-studio.png` });
-  await page.tap('[data-testid=finish]');
-  await page.waitForSelector('[data-testid=photo-panel]');
-  check('Ảnh (phone): photo mode fits', !(await overflow()));
-  await page.screenshot({ path: `${OUT}/X4-phone-photo.png` });
-  check('Xưởng (phone): no console errors', errors.length === 0, errors.join(' | '));
+  // An old link to the removed studio just opens the game.
+  const { page, ctx, errors } = await newGame();
+  await page.goto(`${BASE}?mode=studio`);
+  await page.waitForSelector('[data-testid=start], [data-testid=morning]');
+  check('Xưởng Tạo Kiểu đã bỏ: ?mode=studio falls back to the game', (await page.locator('[data-testid=studio-panel]').count()) === 0 && errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
 

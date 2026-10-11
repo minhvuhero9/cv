@@ -3,7 +3,8 @@ import { careerKit, fullKit, BASIC_COLORS } from './art';
 import { careerTools, newCareer, planDay } from './career';
 import { customerById } from './customers';
 import { designOrder, designScore } from './design';
-import { snapCreation, studioRound, brush, carve } from './studio';
+import { snapCreation } from './creation';
+import { brushHair, carveHair } from './art';
 import { createRound, finish, pointerDown, pointerMove, pointerUp, setTool, startCutting, tick, RoundState } from './session';
 import { measureHair } from './metrics';
 
@@ -82,23 +83,29 @@ describe('đồ nghề sáng tạo trong ván thật', () => {
 
 describe('cuốn mẫu: khách đặt theo mẫu bạn tạo', () => {
   function makeDesign() {
-    const st = studioRound('khoa');
+    const st = createRound('khoa', 3);
     st.art.colorA = '#18c8ff';
-    for (const p of [{ x: 150, y: 170 }, { x: 200, y: 160 }, { x: 250, y: 170 }]) brush(st, p);
-    carve(st, { x: 200, y: 175 });
+    for (const p of [{ x: 150, y: 170 }, { x: 200, y: 160 }, { x: 250, y: 170 }]) brushHair(st.hair, st.art, p);
+    carveHair(st.hair, { ...st.art, stencil: 'bolt' }, { x: 200, y: 175 });
     return snapCreation(st, 'Sét Xanh', '', photo, 'd1');
   }
 
   it('from day 2 one customer a day orders a design', () => {
     const c = newCareer();
+    c.owned.push('brush');
+    c.xp = 80;
     c.day = 2;
     planDay(c, [{ id: 'd1', customer: 'khoa', name: 'Sét Xanh' }]);
     const q = c.today.queue.find((x) => x.reason === 'design');
     expect(q?.customer).toBe('khoa');
     expect(q?.designId).toBe('d1');
+    // Odd days (and day 1) order a built-in template instead.
     c.day = 1;
     planDay(c, [{ id: 'd1', customer: 'khoa', name: 'Sét Xanh' }]);
-    expect(c.today.queue.some((x) => x.reason === 'design')).toBe(false);
+    const t = c.today.queue.filter((x) => x.reason === 'design');
+    expect(t).toHaveLength(1);
+    expect(t[0].templateId).toBeTruthy();
+    expect(t[0].designId).toBeUndefined();
   });
 
   it('copying the design scores high, ignoring it scores low', () => {
@@ -134,10 +141,10 @@ describe('cuốn mẫu: khách đặt theo mẫu bạn tạo', () => {
 describe('cuốn mẫu trên đầu người khác', () => {
   it('a design made on one model can be ordered by another customer', async () => {
     const { creationHairOn } = await import('./creation');
-    const st = studioRound('khoa');
+    const st = createRound('khoa', 3);
     st.art.colorA = '#18c8ff';
-    for (const p of [{ x: 150, y: 170 }, { x: 200, y: 160 }, { x: 250, y: 170 }]) brush(st, p);
-    carve(st, { x: 200, y: 175 });
+    for (const p of [{ x: 150, y: 170 }, { x: 200, y: 160 }, { x: 250, y: 170 }]) brushHair(st.hair, st.art, p);
+    carveHair(st.hair, { ...st.art, stencil: 'bolt' }, { x: 200, y: 175 });
     const d = snapCreation(st, 'Sét Xanh', '', photo, 'd2');
     const on = creationHairOn(d, 'teo');
     expect(on.head.ry).toBe(createRound('teo', 1).hair.head.ry);
@@ -147,11 +154,40 @@ describe('cuốn mẫu trên đầu người khác', () => {
     expect(designScore(o, o.hair)).toBeGreaterThanOrEqual(95);
     // The model is busy (already queued): someone else orders it.
     const c = newCareer();
+    c.owned.push('brush');
     c.day = 2;
     c.pending = [{ customer: 'khoa', reason: 'loyal', day: 2, note: '' }];
     planDay(c, [{ id: 'd2', customer: 'khoa', name: 'Sét Xanh' }]);
     const q = c.today.queue.find((x) => x.reason === 'design');
     expect(q).toBeTruthy();
     expect(q!.customer).not.toBe('khoa');
+  });
+});
+
+describe('cuốn mẫu lưu trong trình duyệt', () => {
+  it('saves, caps, deletes and survives a corrupt store', async () => {
+    const { BOOK_MAX, loadBook, saveToBook, deleteFromBook, creationHair } = await import('./creation');
+    const m = new Map<string, string>();
+    const store = {
+      get length() {
+        return m.size;
+      },
+      clear: () => m.clear(),
+      getItem: (k: string) => (m.has(k) ? m.get(k)! : null),
+      key: (i: number) => [...m.keys()][i] ?? null,
+      removeItem: (k: string) => void m.delete(k),
+      setItem: (k: string, v: string) => void m.set(k, String(v)),
+    } as Storage;
+    const s = createRound('ti', 2);
+    carveHair(s.hair, { ...s.art, stencil: 'star' }, { x: 200, y: 175 });
+    const c = snapCreation(s, 'Sao Băng', '', photo, 'x');
+    expect(saveToBook(c, store)).toBe(true);
+    expect(creationHair(loadBook(store)[0]).carvings).toHaveLength(1);
+    for (let i = 0; i < BOOK_MAX + 3; i++) saveToBook({ ...c, id: `n${i}` }, store);
+    expect(loadBook(store)).toHaveLength(BOOK_MAX);
+    deleteFromBook('n0', store);
+    expect(loadBook(store).some((x) => x.id === 'n0')).toBe(false);
+    m.set('tctbo-studio-book', '{oops');
+    expect(loadBook(store)).toEqual([]);
   });
 });

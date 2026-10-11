@@ -7,6 +7,8 @@ import type { RoundContext, RoundState } from './session';
 import { ELECTRIC, MACHINES, SHOP, ShopItem, shopItem } from './shop';
 import { TOOLS, ToolId } from './tools';
 import { Quest, planQuests, settleQuests, updateQuests } from './quests';
+import { LEVELS, levelFor, xpFor } from './level';
+import { TEMPLATES, templateReady } from './templates';
 
 /**
  * Chế độ Mở Tiệm: the multi-day shop simulation. Pure functions over CareerState so the
@@ -27,8 +29,10 @@ export interface QueueEntry {
   reason: QueueReason;
   note: string;
   wantStyle?: string | null;
-  /** Cuốn mẫu: id of the saved creation they ordered. */
+  /** Cuốn mẫu: id of the saved creation they ordered… */
   designId?: string;
+  /** …or the built-in template. */
+  templateId?: string;
 }
 
 export interface DayEvent {
@@ -57,6 +61,9 @@ export interface Served {
   quests?: string[];
   /** Ordered from the catalog: the creation id. */
   designId?: string;
+  /** XP earned, and the level reached if this round levelled the shop up. */
+  xp?: number;
+  levelUp?: number;
 }
 
 export interface CostLine {
@@ -110,6 +117,8 @@ export interface CareerState {
   events: string[];
   styles: string[];
   stats: { served: number; walkouts: number; earned: number; days: number };
+  /** Kinh nghiệm của tiệm (Cấp tiệm). Older saves start at 0. */
+  xp?: number;
   today: {
     phase: 'morning' | 'open' | 'closed';
     queue: QueueEntry[];
@@ -220,7 +229,8 @@ export function customersPerDay(c: CareerState, events: string[]): number {
   if (events.includes('foodStall')) n++;
   if (events.includes('badReview')) n--;
   if (c.viral >= 50) n++;
-  return clamp(n, 2, 6);
+  n += shopLevel(c).extraCustomers;
+  return clamp(n, 2, 7);
 }
 
 /** A page of the shop's catalog (the player's saved creations). */
@@ -248,15 +258,21 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
     queue.push({ customer: 'copycat', reason: 'copycat', note: `Muốn y hệt kiểu “${c.viralStyle.name}” trên mạng`, wantStyle: c.viralStyle.id });
   }
 
-  // 2b) Cuốn mẫu: from day 2, one customer a day picks a design you created in the Xưởng
-  //     (the model it was made on if they are free today, otherwise another walk-in).
-  if (c.day >= 2 && catalog.length) {
-    const e = catalog[c.day % catalog.length];
-    const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && !queue.some((q) => q.customer === d.id);
-    const model = CUSTOMERS.find((x) => x.id === e.customer);
-    const others = CUSTOMERS.filter((d) => ok(d) && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)));
+  // 2b) Cuốn mẫu: only once the shop owns creative tools (Cọ Nhuộm / Khuôn Cạo Hình) do
+  //     customers come in with the catalog — the day after you buy them, since the day is
+  //     planned in the morning. They order a template your tools can do or, every other
+  //     day once you have some, a design you saved yourself.
+  const artShop = c.owned.includes('brush') || c.owned.includes('stencil');
+  const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)) && !queue.some((q) => q.customer === d.id);
+  const own = artShop && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null;
+  const ready = artShop ? TEMPLATES.filter((t) => templateReady(t, shopLevel(c).level, careerTools(c), c.owned)) : [];
+  const tpl = !own && ready.length ? ready[(c.day * 7 + c.stats.served) % ready.length] : null;
+  if (own || tpl) {
+    const model = own ? CUSTOMERS.find((x) => x.id === own.customer) : null;
+    const others = CUSTOMERS.filter(ok);
     const who = model && ok(model) ? model : others.length ? others[Math.floor(rng() * others.length) % others.length] : null;
-    if (who) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu “${e.name}” trong cuốn mẫu của tiệm`, designId: e.id });
+    if (who && own) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu “${own.name}” (do bạn tạo) trong cuốn mẫu`, designId: own.id });
+    else if (who && tpl) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu có sẵn “${tpl.name}” ${'★'.repeat(tpl.stars)}`, templateId: tpl.id });
   }
 
   // 3) Walk-ins, weighted, no duplicates; drama lovers more likely after a viral clip.
@@ -315,8 +331,10 @@ export function careerTools(c: CareerState): ToolId[] {
   return [...new Set(tools)];
 }
 
+export const shopLevel = (c: CareerState) => levelFor(c.xp ?? 0);
+
 export function repMultiplier(c: CareerState) {
-  return (0.8 + c.rep / 250) * (c.owned.includes('ringLight') ? 1.1 : 1);
+  return (0.8 + c.rep / 250) * (c.owned.includes('ringLight') ? 1.1 : 1) * shopLevel(c).price;
 }
 
 /** Everything the round needs to know about the shop for the current customer. */
@@ -443,6 +461,12 @@ export function applyRound(c: CareerState, s: RoundState): Served {
   if (q?.designId) served.designId = q.designId;
   const done = updateQuests(c, s, served);
   if (done.length) served.quests = done.map((q) => q.label);
+  // Cấp tiệm.
+  const before = shopLevel(c).level;
+  const gained = xpFor(r, { design: q?.reason === 'design', art: s.metrics.carvingCount > 0 || s.metrics.tintedFrac > 0.1, boss: q?.reason === 'boss', quests: done.length });
+  c.xp = (c.xp ?? 0) + gained;
+  served.xp = gained;
+  if (shopLevel(c).level > before) served.levelUp = shopLevel(c).level;
   c.today.served.push(served);
   c.today.index++;
   c.today.phase = c.today.index >= c.today.queue.length ? 'closed' : 'open';
@@ -520,6 +544,7 @@ export type BuyCheck = { ok: true } | { ok: false; reason: string };
 
 export function canBuy(c: CareerState, item: ShopItem): BuyCheck {
   const u = item.unlock;
+  if (u.level && shopLevel(c).level < u.level) return { ok: false, reason: `Cần cấp tiệm ${u.level}: ${LEVELS[u.level - 1].name}` };
   if (u.day && c.day < u.day) return { ok: false, reason: `Mở bán từ ngày ${u.day}` };
   if (u.rep && c.rep < u.rep) return { ok: false, reason: `Cần Uy tín ${u.rep}` };
   if (u.viral && c.viral < u.viral) return { ok: false, reason: `Cần Viral ${u.viral}` };

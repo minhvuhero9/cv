@@ -2415,3 +2415,122 @@ button {
 .design-pic {
   outline-color: #8a4dff;
 }
+.design-score {
+  position: absolute;
+  left: 18px;
+  top: 14px;
+  z-index: 3;
+  background: #fff;
+  border: 3px solid #8a4dff;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-weight: 800;
+  font-size: 14px;
+  color: #4b2a7a;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  pointer-events: none;
+  box-shadow: 0 3px 0 rgba(43, 26, 18, 0.25);
+}
+.design-score b {
+  font-size: 18px;
+}
+.design-score small {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b5a3a;
+}
+
+/* ---------------- Cấp tiệm ---------------- */
+.chip-stat.level {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.level-bar {
+  display: inline-block;
+  width: 38px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.level-bar span,
+.level-track span {
+  display: block;
+  height: 100%;
+  background: #ffd23f;
+}
+.level-card {
+  background: #2b1a12;
+  color: #fff8e8;
+  border-radius: 14px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+.level-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.level-head b {
+  display: block;
+  font-size: 18px;
+  color: #ffd23f;
+}
+.level-head small {
+  font-size: 12px;
+}
+.level-num {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffd23f;
+  color: #2b1a12;
+  font-weight: 900;
+  font-size: 22px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.level-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.level-next {
+  font-size: 12px;
+  opacity: 0.9;
+}
+.level-up {
+  background: #ffd23f;
+  border: 3px solid #2b1a12;
+  border-radius: 12px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  font-size: 15px;
+}
+.level-up small {
+  display: block;
+  font-size: 12px;
+}
+.xp-gain {
+  font-size: 13px;
+  font-weight: 800;
+  color: #8a4dff;
+  margin: 2px 0;
+}
+.trace-steps {
+  margin: 4px 0;
+  padding-left: 20px;
+  font-size: 12px;
+}
+.trace-tip {
+  list-style: none;
+  margin-left: -20px;
+  color: #6b5a3a;
+  font-style: italic;
+}

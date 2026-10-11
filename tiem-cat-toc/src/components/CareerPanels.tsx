@@ -1,10 +1,34 @@
 import { useState } from 'react';
-import { CareerState, DaySummary, canBuy, repairCost, vnd } from '../game/career';
+import { CareerState, DaySummary, canBuy, repairCost, shopLevel, vnd } from '../game/career';
 import { customerById } from '../game/customers';
 import { CATEGORY_LABEL, MACHINES, SHOP, ShopCategory } from '../game/shop';
 import { TOOLS } from '../game/tools';
 import { ToolIcon } from './ToolIcons';
 import type { Quest } from '../game/quests';
+import { levelProgress, nextLevel } from '../game/level';
+
+/** Cấp tiệm: where the shop is and what the next level brings. */
+export function LevelCard({ c }: { c: CareerState }) {
+  const cur = shopLevel(c);
+  const nx = nextLevel(c.xp ?? 0);
+  return (
+    <div className="level-card" data-testid="level-card">
+      <div className="level-head">
+        <span className="level-num">{cur.level}</span>
+        <div>
+          <b>{cur.name}</b>
+          <small>
+            {nx ? `${c.xp ?? 0}/${nx.xp} kinh nghiệm — lên “${nx.name}”` : 'Cấp cao nhất!'}
+          </small>
+        </div>
+      </div>
+      <div className="level-track">
+        <span style={{ width: `${Math.round(levelProgress(c.xp ?? 0) * 100)}%` }} />
+      </div>
+      {nx && <div className="level-next">Cấp sau mở: {nx.unlocks.join(' · ')}</div>}
+    </div>
+  );
+}
 
 /** Today's goals with progress and rewards. */
 export function QuestList({ quests, compact = false }: { quests: Quest[]; compact?: boolean }) {
@@ -40,6 +64,12 @@ export function QuestList({ quests, compact = false }: { quests: Quest[]; compac
 export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSettings(): void; onShop(): void }) {
   return (
     <div className="career-hud" data-testid="career-hud">
+      <span className="chip-stat level" title={`Cấp tiệm ${shopLevel(c).level}: ${shopLevel(c).name}`} data-testid="hud-level" data-value={shopLevel(c).level}>
+        🏠 <b>Cấp {shopLevel(c).level}</b>
+        <span className="level-bar">
+          <span style={{ width: `${Math.round(levelProgress(c.xp ?? 0) * 100)}%` }} />
+        </span>
+      </span>
       <span className="chip-stat" data-testid="hud-day">
         Ngày <b>{c.day}</b>
       </span>
@@ -95,15 +125,20 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
             ))}
           </div>
         )}
+        <LevelCard c={c} />
         {(c.today.quests?.length ?? 0) > 0 && (
           <div className="quest-box">
             <div className="intro-label">Nhiệm vụ hôm nay</div>
             <QuestList quests={c.today.quests!} />
           </div>
         )}
-        {c.day >= 2 && !c.today.queue.some((q) => q.reason === 'design') && (
+        {!c.owned.includes('brush') && !c.owned.includes('stencil') ? (
           <p className="panel-note" data-testid="catalog-tip">
-            💡 Chưa có khách đặt theo <b>cuốn mẫu</b>. Tối nay sau khi đóng cửa, bấm “🎨 Ra Xưởng tạo mẫu”, tạo kiểu rồi “Lưu vào sổ”: từ hôm sau sẽ có khách chọn mẫu của bạn.
+            💡 Chưa có khách đặt theo <b>cuốn mẫu</b>. Mua <b>Cọ Nhuộm</b> (từ cấp 2) hoặc <b>Khuôn Cạo Hình</b> (từ cấp 3) ở Cửa hàng: từ hôm sau khách sẽ cầm cuốn mẫu đến đặt kiểu.
+          </p>
+        ) : (
+          <p className="panel-note" data-testid="catalog-tip">
+            💡 Cắt xong một kiểu ưng ý, ở màn kết quả bấm “📷 Chụp ảnh &amp; lưu mẫu”: các ngày chẵn sẽ có khách chọn mẫu <b>của bạn</b>.
           </p>
         )}
         <div className="queue-list" data-testid="queue">
@@ -137,7 +172,7 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
 }
 
 /** Evening: what came in, what went out, what tomorrow looks like. */
-export function SummaryPanel({ c, sum, onShop, onNext, onStudio }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onStudio?(): void }) {
+export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onBook?(): void }) {
   const totalCost = sum.costs.reduce((a, x) => a + x.amount, 0);
   return (
     <div className="overlay" data-testid="summary">
@@ -220,9 +255,9 @@ export function SummaryPanel({ c, sum, onShop, onNext, onStudio }: { c: CareerSt
           <button className="secondary-btn" onClick={onShop} data-testid="summary-shop">
             🛒 Cửa hàng
           </button>
-          {onStudio && (
-            <button className="secondary-btn studio-cta" onClick={onStudio} data-testid="summary-studio" title="Tạo mẫu tóc mới cho cuốn mẫu của tiệm">
-              🎨 Ra Xưởng tạo mẫu
+          {onBook && (
+            <button className="secondary-btn" onClick={onBook} data-testid="summary-book">
+              📒 Cuốn mẫu
             </button>
           )}
           <button className="primary-btn" onClick={onNext} data-testid="next-day" autoFocus>

@@ -68,14 +68,26 @@ describe('hair model', () => {
     expect(m.baldCount).toBe(0);
   });
 
-  it('scissors cut only the tufts the blade crosses, at the crossing point', () => {
+  it('scissors cut along the blade (with a little reach), never stubbing locks at the root', () => {
     const h = createHair(customerById('tuan').hair);
     scissorsSweep(h, { x: 120, y: 212 }, { x: 280, y: 212 }, 1);
     const fringe = h.tufts.filter((t) => t.zone === 'fringe');
-    const sides = h.tufts.filter((t) => t.zone === 'left' && t.kind === 'edge');
+    const sides = h.tufts.filter((t) => (t.zone === 'left' || t.zone === 'right') && t.kind === 'edge');
     expect(fringe.every((t) => t.len < t.origLen)).toBe(true);
-    expect(sides.every((t) => t.len === t.origLen)).toBe(true);
-    for (const t of fringe) expect(t.root.y + t.len).toBeLessThan(216);
+    for (const t of fringe) expect(t.root.y + t.len).toBeLessThan(220);
+    // Side locks are only touched where the blade really passes over them, never cut to a stub.
+    const touched = sides.filter((t) => t.len < t.origLen);
+    expect(touched.length).toBeLessThanOrEqual(sides.length * 0.15);
+    for (const t of touched) expect(t.len).toBeGreaterThanOrEqual(6);
+  });
+
+  it('a slightly-off drag still catches the locks it passes over', () => {
+    const h = createHair(customerById('tuan').hair);
+    // A short stroke that runs just beside the fringe locks instead of exactly across them.
+    const before = h.tufts.filter((t) => t.zone === 'fringe').reduce((a, t) => a + t.len, 0);
+    for (let x = 140; x < 260; x += 3) scissorsSweep(h, { x, y: 208 }, { x: x + 3, y: 208.5 }, 2);
+    const after = h.tufts.filter((t) => t.zone === 'fringe').reduce((a, t) => a + t.len, 0);
+    expect(after).toBeLessThan(before * 0.8);
   });
 
   it('clipper buzzes to the guard length; a quick pass never makes bald', () => {

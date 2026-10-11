@@ -1,7 +1,7 @@
 import type { HairState } from '../game/hair';
 import type { CustomerLook } from '../game/look';
 import { measureHair } from '../game/metrics';
-import type { PhotoBg, PhotoFrame, PhotoSettings, Sticker } from '../game/studio';
+import type { PhotoBg, PhotoFrame, PhotoSettings, Sticker } from '../game/creation';
 import { Character } from './Character';
 
 /** Photo-mode picture. Pure SVG (presentation attributes only) so the PNG export matches the preview. */
@@ -201,7 +201,7 @@ export function PhotoComposition({ look, hair, photo, name, caption, idPrefix }:
         </g>
       )}
       <text x={PHOTO_W - 14} y={polaroid ? PHOTO_H - 8 : 22} textAnchor="end" fontSize={10} fontWeight={800} fill={dark ? '#ffd9f6' : '#6b5a3a'} fontFamily="Arial, sans-serif" opacity={0.8}>
-        Xưởng Tạo Kiểu · Tiệm Cắt Tóc Bất Ổn
+        Tiệm Cắt Tóc Bất Ổn
       </text>
     </g>
   );

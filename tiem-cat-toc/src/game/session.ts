@@ -23,8 +23,8 @@ import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown,
 import { ToolId } from './tools';
 import { checkSheet, requestSheet } from './request';
 import type { Creation } from './creation';
-import { DesignOrder, designCustomer, designOrder } from './design';
-import type { StudioState } from './studio';
+import { DesignOrder, designCustomer, designOrder, templateOrder } from './design';
+import { templateById } from './templates';
 import { ArtKit, ArtSettings, brushHair, carveHair, fullKit, newArt } from './art';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
 
@@ -148,8 +148,6 @@ export interface RoundState {
   textureSaid: boolean;
   /** Multi-step request: steps already met. */
   stage: number;
-  /** Xưởng Tạo Kiểu (sandbox): undo/redo; no clock and no judging. */
-  studio?: StudioState;
   /** Cuốn mẫu: the design this customer ordered. */
   design: DesignOrder | null;
   /** Đồ nghề sáng tạo: current colours / stencil, and what the barber owns. */
@@ -179,6 +177,8 @@ export interface RoundState {
     travel: number;
     /** A magic tool changed the hair during this stroke. */
     magicUsed: boolean;
+    /** Recent stage points of the scissors (drawn as a faint cut line). */
+    trail: Vec[];
   };
   headOffset: Vec;
   motion: Motion | null;
@@ -304,6 +304,8 @@ export interface RoundContext {
   wantPersona?: PersonaId | null;
   /** A design from the shop's catalog this customer ordered. */
   design?: Creation | null;
+  /** …or a built-in template (mẫu có sẵn). */
+  designTemplate?: string | null;
 }
 
 export interface RoundOptions {
@@ -321,7 +323,8 @@ export interface RoundOptions {
 
 export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, opts: RoundOptions = {}): RoundState {
   const baseDef = customerById(customerId);
-  const design = opts.ctx?.design ? designOrder(opts.ctx.design, baseDef.id) : null;
+  const tpl = templateById(opts.ctx?.designTemplate);
+  const design = opts.ctx?.design ? designOrder(opts.ctx.design, baseDef.id) : tpl ? templateOrder(tpl, baseDef.id) : null;
   const customer = design ? designCustomer(baseDef, design) : baseDef;
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
@@ -356,7 +359,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     phase: 'intro',
     time: 0,
     tool: opts.onlyTools ? (opts.onlyTools.includes('scissors') ? 'scissors' : opts.onlyTools[0]) : customer.startTool && [...BASIC_TOOLS, ...(opts.unlocked ?? [])].includes(customer.startTool) ? customer.startTool : 'scissors',
-    pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0, magicUsed: false },
+    pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0, magicUsed: false, trail: [] },
     headOffset: { x: 0, y: 0 },
     motion: null,
     nextTurnCheck: 4,
@@ -607,6 +610,7 @@ export function pointerDown(s: RoundState, p: Vec) {
   const local = toLocal(s, p);
   ptr.lastLocal = local;
   ptr.travel = 0;
+  ptr.trail = [p];
   if (isMagic(s.tool)) {
     if (!gearDown(s, local)) ptr.down = false;
     return;
@@ -649,6 +653,8 @@ export function pointerMove(s: RoundState, p: Vec) {
   } else if (s.tool === 'brush') {
     artBrush(s, local);
   } else if (s.tool === 'scissors') {
+    ptr.trail.push(p);
+    if (ptr.trail.length > 14) ptr.trail.shift();
     const r = scissorsSweep(s.hair, prev, local, ptr.stroke);
     if (r.cut.length) s.sfx.push('snip');
     if (r.cut.length && s.hair.texture === 'wiry' && !s.textureSaid) {
@@ -1194,27 +1200,12 @@ export function tick(s: RoundState, dt: number) {
   }
   if (ptr.down && local && s.tool === 'dryer') blow(s, local, dt);
   gearTick(s, dt, ptr.down && local ? local : null);
-  if (!s.studio) behaviorTick(s, dt, ptr.down && local ? local : null);
+  behaviorTick(s, dt, ptr.down && local ? local : null);
   if (ptr.down && local) {
     s.usage[s.tool] = (s.usage[s.tool] ?? 0) + dt;
     malfunction(s, local, dt);
   }
 
-  // Xưởng Tạo Kiểu: the model sits still and never runs out of patience; no events, no clock.
-  if (s.studio) {
-    s.patience = 100;
-    s.nerves = 0;
-    s.motion = null;
-    s.demand = null;
-    s.walkout = null;
-    if (s.time - s.lastIncidentAt > 5) s.incident = clamp(s.incident - 0.8 * dt, 0, 100);
-    s.ruleTimer += dt;
-    if (s.ruleTimer >= 0.25) {
-      s.ruleTimer = 0;
-      refreshMetrics(s);
-    }
-    return;
-  }
   const comfort = (hasItem(s, 'chair') ? 0.8 : 1) * (hasItem(s, 'aircon') ? 0.75 : 1);
   s.patience = clamp(s.patience - s.customer.patienceDecay * comfort * dt * (1 + chaosTier(s.chaos) * 0.35), 0, 100);
   s.nerves = clamp(s.nerves - 9 * dt, 0, 100);

@@ -187,7 +187,6 @@ export function IntroCard({
   note,
   daily,
   onDaily,
-  onStudio,
 }: {
   s: RoundState;
   onStart(): void;
@@ -195,7 +194,6 @@ export function IntroCard({
   note?: string;
   daily?: DailyChallenge | null;
   onDaily?(): void;
-  onStudio?(): void;
 }) {
   const c = s.customer;
   return (
@@ -231,11 +229,6 @@ export function IntroCard({
         <button className="primary-btn" onClick={onStart} data-testid="start" autoFocus>
           Mời ngồi — Bắt đầu cắt ✂
         </button>
-        {onStudio && (
-          <button className="daily-btn studio-btn" onClick={onStudio} data-testid="open-studio">
-            🎨 Xưởng Tạo Kiểu — tự do sáng tạo, không chấm điểm
-          </button>
-        )}
         {onDaily && !daily && (
           <button className="daily-btn" onClick={onDaily} data-testid="daily">
             🗓 Thử thách hôm nay — cùng khách, cùng luật với mọi người

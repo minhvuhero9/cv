@@ -5,7 +5,7 @@ import type { RoundState } from '../game/session';
 export function ArtBar({ s }: { s: RoundState }) {
   const { art, kit } = s;
   if (s.tool !== 'brush' && s.tool !== 'stencil' && s.tool !== 'ray') return null;
-  if (s.tool === 'ray' && !s.studio && !s.ctx.items.includes('paletteXL')) return null;
+  if (s.tool === 'ray' && !s.ctx.items.includes('paletteXL')) return null;
   const colors = (
     <div className="art-colors">
       {kit.colors.map((c, i) => (
