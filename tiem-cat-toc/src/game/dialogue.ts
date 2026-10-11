@@ -181,3 +181,92 @@ export function demandIgnored(rng: Rng): string {
 export function demandMet(rng: Rng): string {
   return pick(rng, ['Ừ. Được.', 'Ừ… thế được.', 'Tạm.']);
 }
+
+/* ------------------------------------------------------------------ Bộ Đồ Nghề Bất Ổn */
+
+export type MagicLineKey =
+  | 'first_wand'
+  | 'first_ray'
+  | 'first_storm'
+  | 'first_vacuum'
+  | 'first_comb'
+  | 'first_cooker'
+  | 'regrow'
+  | 'wandGiant'
+  | 'cooked'
+  | 'vacuumGulp'
+  | 'comboStormLong'
+  | 'comboSculpt'
+  | 'comboPotSuck';
+
+const MAGIC_LINES: Record<MagicLineKey, Record<Personality, string[]>> = {
+  first_wand: {
+    loyal: ['Ơ… cái gậy gì phát sáng thế em? Trong ảnh không có.', 'Gậy đấy cắt tóc được à?'],
+    picky: ['Gậy phép? Cháu tưởng chú là trẻ con à?', 'Hai mươi năm chưa thấy ai cắt bằng gậy.'],
+    dramatic: ['Gậy phép thuật! Đúng là định mệnh!', 'Biến anh thành người mới đi em!'],
+  },
+  first_ray: {
+    loyal: ['ĐÓ LÀ SÚNG À?!', 'Em ơi, ảnh mẫu không có tia laze!'],
+    picky: ['Cháu chĩa cái gì vào đầu chú thế?!', 'Súng?! Ở tiệm cắt tóc?!'],
+    dramatic: ['Bắn đi em! Bắn vào quá khứ của anh!', 'Pằng! Anh thấy mình tỏa sáng!'],
+  },
+  first_storm: {
+    loyal: ['Gió gì mà mạnh thế em?!', 'Anh bay mất kính bây giờ!'],
+    picky: ['Cái quạt này mua ở đâu mà như bão thế?!', 'Ối giời, mái tóc của chú!'],
+    dramatic: ['Gió ơi, thổi bay nỗi buồn của anh đi!', 'Đẹp như trong MV!'],
+  },
+  first_vacuum: {
+    loyal: ['Máy hút bụi?! Em định hút gì của anh?', 'Ơ, nó kêu to quá!'],
+    picky: ['Hút cái gì? Chú còn chưa rụng sợi nào!', 'Cái máy này hút cả hồn chú mất!'],
+    dramatic: ['Hút hết ký ức về cô ấy đi em!', 'Anh nghe thấy tiếng vũ trụ…'],
+  },
+  first_comb: {
+    loyal: ['Lược có hình con rồng à? Ảnh mẫu đâu cần rồng.', 'Chải nhẹ thôi em.'],
+    picky: ['Lược rồng? Thời chú dùng lược sừng thôi.', 'Chải kiểu gì mà nghe tiếng gầm thế?'],
+    dramatic: ['Lược rồng! Anh là rồng!', 'Chải cho anh thành truyền thuyết!'],
+  },
+  first_cooker: {
+    loyal: ['Ơ… nồi cơm? Úp lên đầu anh làm gì?!', 'Anh không phải nồi xôi!'],
+    picky: ['Cháu úp nồi cơm lên đầu chú à?!', 'Nồi này nhà chú cũng có, đừng có lừa!'],
+    dramatic: ['Hấp anh đi! Hấp cho chín chắn!', 'Ấm quá… như vòng tay cũ…'],
+  },
+  regrow: {
+    loyal: ['Ơ… tóc anh vừa… mọc lại?!', 'Chỗ trọc lúc nãy đâu rồi?!'],
+    picky: ['Mọc lại? Thế sao lúc nãy cháu cạo?!', 'Phép thuật gì mà mọc nhanh hơn rau muống!'],
+    dramatic: ['Tóc anh tái sinh! Như anh vậy!', 'Phép màu có thật!'],
+  },
+  wandGiant: {
+    loyal: ['Sao tóc anh dài hơn lúc vào?!', 'Ảnh mẫu là tóc NGẮN mà em!'],
+    picky: ['Chú vào để cắt ngắn, sao giờ dài như chổi?!', 'Tóc mọc như nấm sau mưa thế này!'],
+    dramatic: ['DÀI NỮA! Dài như nỗi nhớ!', 'Anh có tóc như ca sĩ rồi!'],
+  },
+  cooked: {
+    loyal: ['Sao đầu anh tròn vo như cái bánh bao?!', 'Ảnh mẫu đâu có… hấp chín!'],
+    picky: ['Đầu chú thơm mùi cơm!', 'Cháu hấp tóc chú như hấp xôi à?!'],
+    dramatic: ['Mềm mại! Tròn trịa! Anh thích!', 'Tóc anh phồng như hy vọng!'],
+  },
+  vacuumGulp: {
+    loyal: ['…Máy vừa nuốt một miếng tóc của anh à?', 'Cái lỗ trên đầu anh là sao em?!'],
+    picky: ['MÁY HÚT ĂN TÓC CHÚ RỒI!', 'Trả tóc cho chú!'],
+    dramatic: ['Một phần của anh đã bay vào vũ trụ…', 'Tóc anh đi tìm tự do rồi.'],
+  },
+  comboStormLong: {
+    loyal: ['TÓC ANH VỪA CẤT CÁNH!', 'Ảnh mẫu không có cảnh bão!'],
+    picky: ['Tóc chú bay ra tận ngoài đường rồi!', 'Bão cấp 12 trên đầu chú!'],
+    dramatic: ['ĐÚNG RỒI! ANH LÀ CƠN BÃO!', 'Tóc anh tung bay như phim Hồng Kông!'],
+  },
+  comboSculpt: {
+    loyal: ['Sao trên đầu anh có… cái sừng bảy màu?!', 'Em nặn tóc anh thành gì thế này?!'],
+    picky: ['Chú thành con kỳ lân rồi! Bà nhà thấy thì sao?!', 'Cái gì nhọn hoắt trên đầu chú thế?!'],
+    dramatic: ['KỲ LÂN! Anh là kỳ lân duy nhất!', 'Tác phẩm nghệ thuật! Cô ấy phải hối hận!'],
+  },
+  comboPotSuck: {
+    loyal: ['Cái bánh bao trên đầu anh… đi đâu rồi?!', 'Em hút luôn cả… cả kiểu tóc!'],
+    picky: ['HÚT CẢ NỒI À?!', 'Vừa hấp xong đã hút sạch! Chú là cái nồi à?!'],
+    dramatic: ['Không… tóc anh… vào lỗ đen rồi…', 'Mất hết rồi! Như cuộc tình của anh!'],
+  },
+};
+
+export function magicLine(rng: Rng, key: MagicLineKey, p: Personality): string {
+  return pick(rng, MAGIC_LINES[key][p]);
+}

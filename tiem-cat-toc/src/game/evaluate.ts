@@ -14,7 +14,13 @@ export type EventId =
   | 'walkoutThreat'
   | 'walkout'
   | 'wrongTool'
-  | 'hotDryer';
+  | 'hotDryer'
+  | 'wandGiant'
+  | 'regrow'
+  | 'vacuumGulp'
+  | 'comboStormLong'
+  | 'comboSculpt'
+  | 'comboPotSuck';
 
 /** Human-readable names for the incident log / result screen. */
 export const EVENT_TITLES: Record<EventId, string> = {
@@ -30,6 +36,12 @@ export const EVENT_TITLES: Record<EventId, string> = {
   walkout: 'Khách Bỏ Chạy',
   wrongTool: 'Nhầm Dụng Cụ',
   hotDryer: 'Sấy Da Đầu',
+  wandGiant: 'Mọc Như Nấm Sau Mưa',
+  regrow: 'Mọc Lại Thần Kỳ',
+  vacuumGulp: 'Hút Nhầm Vùng',
+  comboStormLong: 'COMBO: Bão Tóc Dài',
+  comboSculpt: 'COMBO: Kỳ Lân Bảy Sắc',
+  comboPotSuck: 'COMBO: Hút Nhầm Cả Nồi',
 };
 
 export interface RoundFacts {
@@ -68,6 +80,18 @@ export const STYLE_RULES: StyleRule[] = [
     when: (f) => f.metrics.baldFrac > 0.55 || f.metrics.avg < 0.08,
   },
   {
+    id: 'blackhole',
+    name: 'Lỗ Đen Vũ Trụ',
+    why: 'Máy hút đã nuốt mất một mảng tóc.',
+    when: (f) => f.metrics.baldCount > 0 && !!(f.events.vacuumGulp || f.events.comboPotSuck),
+  },
+  {
+    id: 'unicorn',
+    name: 'Kỳ Lân Bảy Sắc',
+    why: 'Tóc nhuộm màu bị chải dựng thành một cái sừng.',
+    when: (f) => f.metrics.sculptedFrac >= 0.05,
+  },
+  {
     id: 'highway',
     name: 'Đường Cao Tốc Trên Đầu',
     why: 'Một vệt trọc dài chạy thẳng qua đầu.',
@@ -80,6 +104,18 @@ export const STYLE_RULES: StyleRule[] = [
     when: (f) => f.metrics.baldClusters >= 3,
   },
   {
+    id: 'stormy',
+    name: 'Bão Cấp 12 Vừa Đi Qua',
+    why: 'Tóc dài bất thường bị gió thổi tung về một phía.',
+    when: (f) => !!f.events.comboStormLong && f.metrics.fluffAvg >= 0.3,
+  },
+  {
+    id: 'rainbow',
+    name: 'Cầu Vồng Không Xin Phép',
+    why: 'Nhiều mảng tóc mang những màu chẳng ai yêu cầu.',
+    when: (f) => f.metrics.colorCount >= 3 && f.metrics.tintedFrac >= 0.15,
+  },
+  {
     id: 'saiyan',
     name: 'Siêu Saiyan Bình Dân',
     why: 'Keo vuốt gặp máy sấy, tóc dựng đứng toàn bộ.',
@@ -90,6 +126,18 @@ export const STYLE_RULES: StyleRule[] = [
     name: 'Nhím Bị Điện Giật',
     why: 'Nhiều lọn tóc dựng đứng vì keo.',
     when: (f) => f.metrics.spikedFrac >= 0.22,
+  },
+  {
+    id: 'rapunzel',
+    name: 'Rapunzel Bất Đắc Dĩ',
+    why: 'Một phần tóc dài gấp đôi, gấp ba lúc vào tiệm.',
+    when: (f) => f.metrics.longFrac >= 0.2,
+  },
+  {
+    id: 'bun',
+    name: 'Bánh Bao Nhân Tóc',
+    why: 'Phần trên được hấp phồng tròn như bánh bao.',
+    when: (f) => f.metrics.steamedFrac >= 0.3,
   },
   {
     id: 'runaway',
@@ -154,6 +202,18 @@ export const STYLE_RULES: StyleRule[] = [
       const z = f.metrics.zone;
       return z.fringe < 0.35 && z.left > 0.6 && z.right > 0.6 && z.top > 0.6;
     },
+  },
+  {
+    id: 'noodle',
+    name: 'Uốn Xoăn Mì Tôm',
+    why: 'Các lọn tóc bị uốn xoăn tít.',
+    when: (f) => f.metrics.curlAvg >= 0.3,
+  },
+  {
+    id: 'hat',
+    name: 'Đầu To Như Cái Nón Lá',
+    why: 'Từng lọn tóc to bất thường.',
+    when: (f) => f.metrics.thickAvg >= 1.6,
   },
   {
     id: 'nest',
@@ -357,12 +417,19 @@ function moodFor(p: Personality, tier: ReactionTier): Mood {
 function caption(f: RoundFacts, sat: number): string {
   const e = f.events;
   if (f.walkedOut) return 'Khách bỏ về giữa chừng, mang theo nửa cái đầu và khăn choàng của tiệm.';
+  if (e.comboPotSuck) return 'Hấp tóc phồng như bánh bao, rồi cầm máy hút… hút luôn cả bánh.';
+  if (e.comboSculpt) return 'Bắn màu bằng Súng Tóc, chải bằng Lược Rồng. Khách mọc sừng.';
+  if (e.comboStormLong) return 'Kéo tóc dài gấp ba bằng Gậy Như Ý, rồi bật Máy Sấy Bão.';
+  if (e.vacuumGulp) return 'Giữ máy hút hơi lâu. Máy hút hơi nhiều.';
   if (e.strayCut && f.metrics.baldCount > 0) return 'Khách quay đầu đúng lúc tông đơ đang chạy.';
   if (e.fixLoop) return `Sửa đi sửa lại một chỗ ${f.maxZoneStrokes} lần. Càng sửa càng sai.`;
   if (e.combOver) return 'Cố che chỗ trọc bằng máy sấy. Tóc quyết định bỏ trốn.';
   if (e.sneeze) return 'Thổi tóc vụn vào mũi khách. Khách đáp lễ bằng một cú hắt xì.';
   if (e.gelSpikes) return 'Keo vuốt + máy sấy = điện giật miễn phí.';
   if (e.lastMinuteRuin) return 'Đang đẹp thì cắt thêm một nhát cho chắc.';
+  if (e.regrow) return 'Cạo trọc rồi dùng phép mọc lại. Tóc mọc lại hơi… xoăn.';
+  if (e.wandGiant) return 'Khách vào để cắt ngắn. Khách ra với mái tóc dài hơn.';
+  if (f.metrics.tintedFrac > 0.1) return 'Súng Tóc 3000 không có chế độ an toàn.';
   if (e.strayCut) return 'Khách quay đầu, đường kéo quay theo.';
   if (f.metrics.highway) return 'Cầm tông đơ đi chậm rãi, cẩn thận… quá cẩn thận.';
   if (f.metrics.baldCount > 0) return 'Giữ tông đơ hơi lâu một chút. Chỉ một chút thôi.';

@@ -3,6 +3,8 @@ import { BALD_DWELL, CLIPPER_RADIUS, DRYER_RADIUS } from '../game/hair';
 import { HEAD, Vec } from '../game/geometry';
 import { RoundState, Tool, currentMood } from '../game/session';
 import { Character } from './Character';
+import { FxLayer, MagicCursor } from './MagicLayer';
+import { isMagic } from '../game/gear';
 
 /** Wide screens see the whole chair; narrow (portrait phone) screens zoom onto the head. */
 export const VIEW = { x: 0, y: 24, w: 400, h: 496 };
@@ -178,6 +180,7 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
           />
         ))}
       </g>
+      <FxLayer s={s} />
       {showPhoto && <Phone s={s} />}
       {(warn || s.walkout) && (
         <g transform={`translate(${HEAD.cx + 92},${HEAD.cy - 120})`}>
@@ -188,7 +191,11 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
         </g>
       )}
       {cutting && s.pointer.stage && (
-        <ToolCursor tool={s.tool} p={s.pointer.stage} down={s.pointer.down} now={now} danger={s.tool === 'clipper' ? maxDwell(s) / BALD_DWELL : 0} />
+        isMagic(s.tool) ? (
+          <MagicCursor s={s} p={s.pointer.stage} now={now} />
+        ) : (
+          <ToolCursor tool={s.tool} p={s.pointer.stage} down={s.pointer.down} now={now} danger={s.tool === 'clipper' ? maxDwell(s) / BALD_DWELL : 0} />
+        )
       )}
       {s.time < s.flashUntil && <rect x={0} y={0} width={400} height={600} fill="#fff" opacity={0.85} />}
     </svg>

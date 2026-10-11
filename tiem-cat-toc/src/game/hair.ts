@@ -30,6 +30,17 @@ export interface Tuft {
   /** Number of distinct strokes that shortened this tuft. */
   touches: number;
   lastStroke: number;
+  /* ---- magic tools (Bộ Đồ Nghề Bất Ổn) ---- */
+  /** Magic dye colour from Súng Tóc 3000, or null for natural colour. */
+  tint: string | null;
+  /** Width multiplier (Gậy Như Ý / Súng Tóc enlarge). */
+  thick: number;
+  /** Curl per segment, radians (Gậy Như Ý tap, Lược Rồng). */
+  curl: number;
+  /** Point the tuft is sculpted towards (Súng Tóc + Lược Rồng combo), or null. */
+  sculpt: Vec | null;
+  /** 0..1 steam-puffed by the Nồi Cơm Điện (decays slowly). */
+  steamed: number;
 }
 
 export interface HairStyleInit {
@@ -88,7 +99,12 @@ export function createHair(init: HairStyleInit): HairState {
   const tufts: Tuft[] = [];
   const mess = init.messiness ?? 0.12;
   let id = 0;
-  const push = (t: Omit<Tuft, 'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke'>) => {
+  const push = (
+    t: Omit<
+      Tuft,
+      'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke' | 'tint' | 'thick' | 'curl' | 'sculpt' | 'steamed'
+    >,
+  ) => {
     const variance = 1 + (noise(id) - 0.5) * 2 * mess;
     const origLen = t.origLen * variance;
     tufts.push({
@@ -104,6 +120,11 @@ export function createHair(init: HairStyleInit): HairState {
       fluff: 0,
       touches: 0,
       lastStroke: -1,
+      tint: null,
+      thick: 1,
+      curl: 0,
+      sculpt: null,
+      steamed: 0,
     });
     id++;
   };
@@ -168,13 +189,19 @@ export function createHair(init: HairStyleInit): HairState {
 }
 
 export function cloneHair(h: HairState): HairState {
-  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root } })) };
+  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root }, sculpt: t.sculpt ? { ...t.sculpt } : null })) };
 }
 
 /** Centre-line of a tuft as 4 points (root, two bends, tip). */
 export function tuftPoints(t: Tuft): Vec[] {
   const { root } = t;
   if (t.bald || t.len <= 0.5) return [root, root, root, root];
+  if (t.sculpt) {
+    // Sculpted into a shared point: straight towards the target, as long as the tuft allows.
+    const a = Math.atan2(t.sculpt.y - root.y, t.sculpt.x - root.x);
+    const L = Math.min(t.len * 1.15, Math.max(dist(root, t.sculpt), 6));
+    return [0, 1 / 3, 2 / 3, 1].map((f) => ({ x: root.x + Math.cos(a) * L * f, y: root.y + Math.sin(a) * L * f }));
+  }
   if (t.spiked) {
     const fan = (t.root.x - HEAD.cx) / 140;
     const base = t.kind === 'fringe' ? -Math.PI / 2 + fan * 0.8 : t.normal * 0.5 + (-Math.PI / 2) * 0.5;
@@ -203,7 +230,7 @@ export function tuftPoints(t: Tuft): Vec[] {
   let p = root;
   for (let i = 0; i < 3; i++) {
     a = clamp(a + t.partSign * droop * 0.8, minA, maxA);
-    const b = a + t.lean;
+    const b = a + t.lean + t.curl * (i + 1);
     p = { x: p.x + Math.cos(b) * seg, y: p.y + Math.sin(b) * seg };
     pts.push(p);
   }
@@ -216,7 +243,7 @@ export function tuftTip(t: Tuft): Vec {
 
 /** Coverage of a tuft relative to how it walked in: 0 = bald, 1 = untouched. */
 export function tuftRatio(t: Tuft): number {
-  return t.bald ? 0 : clamp(t.len / t.origLen, 0, 1.2);
+  return t.bald ? 0 : clamp(t.len / t.origLen, 0, 3);
 }
 
 export interface CutResult {

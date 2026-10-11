@@ -19,25 +19,16 @@ import {
   startCutting,
   tick,
 } from './game/session';
+import { loadProgress, recordRound, saveProgress } from './game/progress';
+import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
 
-const STORE_KEY = 'tctbo-styles-v1';
-
-function loadUnlocked(): string[] {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    const v = raw ? JSON.parse(raw) : [];
-    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
-  } catch {
-    return [];
-  }
+/** `?unlock=all` opens the whole Bộ Đồ Nghề without earning it (for trying things out). */
+function unlockAllFromUrl(): boolean {
+  return new URLSearchParams(location.search).get('unlock') === 'all';
 }
 
-function saveUnlocked(ids: string[]) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(ids));
-  } catch {
-    /* private mode etc. — the collection is just a convenience */
-  }
+function toolsFor(p: Progress): ToolId[] {
+  return unlockedTools(p, unlockAllFromUrl());
 }
 
 function seedFromUrl(): number | undefined {
@@ -52,10 +43,15 @@ declare global {
 }
 
 export default function App() {
-  const [roundRef] = useState<{ current: RoundState }>(() => ({ current: createRound('tuan', seedFromUrl()) }));
+  const [progress, setProgress] = useState<Progress>(loadProgress);
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
+  const [newTools, setNewTools] = useState<ToolId[]>([]);
+  const [roundRef] = useState<{ current: RoundState }>(() => ({
+    current: createRound('tuan', seedFromUrl(), { unlocked: toolsFor(progressRef.current) }),
+  }));
   const [, setFrame] = useState(0);
   const [now, setNow] = useState(0);
-  const [unlocked, setUnlocked] = useState<string[]>(loadUnlocked);
   const [muted, setMutedState] = useState(isMuted());
   const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 520px)').matches);
   useEffect(() => {
@@ -88,23 +84,23 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Record unlocked hairstyles once per round.
+  // Record the finished round once: collection, rounds played, events seen -> tool unlocks.
   useEffect(() => {
     if (s.result && recorded.current !== s) {
       recorded.current = s;
-      const id = s.result.style.id;
-      setUnlocked((prev) => {
-        if (prev.includes(id)) return prev;
-        const next = [...prev, id];
-        saveUnlocked(next);
-        return next;
-      });
+      const before = unlockedTools(progressRef.current);
+      const next = recordRound(progressRef.current, s.result.style.id, Object.keys(s.events));
+      saveProgress(next);
+      progressRef.current = next;
+      setProgress(next);
+      setNewTools(unlockedTools(next).filter((t) => !before.includes(t)));
     }
   });
 
   const newRound = useCallback((id: CustomerId, start = false) => {
     setToolLoop(null);
-    const r = createRound(id, seedFromUrl());
+    const r = createRound(id, seedFromUrl(), { unlocked: toolsFor(progressRef.current) });
+    setNewTools([]);
     if (start) startCutting(r);
     roundRef.current = r;
     setFrame((f) => f + 1);
@@ -121,9 +117,8 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const st = roundRef.current;
       if (st.phase !== 'cutting') return;
-      if (e.key === '1') setTool(st, 'clipper');
-      if (e.key === '2') setTool(st, 'scissors');
-      if (e.key === '3') setTool(st, 'dryer');
+      const t = TOOLS.find((d) => d.hotkey === e.key);
+      if (t) setTool(st, t.id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -244,7 +239,7 @@ export default function App() {
         />
       )}
       {s.phase === 'result' && s.result && (
-        <ResultPanel s={s} unlocked={unlocked} onReplay={() => newRound(s.customer.id, true)} onNext={nextCustomer} />
+        <ResultPanel s={s} unlocked={progress.styles} newTools={newTools} onReplay={() => newRound(s.customer.id, true)} onNext={nextCustomer} />
       )}
     </div>
   );

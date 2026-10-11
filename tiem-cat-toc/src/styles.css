@@ -908,3 +908,257 @@ button {
     animation: none;
   }
 }
+
+/* ---------- Bộ Đồ Nghề toolbar ---------- */
+.tool-info {
+  max-width: 980px;
+  margin: 0 auto 6px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(43, 26, 18, 0.55);
+  color: #ffe9c4;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.tool-info.is-locked {
+  background: rgba(20, 20, 20, 0.6);
+}
+.tool-info-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tool-info-head b {
+  color: #fff;
+  font-size: 15px;
+}
+.rarity {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: #fff;
+}
+.r-common {
+  background: #7a8a7a;
+}
+.r-rare {
+  background: #2a7de1;
+}
+.r-epic {
+  background: #8a3ffc;
+}
+.r-legend {
+  background: linear-gradient(90deg, #ff8a00, #e52e71);
+}
+.tool-status {
+  margin-left: auto;
+  font-weight: 800;
+  font-size: 12px;
+}
+.st-ready {
+  color: #7dff9a;
+}
+.st-cooldown {
+  color: #ffd23f;
+}
+.st-overheated,
+.st-locked {
+  color: #ff9b8f;
+}
+.tool-info-body {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tool-blurb {
+  font-style: italic;
+  opacity: 0.85;
+}
+.tool-howto {
+  font-weight: 700;
+}
+.tool-bar-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.tool-scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.tool-group {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.tool-group-magic {
+  position: relative;
+  padding: 14px 6px 4px;
+  border-radius: 14px;
+  background: rgba(122, 92, 255, 0.25);
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+}
+.group-label {
+  position: absolute;
+  top: -2px;
+  left: 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #ffd23f;
+}
+.tool-btn {
+  position: relative;
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  min-width: 72px;
+  max-width: 92px;
+  padding: 4px 6px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+.tool-btn svg {
+  width: 32px;
+  height: 32px;
+}
+.tool-art {
+  position: relative;
+  display: inline-flex;
+}
+.tool-name {
+  text-align: center;
+}
+.tool-btn.is-locked {
+  background: #d8cfbf;
+  box-shadow: 0 4px 0 #6b5a45;
+  color: #6b5a45;
+  border-style: dashed;
+}
+.tool-btn.is-locked svg {
+  filter: brightness(0);
+  opacity: 0.35;
+}
+.tool-btn.is-locked:hover:not(:disabled) {
+  background: #e2d9c9;
+}
+.tool-btn.is-inspect {
+  outline: 3px dashed #fff;
+}
+.lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+.energy {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.energy-fill {
+  display: block;
+  height: 100%;
+  background: #1f9d55;
+  transition: width 0.1s linear;
+}
+.energy-fill.cooldown {
+  background: #e0a800;
+}
+.energy-fill.overheated {
+  background: #e0201a;
+}
+.tool-btn.is-cooling {
+  opacity: 0.85;
+}
+.tool-btn.is-denied {
+  animation: deny 0.35s linear;
+}
+@keyframes deny {
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+.finish-btn {
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+}
+
+.new-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.new-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #8a3ffc, #e52e71);
+  color: #fff;
+  animation: slideup 0.4s ease-out;
+}
+.new-tool svg {
+  width: 34px;
+  height: 34px;
+  background: #fff;
+  border-radius: 8px;
+}
+.new-tool span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.new-tool small {
+  font-size: 11px;
+  color: #ffd23f;
+}
+
+@media (max-width: 820px) {
+  .tool-info {
+    font-size: 12px;
+    padding: 3px 8px;
+  }
+  .tool-info-head b {
+    font-size: 14px;
+  }
+  .tool-btn {
+    flex: 0 0 auto;
+    min-width: 64px;
+    padding: 3px 4px 8px;
+    font-size: 11px;
+  }
+  .tool-btn svg {
+    width: 28px;
+    height: 28px;
+  }
+  .finish-btn {
+    flex: 0 0 auto;
+    min-width: 70px;
+    padding: 4px 8px;
+  }
+}

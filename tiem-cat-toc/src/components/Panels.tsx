@@ -1,6 +1,10 @@
 import { CUSTOMERS, CustomerDef } from '../game/customers';
 import { EVENT_TITLES } from '../game/evaluate';
+import { useState } from 'react';
+import { GearStatus, gearStatus } from '../game/gear';
 import { RoundState, CHAOS_TIER_LABEL, Tool, chaosTier, timeLeft } from '../game/session';
+import { RARITY_LABEL, Rarity, TOOLS, ToolDef, ToolId, toolDef, unlockText } from '../game/tools';
+import { ToolIcon } from './ToolIcons';
 
 export function Meter({ label, value, kind, testId, note }: { label: string; value: number; kind: 'patience' | 'chaos' | 'nerves'; testId: string; note?: string }) {
   return (
@@ -48,63 +52,100 @@ export function Clock({ s }: { s: RoundState }) {
   );
 }
 
-const TOOLS: { id: Tool; name: string; tip: string; key: string }[] = [
-  { id: 'clipper', name: 'Tông đơ', tip: 'Rê qua tóc để cạo ngắn. Giữ yên = trọc!', key: '1' },
-  { id: 'scissors', name: 'Kéo', tip: 'Kéo một đường để cắt đúng chỗ đó.', key: '2' },
-  { id: 'dryer', name: 'Máy sấy', tip: 'Giữ để thổi: tóc bay, bung, keo thì dựng.', key: '3' },
-];
+const RARITY_CLASS: Record<Rarity, string> = { thuong: 'r-common', hiem: 'r-rare', sutthi: 'r-epic', huyenthoai: 'r-legend' };
 
-function ToolIcon({ id }: { id: Tool }) {
-  if (id === 'clipper')
-    return (
-      <svg viewBox="0 0 40 40" aria-hidden>
-        <rect x={11} y={4} width={18} height={6} rx={1.5} fill="#d9dde2" stroke="#4a4f57" strokeWidth={1.5} />
-        <rect x={12} y={10} width={16} height={27} rx={7} fill="#2f6fd6" stroke="#173c7a" strokeWidth={2} />
-        <rect x={17.5} y={17} width={5} height={8} rx={2} fill="#c4d6f5" />
-      </svg>
-    );
-  if (id === 'scissors')
-    return (
-      <svg viewBox="0 0 40 40" aria-hidden>
-        <path d="M20,20 L8,3 L12,3Z M20,20 L32,3 L28,3Z" fill="#e8ecef" stroke="#59616b" strokeWidth={1.5} />
-        <circle cx={12} cy={30} r={6} fill="none" stroke="#e23b3b" strokeWidth={3.5} />
-        <circle cx={28} cy={30} r={6} fill="none" stroke="#e23b3b" strokeWidth={3.5} />
-        <path d="M20,20 L14,26 M20,20 L26,26" stroke="#59616b" strokeWidth={2.5} />
-      </svg>
-    );
-  return (
-    <svg viewBox="0 0 40 40" aria-hidden>
-      <rect x={2} y={10} width={8} height={10} rx={2} fill="#333" />
-      <rect x={8} y={7} width={26} height={16} rx={8} fill="#ff6fa8" stroke="#a3305e" strokeWidth={2} />
-      <rect x={22} y={20} width={8} height={17} rx={3} fill="#ff6fa8" stroke="#a3305e" strokeWidth={2} />
-      <circle cx={21} cy={15} r={4} fill="#ffd1e4" />
-    </svg>
-  );
+function statusText(st: GearStatus): string {
+  if (st.state === 'overheated') return `Hết phép — đang nạp ${Math.round(st.charge * 100)}%`;
+  if (st.state === 'cooldown') return `Hồi chiêu ${st.wait.toFixed(1)}s`;
+  return 'Sẵn sàng';
 }
 
+/** Toolbar: basic tools, then the Bộ Đồ Nghề Bất Ổn (scrolls sideways on phones). */
 export function Toolbar({ s, onTool, onFinish }: { s: RoundState; onTool(t: Tool): void; onFinish(): void }) {
+  const [inspect, setInspect] = useState<ToolId | null>(null);
   const active = s.phase === 'cutting' && !s.walkout;
-  const tip = TOOLS.find((t) => t.id === s.tool)!.tip;
+  const shown = toolDef(inspect ?? s.tool);
+  const locked = !s.unlocked.includes(shown.id);
+  const st = gearStatus(s, shown.id);
+  const denied = s.time - s.deniedAt < 0.45;
+  const basic = TOOLS.filter((t) => t.group === 'basic');
+  const magic = TOOLS.filter((t) => t.group === 'magic');
+
+  const button = (t: ToolDef) => {
+    const isLocked = !s.unlocked.includes(t.id);
+    const soon = t.unlock.kind === 'soon';
+    const g = gearStatus(s, t.id);
+    const cls = [
+      'tool-btn',
+      s.tool === t.id && !inspect ? 'is-active' : '',
+      inspect === t.id ? 'is-inspect' : '',
+      isLocked ? 'is-locked' : '',
+      t.energy && !isLocked && g.state !== 'ready' ? 'is-cooling' : '',
+      denied && s.tool === t.id ? 'is-denied' : '',
+    ].join(' ');
+    return (
+      <button
+        key={t.id}
+        className={cls}
+        onClick={() => {
+          if (isLocked) {
+            setInspect(inspect === t.id ? null : t.id);
+            return;
+          }
+          setInspect(null);
+          onTool(t.id);
+        }}
+        disabled={!active}
+        aria-pressed={s.tool === t.id}
+        aria-disabled={isLocked}
+        data-testid={`tool-${t.id}`}
+        data-locked={isLocked ? 'true' : 'false'}
+        data-state={isLocked ? 'locked' : g.state}
+        title={isLocked ? `${t.name} — ${soon ? 'sắp ra mắt' : 'chưa mở khóa'}` : `${t.name}${t.hotkey ? ` (phím ${t.hotkey})` : ''}`}
+      >
+        <span className="tool-art">
+          <ToolIcon id={t.id} />
+          {isLocked && <span className="lock">{soon ? '…' : '🔒'}</span>}
+        </span>
+        <span className="tool-name">{isLocked && soon ? 'Sắp có' : t.name}</span>
+        {t.energy && !isLocked && (
+          <span className="energy">
+            <span className={`energy-fill ${g.state}`} style={{ width: `${Math.round(g.charge * 100)}%` }} />
+          </span>
+        )}
+      </button>
+    );
+  };
+
   return (
     <nav className="toolbar" aria-label="Dụng cụ">
-      <div className="tool-tip" data-testid="tool-tip">
-        {tip}
+      <div className={`tool-info ${locked ? 'is-locked' : ''}`} data-testid="tool-info">
+        <div className="tool-info-head">
+          <b data-testid="tool-info-name">{shown.name}</b>
+          <span className={`rarity ${RARITY_CLASS[shown.rarity]}`}>{RARITY_LABEL[shown.rarity]}</span>
+          {!locked && shown.energy && (
+            <span className={`tool-status st-${st.state}`} data-testid="tool-status">
+              {statusText(st)}
+            </span>
+          )}
+          {locked && (
+            <span className="tool-status st-locked" data-testid="tool-status">
+              {shown.unlock.kind === 'soon' ? 'Sắp ra mắt' : `🔒 Mở khóa: ${unlockText(shown)}`}
+            </span>
+          )}
+        </div>
+        <div className="tool-info-body" data-testid="tool-tip">
+          <span className="tool-blurb">{shown.blurb}</span> <span className="tool-howto">{locked ? '' : shown.howTo}</span>
+        </div>
       </div>
-      <div className="tool-row">
-        {TOOLS.map((t) => (
-          <button
-            key={t.id}
-            className={`tool-btn ${s.tool === t.id ? 'is-active' : ''}`}
-            onClick={() => onTool(t.id)}
-            disabled={!active}
-            aria-pressed={s.tool === t.id}
-            data-testid={`tool-${t.id}`}
-            title={`${t.name} (phím ${t.key})`}
-          >
-            <ToolIcon id={t.id} />
-            <span>{t.name}</span>
-          </button>
-        ))}
+      <div className="tool-bar-row">
+        <div className="tool-scroll">
+          <div className="tool-group">{basic.map(button)}</div>
+          <div className="tool-group tool-group-magic">
+            <span className="group-label">Đồ nghề bất ổn</span>
+            {magic.map(button)}
+          </div>
+        </div>
         <button className="finish-btn" onClick={onFinish} disabled={!active} data-testid="finish">
           <span className="finish-big">Xong!</span>
           <span className="finish-small">Soi gương</span>

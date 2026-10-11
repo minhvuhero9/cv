@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { cardFileName, downloadBlob, shareText } from '../game/share';
 import { EVENT_TITLES, STYLE_RULES } from '../game/evaluate';
 import { RoundState } from '../game/session';
+import { ToolId, toolDef } from '../game/tools';
+import { ToolIcon } from './ToolIcons';
 
 interface Props {
   s: RoundState;
   unlocked: string[];
+  /** Tools unlocked by finishing this round. */
+  newTools: ToolId[];
   onReplay(): void;
   onNext(): void;
 }
 
 const TIER_LABEL = { love: 'Mê tít', ok: 'Tạm hài lòng', meh: 'Lấn cấn', bad: 'Bực mình', disaster: 'Thảm họa' } as const;
 
-export function ResultPanel({ s, unlocked, onReplay, onNext }: Props) {
+export function ResultPanel({ s, unlocked, newTools, onReplay, onNext }: Props) {
   const r = s.result!;
   const [card, setCard] = useState<{ url: string; blob: Blob } | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
@@ -81,6 +85,19 @@ export function ResultPanel({ s, unlocked, onReplay, onNext }: Props) {
           )}
         </div>
         <div className="result-info">
+          {newTools.length > 0 && (
+            <div className="new-tools" data-testid="new-tools">
+              {newTools.map((id) => (
+                <div key={id} className="new-tool">
+                  <ToolIcon id={id} />
+                  <span>
+                    <small>Mở khóa đồ nghề mới!</small>
+                    <b>{toolDef(id).name}</b>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           {r.walkedOut && <div className="walked-out">KHÁCH ĐÃ BỎ VỀ GIỮA CHỪNG</div>}
           <div className="result-label">Kiểu tóc</div>
           <h2 className="result-style" data-testid="style-name" data-style-id={r.style.id}>
