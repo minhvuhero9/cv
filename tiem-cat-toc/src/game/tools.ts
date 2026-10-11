@@ -13,6 +13,9 @@ export type ToolId =
   | 'vacuum'
   | 'comb'
   | 'cooker'
+  | 'potion'
+  | 'gel'
+  | 'auto'
   | 'stamp'
   | 'fireworks';
 
@@ -38,6 +41,8 @@ export type Unlock =
   | { kind: 'rounds'; n: number }
   | { kind: 'styles'; n: number }
   | { kind: 'event'; id: string; label: string }
+  /** Only from the shop (career mode), or ?unlock=all. */
+  | { kind: 'shop' }
   | { kind: 'soon' };
 
 export interface Energy {
@@ -187,6 +192,42 @@ export const TOOLS: ToolDef[] = [
     hotkey: '9',
   },
   {
+    id: 'potion',
+    name: 'Thuốc Mọc Tóc',
+    blurb: 'Xịt đâu mọc đó. Nhanh hơn cả tông đơ.',
+    howTo: 'Chạm lên đầu để xịt (tốn 1 lọ). Tóc quanh đó mọc nhanh trong 6 giây, chỗ trọc mọc lại.',
+    effect: 'Cho tóc mọc thêm tới 1,6 lần; mọc lại chỗ trọc.',
+    rarity: 'hiem',
+    input: 'tap',
+    group: 'magic',
+    unlock: { kind: 'shop' },
+    energy: { costPerUse: 0.34, refill: 3, gap: 0.5 },
+  },
+  {
+    id: 'gel',
+    name: 'Keo Vĩnh Cửu',
+    blurb: 'Cứng như bê tông. Bảo hành trọn đời tóc.',
+    howTo: 'Chạm để quét keo (tốn 1 hộp). Máy sấy làm tóc keo dựng ngay; gặp Máy Sấy Bão thì thành ăng-ten.',
+    effect: 'Keo tối đa và không bao giờ mềm lại.',
+    rarity: 'hiem',
+    input: 'tap',
+    group: 'magic',
+    unlock: { kind: 'shop' },
+    energy: { costPerUse: 0.34, refill: 3, gap: 0.5 },
+  },
+  {
+    id: 'auto',
+    name: 'Máy Tạo Kiểu Tự Động',
+    blurb: 'Một nút bấm. Nghe yêu cầu rồi tự tỉa. Nếu nghe rõ.',
+    howTo: 'Chạm lên đầu một lần mỗi khách. Tiệm đang quá ồn (Chaos ≥ 50) thì máy nghe nhầm yêu cầu.',
+    effect: 'Đưa độ dài từng vùng về gần đúng mẫu khách muốn, chải gọn lại.',
+    rarity: 'huyenthoai',
+    input: 'tap',
+    group: 'magic',
+    unlock: { kind: 'shop' },
+    energy: { costPerUse: 1, refill: 9999 },
+  },
+  {
     id: 'stamp',
     name: 'Con Dấu Phán Quyết',
     blurb: 'Đóng dấu lên kiểu tóc. Có hiệu lực pháp lý trong tiệm.',
@@ -227,6 +268,7 @@ export function isUnlocked(def: ToolDef, p: Progress): boolean {
       return p.styles.length >= u.n;
     case 'event':
       return p.events.includes(u.id);
+    case 'shop':
     case 'soon':
       return false;
   }
@@ -243,6 +285,8 @@ export function unlockText(def: ToolDef): string {
       return `Mở khóa ${u.n} kiểu tóc trong bộ sưu tập`;
     case 'event':
       return u.label;
+    case 'shop':
+      return 'Mua ở Cửa hàng (chế độ Mở tiệm)';
     case 'soon':
       return 'Sắp ra mắt';
   }

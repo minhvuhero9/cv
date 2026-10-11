@@ -13,16 +13,24 @@ function ac(): AudioContext | null {
     if (!C) return null;
     ctx = new C();
     master = ctx.createGain();
-    master.gain.value = 0.5;
+    master.gain.value = muted ? 0 : level;
     master.connect(ctx.destination);
   }
   if (ctx.state === 'suspended') void ctx.resume();
   return ctx;
 }
 
+let level = 0.5;
+
+/** Effects volume = master × sfx (0..1 each). */
+export function setSfxVolume(masterVol: number, sfxVol: number) {
+  level = 0.5 * masterVol * sfxVol;
+  if (master) master.gain.value = muted ? 0 : level;
+}
+
 export function setMuted(m: boolean) {
   muted = m;
-  if (master) master.gain.value = m ? 0 : 0.5;
+  if (master) master.gain.value = m ? 0 : level;
   if (m) stopLoop();
 }
 
@@ -139,6 +147,28 @@ export function playSfx(s: Sfx) {
       break;
     case 'overheat':
       tone(700, 0.4, 'sawtooth', 0.12, 120);
+      break;
+    case 'ring':
+      [0, 0.18, 0.5, 0.68].forEach((d) => tone(1320, 0.12, 'square', 0.08, undefined, d));
+      break;
+    case 'chop':
+      noise(0.12, 1200, 0.5, 1.2);
+      tone(220, 0.15, 'square', 0.15, 90);
+      break;
+    case 'bark':
+      // Two short "gâu"s: a falling tone with a noisy attack.
+      [0, 0.22].forEach((d) => {
+        tone(520, 0.13, 'sawtooth', 0.22, 260, d);
+        tone(780, 0.06, 'square', 0.08, 400, d);
+      });
+      noise(0.1, 900, 0.25, 1);
+      break;
+    case 'whimper':
+      tone(1100, 0.35, 'sine', 0.08, 1500);
+      break;
+    case 'cash':
+      tone(1568, 0.08, 'square', 0.12);
+      tone(2093, 0.3, 'triangle', 0.18, undefined, 0.08);
       break;
     case 'combo':
       [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, 'triangle', 0.25, undefined, i * 0.09));

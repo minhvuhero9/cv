@@ -1,8 +1,13 @@
-import { magicLine, MagicLineKey } from './dialogue';
+import type { MagicLineKey } from './dialogue';
 import type { EventId, Mood } from './evaluate';
 import { Vec, angleDiff, clamp, dist } from './geometry';
 import { Tuft } from './hair';
 import {
+  autoStyle,
+  concreteSpikes,
+  gelApply,
+  growTick,
+  potionSpray,
   RAY_COLORS,
   VACUUM_GULP_TIME,
   VACUUM_MAX_RADIUS,
@@ -19,7 +24,9 @@ import {
   wandSelect,
   wandStretch,
 } from './magic';
-import { RoundState, incident, refreshMetrics, say, sayLater } from './session';
+import { RoundState, consume, incident, line, refreshMetrics, say, sayLater, toolReaction } from './session';
+import { CUSTOMERS } from './customers';
+import { startle } from './behaviors';
 import { TOOLS, ToolId, toolDef } from './tools';
 
 /**
@@ -139,17 +146,24 @@ export function createMagic(): MagicState {
 
 /* ------------------------------------------------------------------ energy */
 
-export type GearStatus = { state: 'ready' | 'cooldown' | 'overheated'; charge: number; wait: number };
+export type GearStatus = { state: 'ready' | 'cooldown' | 'overheated' | 'empty' | 'jammed' | 'blocked'; charge: number; wait: number; stock?: number };
+
+/** Consumable tools and the shop item they use up. */
+export const CONSUMABLE_TOOL: Partial<Record<ToolId, string>> = { potion: 'potion', gel: 'gel' };
 
 export function gearStatus(s: RoundState, id: ToolId): GearStatus {
   const def = toolDef(id);
   const g = s.gear[id];
+  if (s.ctx.blocked?.includes(id)) return { state: 'blocked', charge: 0, wait: 0 };
+  if (s.jam && s.jam.tool === id && s.time < s.jam.until) return { state: 'jammed', charge: 0, wait: s.jam.until - s.time };
+  const item = CONSUMABLE_TOOL[id];
+  if (item && (s.stock[item] ?? 0) <= 0) return { state: 'empty', charge: 0, wait: 0, stock: 0 };
   if (!def.energy) return { state: 'ready', charge: 1, wait: 0 };
   if (g.overheated) return { state: 'overheated', charge: g.charge, wait: (1 - g.charge) * def.energy.refill };
   const cost = def.energy.costPerUse ?? 0.02;
   if (g.charge + 1e-6 < cost) return { state: 'cooldown', charge: g.charge, wait: ((cost - g.charge) * def.energy.refill) };
   if (s.time < g.nextUseAt) return { state: 'cooldown', charge: g.charge, wait: g.nextUseAt - s.time };
-  return { state: 'ready', charge: g.charge, wait: 0 };
+  return { state: 'ready', charge: g.charge, wait: 0, stock: item ? s.stock[item] : undefined };
 }
 
 function deny(s: RoundState) {
@@ -182,7 +196,7 @@ function stage(s: RoundState, p: Vec): Vec {
 }
 
 function mline(s: RoundState, key: MagicLineKey) {
-  return magicLine(s.rng, key, s.customer.personality);
+  return line(s, key);
 }
 
 function moodFor(s: RoundState, loves: Mood, others: Mood): Mood {
@@ -262,6 +276,7 @@ export function gearDown(s: RoundState, p: Vec): boolean {
       addFx(s, 'ring', at, { color, dur: 0.5 });
       s.sfx.push('zap');
       touched(s, hit);
+      startle(s);
       firstUse(s, id);
       return true;
     }
@@ -287,7 +302,51 @@ export function gearDown(s: RoundState, p: Vec): boolean {
       m.potPending = true;
       addFx(s, 'pot', { x: 200, y: 150 }, { dur: 1.9 });
       s.sfx.push('steam');
+      toolReaction(s, 'cooker');
+      startle(s);
       firstUse(s, id);
+      return false;
+    }
+    case 'potion':
+    case 'gel': {
+      const def = toolDef(id).energy!;
+      if (!consume(s, CONSUMABLE_TOOL[id]!)) {
+        deny(s);
+        return false;
+      }
+      spend(s, id, def.costPerUse!);
+      s.gear[id].nextUseAt = s.time + (def.gap ?? 0);
+      const hit = id === 'potion' ? potionSpray(s.hair, p) : gelApply(s.hair, p);
+      addFx(s, 'ring', stage(s, p), { color: id === 'potion' ? '#7dff9a' : '#c9b8ff', dur: 0.6 });
+      addFx(s, 'sparkle', stage(s, p), { color: id === 'potion' ? '#2ee86a' : '#8a4dff' });
+      s.sfx.push(id === 'potion' ? 'sparkle' : 'pop');
+      touched(s, hit);
+      if (hit.some((t) => t.len <= 2.5) && id === 'potion' && !s.events.regrow) {
+        incident(s, 'regrow', 0);
+        say(s, mline(s, 'regrow'), 'shocked');
+      }
+      return false;
+    }
+    case 'auto': {
+      spend(s, 'auto', 1);
+      // A noisy, chaotic shop: the machine mishears the request (and picks someone else's).
+      const misheard = s.chaos >= 50;
+      let target = s.customer.target ?? { left: 0.7, right: 0.7, top: 0.7, fringe: 0.7 };
+      if (misheard) {
+        const others = CUSTOMERS.filter((c) => c.target && c.id !== s.customer.id);
+        target = others[Math.floor(s.rng() * others.length)].target!;
+      }
+      const done = autoStyle(s.hair, target);
+      addFx(s, 'gust', { x: 200, y: 220 }, { x2: 0, y2: 1, dur: 0.7, color: '#d9dde2' });
+      addFx(s, 'combo', { x: 200, y: 150 }, { dur: 1.2, text: misheard ? 'MÁY NGHE NHẦM!' : 'TỰ ĐỘNG TẠO KIỂU' });
+      s.sfx.push(misheard ? 'fail' : 'ding');
+      touched(s, done);
+      s.pointer.removed += 1;
+      if (misheard) {
+        incident(s, 'autoMisread', 12);
+        sayLater(s, 0.6, line(s, 'autoMisread'), 'shocked', true);
+      }
+      refreshMetrics(s);
       return false;
     }
     default:
@@ -369,8 +428,17 @@ export function gearUp(s: RoundState) {
       spend(s, 'storm', toolDef('storm').energy!.costPerUse!);
       addFx(s, 'gust', stage(s, aim.from), { x2: dir.x, y2: dir.y, dur: 0.9, color: '#bfe8ff' });
       s.sfx.push('whoosh');
+      startle(s);
       ptr.magicUsed = true;
       s.hasCut = true;
+      // Keo vĩnh cửu + Máy Sấy Bão: gelled hair sets like concrete, straight up.
+      if (s.hair.tufts.filter((t) => t.eternal && !t.bald).length >= 8 && !s.events.concreteSpikes) {
+        const set = concreteSpikes(s.hair);
+        incident(s, 'concreteSpikes', 12);
+        addFx(s, 'combo', stage(s, aim.to), { dur: 1.4, text: 'ĂNG-TEN BÊ TÔNG!' });
+        sayLater(s, 0.5, line(s, 'concreteSpikes'), 'shocked', true);
+        touched(s, set);
+      }
       // Combo: Gậy Như Ý + Máy Sấy Bão.
       const combo = r.whipped.length >= 8 && comboReady(s, 'stormLong');
       firstUse(s, 'storm', combo);
@@ -473,6 +541,7 @@ export function gearTick(s: RoundState, dt: number, local: Vec | null) {
     if (done.length) say(s, mline(s, 'cooked'), moodFor(s, 'ecstatic', 'shocked'));
   }
   decaySteam(s.hair, dt);
+  growTick(s.hair, dt);
 }
 
 function suck(s: RoundState, p: Vec, dt: number) {
@@ -514,6 +583,7 @@ function suck(s: RoundState, p: Vec, dt: number) {
     m.vacuumGulped = true;
     const gone = vacuumGulp(s.hair, p, m.vacuumRadius);
     if (gone.length) {
+      startle(s);
       incident(s, 'vacuumGulp', 12);
       s.sfx.push('gulp');
       s.lastBaldAt = s.time;

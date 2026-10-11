@@ -15,7 +15,7 @@ export const ZONE_LABEL: Record<Zone, string> = {
 };
 
 /** Chaos tier lines, said once when chaos climbs into a tier. */
-const TIER_LINES: Record<Personality, string[][]> = {
+export const TIER_LINES: Record<Personality, string[][]> = {
   loyal: [
     [],
     ['Em ơi… ảnh mẫu đây nhé, em nhìn kỹ chưa?', 'Hình như hơi khác ảnh rồi đấy em.'],
@@ -60,7 +60,7 @@ export type EventLineKey =
   | 'hotDryer'
   | 'flinchWarn';
 
-const EVENT_LINES: Record<EventLineKey, Record<Personality, string[]>> = {
+export const EVENT_LINES: Record<EventLineKey, Record<Personality, string[]>> = {
   bald: {
     loyal: ['…Ơ? Sao đầu anh mát mát?', 'Trong ảnh làm gì có chỗ đó trọc hả em?'],
     picky: ['…Cái gì vừa mát lạnh trên đầu chú thế?', 'Chú bảo TỈA. NHẸ.'],
@@ -148,38 +148,66 @@ const EVENT_LINES: Record<EventLineKey, Record<Personality, string[]>> = {
   },
 };
 
-export function eventLine(rng: Rng, key: EventLineKey, p: Personality): string {
-  return pick(rng, EVENT_LINES[key][p]);
+/** Generic lines for behaviour events, used when a customer has no line of their own. */
+export const GENERIC: Record<string, string[]> = {
+  sleepy: ['Khò… khò…'],
+  startle: ['Hả?! Gì đấy?!'],
+  flexWarn: ['Xem này!'],
+  phone: ['Alo? Alo?'],
+  duckWarn: ['Suỵt!'],
+  chop: ['Hây-ya!'],
+  dogFearWarn: ['Ư ử…'],
+  dogShake: ['Rũ rũ rũ!'],
+  dogSniff: ['Khịt khịt…'],
+  dogHappy: ['Gâu!'],
+  deadline: ['Nhanh lên em ơi!'],
+  boring: ['Chán quá…'],
+  growRace: ['Sao càng cắt càng dài thế?!', 'Tóc tôi chứ có phải cỏ đâu mà mọc nhanh vậy!'],
+  concreteSpikes: ['Tóc tôi chứ có phải cột ăng-ten đâu!', 'Gõ vào đầu nghe cốc cốc luôn!'],
+  autoMisread: ['Ơ, tôi đâu có yêu cầu kiểu này?!', 'Cái máy nghe ai nói thế?!'],
+  malfunction: ['Ối! Cái máy bị làm sao thế?!', 'Máy giật! Máy giật!'],
+};
+
+export function eventLine(rng: Rng, key: EventLineKey | string, p: Personality): string {
+  const pool = EVENT_LINES[key as EventLineKey]?.[p] ?? MAGIC_LINES[key as MagicLineKey]?.[p] ?? GENERIC[key];
+  return pool?.length ? pick(rng, pool) : '…';
 }
+
+export const PHOTO_LINES = {
+  bald: ['Trong ảnh… không có cái lỗ nào như thế này.', 'Anh phóng to ảnh rồi, không thấy chỗ trọc nào cả.'],
+  topShort: ['Ơ, anh bảo đừng ngắn quá cơ mà!', 'Phía trên trong ảnh còn dài mà em!'],
+  sidesLong: ['Hai bên trong ảnh ngắn hơn nhiều mà em.', 'Hai bên này, nhìn ảnh này, ngắn tũn!'],
+  uneven: ['Ảnh mẫu hai bên bằng nhau nhé em.'],
+  almost: ['Hai bên ngắn thêm tí nữa… nhưng đừng ngắn quá.'],
+  good: ['Ừ… giống rồi đấy. Mà hình như ảnh này chụp nghiêng.', 'Giống! Giống tám mươi phần trăm! Mà chắc tại góc chụp.'],
+};
 
 /** Tuấn checks the reference photo. The line depends on what the hair looks like right now. */
 export function photoLine(rng: Rng, zone: Record<Zone, number>, target: Record<Zone, number>, bald: boolean): string {
-  if (bald) return pick(rng, ['Trong ảnh… không có cái lỗ nào như thế này.', 'Anh phóng to ảnh rồi, không thấy chỗ trọc nào cả.']);
+  if (bald) return pick(rng, PHOTO_LINES.bald);
   const sides = (zone.left + zone.right) / 2;
-  if (zone.top < target.top - 0.2) return pick(rng, ['Ơ, anh bảo đừng ngắn quá cơ mà!', 'Phía trên trong ảnh còn dài mà em!']);
-  if (sides > target.left + 0.35) return pick(rng, ['Hai bên trong ảnh ngắn hơn nhiều mà em.', 'Hai bên này, nhìn ảnh này, ngắn tũn!']);
-  if (Math.abs(zone.left - zone.right) > 0.25) return 'Ảnh mẫu hai bên bằng nhau nhé em.';
-  if (sides > target.left + 0.12) return 'Hai bên ngắn thêm tí nữa… nhưng đừng ngắn quá.';
-  return pick(rng, ['Ừ… giống rồi đấy. Mà hình như ảnh này chụp nghiêng.', 'Giống! Giống tám mươi phần trăm! Mà chắc tại góc chụp.']);
+  if (zone.top < target.top - 0.2) return pick(rng, PHOTO_LINES.topShort);
+  if (sides > target.left + 0.35) return pick(rng, PHOTO_LINES.sidesLong);
+  if (Math.abs(zone.left - zone.right) > 0.25) return PHOTO_LINES.uneven[0];
+  if (sides > target.left + 0.12) return PHOTO_LINES.almost[0];
+  return pick(rng, PHOTO_LINES.good);
 }
 
+export const DEMAND_FIRST = ['Này, {z} còn dài hơn đấy. Sửa tí.', 'Ơ, {z} dài hơn rồi. Tỉa thêm tí.'];
+export const DEMAND_AGAIN = ['Giờ {z} lại dài hơn rồi. Sửa tiếp.', 'Ừ… mà giờ {z} lệch. Tí nữa thôi.', 'Thế là {z} lại dài nhất rồi. Cháu thấy chưa?', 'Chú nói thật, {z} vẫn chưa ổn.'];
+export const DEMAND_IGNORED = ['Chú nói mà cháu không nghe à?', 'Cháu có nghe chú nói không đấy?', 'Đấy, đấy, cái chỗ chú bảo ấy!'];
+export const DEMAND_MET = ['Ừ. Được.', 'Ừ… thế được.', 'Tạm.'];
+
 export function demandLine(rng: Rng, zone: Zone, n: number): string {
-  const z = ZONE_LABEL[zone];
-  if (n === 0) return pick(rng, [`Này, ${z} còn dài hơn đấy. Sửa tí.`, `Ơ, ${z} dài hơn rồi. Tỉa thêm tí.`]);
-  return pick(rng, [
-    `Giờ ${z} lại dài hơn rồi. Sửa tiếp.`,
-    `Ừ… mà giờ ${z} lệch. Tí nữa thôi.`,
-    `Thế là ${z} lại dài nhất rồi. Cháu thấy chưa?`,
-    `Chú nói thật, ${z} vẫn chưa ổn.`,
-  ]);
+  return pick(rng, n === 0 ? DEMAND_FIRST : DEMAND_AGAIN).replace('{z}', ZONE_LABEL[zone]);
 }
 
 export function demandIgnored(rng: Rng): string {
-  return pick(rng, ['Chú nói mà cháu không nghe à?', 'Cháu có nghe chú nói không đấy?', 'Đấy, đấy, cái chỗ chú bảo ấy!']);
+  return pick(rng, DEMAND_IGNORED);
 }
 
 export function demandMet(rng: Rng): string {
-  return pick(rng, ['Ừ. Được.', 'Ừ… thế được.', 'Tạm.']);
+  return pick(rng, DEMAND_MET);
 }
 
 /* ------------------------------------------------------------------ Bộ Đồ Nghề Bất Ổn */
@@ -199,7 +227,7 @@ export type MagicLineKey =
   | 'comboSculpt'
   | 'comboPotSuck';
 
-const MAGIC_LINES: Record<MagicLineKey, Record<Personality, string[]>> = {
+export const MAGIC_LINES: Record<MagicLineKey, Record<Personality, string[]>> = {
   first_wand: {
     loyal: ['Ơ… cái gậy gì phát sáng thế em? Trong ảnh không có.', 'Gậy đấy cắt tóc được à?'],
     picky: ['Gậy phép? Cháu tưởng chú là trẻ con à?', 'Hai mươi năm chưa thấy ai cắt bằng gậy.'],
@@ -269,4 +297,83 @@ const MAGIC_LINES: Record<MagicLineKey, Record<Personality, string[]>> = {
 
 export function magicLine(rng: Rng, key: MagicLineKey, p: Personality): string {
   return pick(rng, MAGIC_LINES[key][p]);
+}
+
+/* ------------------------------------------------------------------ fallback voices */
+
+/**
+ * Fallback lines for customers who don't override an event. The classic three use the
+ * personality tables above (written for them); everyone else uses these neutral lines
+ * (self: "tôi", no age-specific way of addressing the barber), and Cậu Vàng uses DOG.
+ */
+export const NEUTRAL: Record<string, string[]> = {
+  bald: ['…Sao đầu tôi tự nhiên mát thế?', 'Cái chỗ vừa rồi… còn tóc không đấy?'],
+  baldAgain: ['Lại mát nữa?!', 'Thêm một chỗ nữa à?!'],
+  combOver: ['Đang giấu cái gì trên đầu tôi đấy?', 'Sao tóc tôi chạy hết sang một bên thế?'],
+  gelSpikes: ['Tóc tôi chứ có phải cánh quạt đâu!', 'Ơ, sao nó dựng đứng hết lên thế này?!'],
+  turnWarn: ['Khoan, để tôi xem cái…', 'Ơ, ai gọi tôi đấy?'],
+  turnStray: ['Tôi quay có một giây thôi mà!', 'Cái đường gì vừa chạy qua đầu tôi thế?'],
+  turnSafe: ['Rồi, cắt tiếp đi.'],
+  fixLoop: ['Sửa mãi một chỗ thế, còn gì nữa đâu?', 'Chỗ đó giờ ngắn nhất đầu rồi!'],
+  ruin: ['Vừa nãy đang đẹp mà!', 'Đang yên đang lành, cắt thêm làm gì?!'],
+  sneezeWarn: ['Hắt… hắt…', 'Tóc vụn… bay vào mũi… hắt…'],
+  sneeze: ['HẮT XÌ!!!'],
+  walkoutWarn: ['Thôi, tôi về đây!', 'Đủ rồi, tôi đi tiệm khác!'],
+  begAccepted: ['Thôi được, lần cuối đấy.'],
+  walkout: ['Tôi không bao giờ quay lại đây nữa!'],
+  wrongTool: ['Ông cắt tóc hay ông đang trả thù tôi thế?', 'Cái máy đấy dùng cho tóc người à?!'],
+  hotDryer: ['Nóng! Nóng đầu tôi!', 'Sấy chỗ không có tóc làm gì?!'],
+  flinchWarn: ['Ơ ơ… từ từ!'],
+  first_wand: ['Cái gậy gì phát sáng thế kia?', 'Cắt tóc bằng gậy à?'],
+  first_ray: ['Súng?! Ở tiệm cắt tóc?!', 'Chĩa cái gì vào đầu tôi thế?!'],
+  first_storm: ['Gió gì mà như bão thế này?!'],
+  first_vacuum: ['Máy hút bụi?! Định hút gì của tôi?'],
+  first_comb: ['Lược gì mà có cả đầu rồng thế?'],
+  first_cooker: ['Úp nồi cơm lên đầu tôi làm gì?!'],
+  regrow: ['Ơ… tóc vừa mọc lại à?!'],
+  wandGiant: ['Sao tóc tôi dài hơn lúc vào thế này?!'],
+  cooked: ['Sao đầu tôi tròn như cái bánh bao thế?!'],
+  vacuumGulp: ['Cái máy vừa nuốt mất một miếng tóc của tôi à?!'],
+  comboStormLong: ['Tóc tôi vừa cất cánh!'],
+  comboSculpt: ['Trên đầu tôi có cái sừng bảy màu?!'],
+  comboPotSuck: ['Hút cả nồi à?! Tóc tôi đâu rồi?!'],
+  tier1: ['Ổn không đấy?', 'Từ từ thôi nhé.'],
+  tier2: ['Tôi bắt đầu thấy lo rồi đấy.', 'Có chắc là biết cắt không?'],
+  tier3: ['Dừng tay! Dừng tay ngay!', 'Tôi bảo đẹp trai chứ có bảo biến thành cái chổi đâu!'],
+};
+
+export const DOG: string[] = ['Gâu gâu!', 'Ẳng!', 'Grừ…', 'Ư ử…'];
+
+export const DOG_LINES: Record<string, string[]> = {
+  baldAgain: ['Ẳng ẳng! (Bà Hai: “Lại trọc thêm một mảng à cháu?!”)'],
+  combOver: ['Gâu? (Bà Hai: “Cháu chải lông nó sang một bên làm gì thế?”)'],
+  gelSpikes: ['Gâu gâu! (Bà Hai: “Ơ kìa, Cậu Vàng thành con nhím rồi!”)'],
+  turnWarn: ['Gâu! (ngó ra cửa)'],
+  turnStray: ['Ẳng! (Bà Hai: “Nó quay có tí mà cháu cắt lẹm vào rồi!”)'],
+  fixLoop: ['Grừ… (Bà Hai: “Cháu cắt mãi một chỗ, nó cáu đấy.”)'],
+  ruin: ['Gâu… (Bà Hai: “Lúc nãy đẹp rồi mà cháu!”)'],
+  sneezeWarn: ['Khịt… khịt…'],
+  sneeze: ['HẮT XÌ! (Cậu Vàng hắt hơi tung cả lông)'],
+  wrongTool: ['Ẳng ẳng! (Bà Hai: “Cái máy đấy làm nó sợ chết khiếp!”)'],
+  hotDryer: ['Ẳng! (Bà Hai: “Nóng nó đấy cháu ơi!”)'],
+  first_wand: ['Gâu? (ngửi ngửi cây gậy)'],
+  first_ray: ['GÂU GÂU GÂU! (sủa vào khẩu súng)'],
+  first_storm: ['Gâu! (vểnh tai đón gió)'],
+  first_cooker: ['Ư ử… (Bà Hai: “Nồi cơm nhà bà mà cháu úp lên đầu nó à?”)'],
+  regrow: ['Gâu! (Bà Hai: “Lông nó mọc lại rồi kìa!”)'],
+  wandGiant: ['Gâu gâu! (Bà Hai: “Sao lông nó dài như chó Nhật thế này?!”)'],
+  cooked: ['Gâu! (Bà Hai: “Cậu Vàng thành cục bông rồi!”)'],
+  comboStormLong: ['GÂU! (Bà Hai: “Lông nó bay như cờ phướn!”)'],
+  tier3: ['Gâu gâu gâu! (Cậu Vàng định nhảy khỏi ghế)'],
+};
+
+export function fallbackLine(rng: Rng, key: string, style: 'neutral' | 'dog'): string {
+  if (style === 'dog') return pick(rng, DOG_LINES[key] ?? GENERIC_DOG(key));
+  const pool = NEUTRAL[key] ?? GENERIC[key];
+  return pool?.length ? pick(rng, pool) : '…';
+}
+
+function GENERIC_DOG(key: string): string[] {
+  if (key.startsWith('first_')) return ['Gâu?'];
+  return DOG;
 }

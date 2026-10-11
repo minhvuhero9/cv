@@ -41,6 +41,10 @@ export interface Tuft {
   sculpt: Vec | null;
   /** 0..1 steam-puffed by the Nồi Cơm Điện (decays slowly). */
   steamed: number;
+  /** Seconds of super-fast growth left (Thuốc Mọc Tóc). */
+  grow: number;
+  /** Keo Vĩnh Cửu: gel that never softens. */
+  eternal: boolean;
 }
 
 export interface HairStyleInit {
@@ -53,6 +57,10 @@ export interface HairStyleInit {
   messiness?: number;
   /** Per-zone multiplier on the base length. */
   zoneLength?: Partial<Record<Zone, number>>;
+  /** Already bald when the customer walks in (thinning crown). */
+  preBald?: { x: number; y: number; r: number };
+  /** Angle range (degrees) of the outline rows; wider = fur down the cheeks. */
+  phiRange?: [number, number];
 }
 
 export interface HairState {
@@ -102,7 +110,7 @@ export function createHair(init: HairStyleInit): HairState {
   const push = (
     t: Omit<
       Tuft,
-      'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke' | 'tint' | 'thick' | 'curl' | 'sculpt' | 'steamed'
+      'id' | 'len' | 'bald' | 'dwell' | 'spike' | 'spiked' | 'lean' | 'fluff' | 'touches' | 'lastStroke' | 'tint' | 'thick' | 'curl' | 'sculpt' | 'steamed' | 'grow' | 'eternal'
     >,
   ) => {
     const variance = 1 + (noise(id) - 0.5) * 2 * mess;
@@ -125,6 +133,8 @@ export function createHair(init: HairStyleInit): HairState {
       curl: 0,
       sculpt: null,
       steamed: 0,
+      grow: 0,
+      eternal: false,
     });
     id++;
   };
@@ -136,8 +146,7 @@ export function createHair(init: HairStyleInit): HairState {
     { scale: 0.9, offset: 0.25 },
   ];
   const steps = 22;
-  const phiMin = -6;
-  const phiMax = 186;
+  const [phiMin, phiMax] = init.phiRange ?? [-6, 186];
   for (const row of rows) {
     for (let i = 0; i < steps; i++) {
       const phi = phiMin + ((i + row.offset) / (steps - 1 + row.offset)) * (phiMax - phiMin);
@@ -184,6 +193,15 @@ export function createHair(init: HairStyleInit): HairState {
       origLen: init.fringeLength,
       gel: init.gel.fringe ?? 0,
     });
+  }
+  if (init.preBald) {
+    const b = init.preBald;
+    for (const t of tufts) {
+      if (dist(t.root, b) < b.r) {
+        t.bald = true;
+        t.len = 0;
+      }
+    }
   }
   return { tufts };
 }
@@ -325,13 +343,13 @@ export function clipperSweep(h: HairState, a: Vec, b: Vec, stroke: number, force
 }
 
 /** Clipper sitting still: roots under it accumulate dwell and eventually go bald. */
-export function clipperDwell(h: HairState, p: Vec, dt: number, stroke: number): CutResult {
+export function clipperDwell(h: HairState, p: Vec, dt: number, stroke: number, baldAfter = BALD_DWELL): CutResult {
   const res = emptyCut();
   for (const t of h.tufts) {
     const near = dist(t.root, p) < CLIPPER_RADIUS + 3;
     if (near && !t.bald) {
       t.dwell += dt;
-      if (t.dwell >= BALD_DWELL) makeBald(t, stroke, res);
+      if (t.dwell >= baldAfter) makeBald(t, stroke, res);
     } else if (t.dwell > 0) {
       t.dwell = Math.max(0, t.dwell - dt * 0.8);
     }
@@ -376,7 +394,7 @@ export interface DryerResult {
 }
 
 /** Hair dryer (máy sấy): pushes hair away from the nozzle, fluffs it, and sets gel into spikes. */
-export function dryerBlow(h: HairState, p: Vec, dt: number): DryerResult {
+export function dryerBlow(h: HairState, p: Vec, dt: number, invert = false): DryerResult {
   const out: DryerResult = { newlySpiked: [], power: 0, onBald: 0 };
   for (const t of h.tufts) {
     const pts = tuftPoints(t);
@@ -391,7 +409,7 @@ export function dryerBlow(h: HairState, p: Vec, dt: number): DryerResult {
     if (t.len < 3) continue;
     out.power += s;
     if (t.gel > 0.05 && !t.spiked) {
-      t.spike += s * 2.4 * t.gel;
+      t.spike += s * 2.4 * t.gel * (t.eternal ? 4 : 1);
       if (t.spike >= 1) {
         t.spiked = true;
         out.newlySpiked.push(t);
@@ -399,7 +417,9 @@ export function dryerBlow(h: HairState, p: Vec, dt: number): DryerResult {
     }
     // The dryer points at the head: hair is pushed from the nozzle towards (and past) the centre.
     const toHead = { x: HEAD.cx - p.x, y: HEAD.cy - 20 - p.y };
-    const wind = Math.hypot(toHead.x, toHead.y) > 25 ? Math.atan2(toHead.y, toHead.x) : Math.atan2(mid.y - p.y, mid.x - p.x);
+    let wind = Math.hypot(toHead.x, toHead.y) > 25 ? Math.atan2(toHead.y, toHead.x) : Math.atan2(mid.y - p.y, mid.x - p.x);
+    // Anti-gravity hair (Khách X-79) flies towards the nozzle instead.
+    if (invert) wind += Math.PI;
     const start = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
     const stiff = t.spiked ? 0.25 : 1 - t.gel * 0.6;
     t.lean = clamp(t.lean + clamp(angleDiff(start, wind), -1, 1) * s * 2.2 * stiff, -1.4, 1.4);

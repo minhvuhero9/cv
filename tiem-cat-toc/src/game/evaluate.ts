@@ -20,7 +20,16 @@ export type EventId =
   | 'vacuumGulp'
   | 'comboStormLong'
   | 'comboSculpt'
-  | 'comboPotSuck';
+  | 'comboPotSuck'
+  | 'startle'
+  | 'karateChop'
+  | 'dogShake'
+  | 'dogSniff'
+  | 'baldPanic'
+  | 'growRace'
+  | 'concreteSpikes'
+  | 'malfunction'
+  | 'autoMisread';
 
 /** Human-readable names for the incident log / result screen. */
 export const EVENT_TITLES: Record<EventId, string> = {
@@ -42,6 +51,15 @@ export const EVENT_TITLES: Record<EventId, string> = {
   comboStormLong: 'COMBO: Bão Tóc Dài',
   comboSculpt: 'COMBO: Kỳ Lân Bảy Sắc',
   comboPotSuck: 'COMBO: Hút Nhầm Cả Nồi',
+  startle: 'Đánh Thức Cụ Dậy',
+  karateChop: 'Võ Sư Ra Đòn',
+  dogShake: 'Cậu Vàng Rũ Lông',
+  dogSniff: 'Cậu Vàng Ngửi Thấy Mùi Thơm',
+  baldPanic: 'Hoảng Loạn Vì Hói',
+  growRace: 'Mọc Nhanh Hơn Cắt',
+  concreteSpikes: 'Ăng-ten Bê Tông',
+  malfunction: 'Máy Trục Trặc',
+  autoMisread: 'Máy Nghe Nhầm Yêu Cầu',
 };
 
 export interface RoundFacts {
@@ -56,6 +74,15 @@ export interface RoundFacts {
   maxZoneStrokes: number;
   walkedOut: boolean;
   timedOut: boolean;
+  /** Seconds spent and allowed (speed-sensitive customers). */
+  timeUsed?: number;
+  timeLimit?: number;
+  /** Livestream viewers at the end (Na Bông). */
+  viewers?: number;
+  /** Hairstyle a copycat customer asked for. */
+  wantStyle?: string | null;
+  /** Multipliers from the shop/upgrades (career mode). */
+  payBonus?: number;
 }
 
 export interface StyleName {
@@ -72,7 +99,33 @@ interface StyleRule extends StyleName {
  * Hairstyle naming: first matching rule wins. Every rule reads the real final hair, so
  * the name always describes what is on the customer's head.
  */
+const isDog = (f: RoundFacts) => f.customer.look.species === 'dog';
+
 export const STYLE_RULES: StyleRule[] = [
+  {
+    id: 'dog-shaved',
+    name: 'Chó Cỏ Hạng Sang',
+    why: 'Cậu Vàng bị cạo lộ cả da như chó cỏ đi spa.',
+    when: (f) => isDog(f) && f.metrics.baldFrac > 0.08,
+  },
+  {
+    id: 'dog-lion',
+    name: 'Sư Tử Mini',
+    why: 'Bờm quanh đầu dài, phần còn lại tỉa ngắn: Cậu Vàng hóa sư tử.',
+    when: (f) => isDog(f) && f.metrics.zone.top > 0.7 && (f.metrics.zone.left + f.metrics.zone.right) / 2 > 0.7 && f.metrics.fluffAvg > 0.25,
+  },
+  {
+    id: 'dog-cotton',
+    name: 'Cún Bông Gòn',
+    why: 'Lông được sấy phồng tròn như cục bông.',
+    when: (f) => isDog(f) && f.metrics.fluffAvg >= 0.4,
+  },
+  {
+    id: 'dog-neat',
+    name: 'Cậu Vàng Đi Thi Hoa Hậu',
+    why: 'Lông tỉa gọn gàng, đều tăm tắp.',
+    when: (f) => isDog(f) && f.metrics.avg < 0.85 && f.metrics.unevenLR < 0.15 && f.metrics.baldFrac === 0,
+  },
   {
     id: 'egg',
     name: 'Trứng Luộc Bóc Vỏ',
@@ -299,7 +352,8 @@ export type Mood =
   | 'shocked'
   | 'crying'
   | 'flinch'
-  | 'sneeze';
+  | 'sneeze'
+  | 'sleepy';
 
 export function reactionTier(sat: number): ReactionTier {
   if (sat >= 80) return 'love';
@@ -324,7 +378,7 @@ function mainDefect(f: RoundFacts): Defect {
   return 'none';
 }
 
-const DEFECT_LINES: Record<Personality, Partial<Record<Defect, string[]>>> = {
+export const DEFECT_LINES: Record<Personality, Partial<Record<Defect, string[]>>> = {
   loyal: {
     highway: ['Trong ảnh làm gì có cái đường băng nào?!'],
     bald: ['Ảnh mẫu đâu có cái lỗ này hả em?', 'Đẹp đấy. Đẹp đến mức anh không dám về nhà.'],
@@ -357,7 +411,7 @@ const DEFECT_LINES: Record<Personality, Partial<Record<Defect, string[]>>> = {
   },
 };
 
-const TIER_REACTIONS: Record<Personality, Record<ReactionTier, string[]>> = {
+export const TIER_REACTIONS: Record<Personality, Record<ReactionTier, string[]>> = {
   loyal: {
     love: ['Giống ảnh! Giống y như ảnh! Em là thiên tài!'],
     ok: ['Ừ… cũng giống ảnh. Nếu nheo mắt lại.'],
@@ -381,20 +435,36 @@ const TIER_REACTIONS: Record<Personality, Record<ReactionTier, string[]>> = {
   },
 };
 
+/** Over-the-top mirror lines of the three classic customers. */
+export const CLASSIC_SPECIAL = {
+  tuanBald: 'Thôi… để anh đổi ảnh mẫu cho khớp với tóc vậy.',
+  tuanLove: 'Giống ảnh đến mức anh tưởng mình là người trong ảnh!',
+  bayHighway: 'Chú bảo tỉa nhẹ, cháu xây đường cao tốc trên đầu chú à?',
+  bayShort: 'Tỉa nhẹ… cả phần đời còn lại của chú luôn à?',
+  bayLove: 'Được. Hai mươi năm nay mới có đứa cắt được thế này.',
+  khoaBald: 'Cô ấy sẽ hối hận… vì đã từng quen anh. Hu hu.',
+  khoaLove: 'Người yêu cũ ơi, nhìn đi! NHÌN ĐI!!',
+};
+
 function specialReaction(f: RoundFacts, sat: number): { line: string; mood: Mood } | null {
   const m = f.metrics;
   if (!f.customer.special(m, sat)) return null;
   switch (f.customer.id) {
     case 'tuan':
-      if (m.baldFrac > 0.25) return { line: 'Thôi… để anh đổi ảnh mẫu cho khớp với tóc vậy.', mood: 'shocked' };
-      return { line: 'Giống ảnh đến mức anh tưởng mình là người trong ảnh!', mood: 'ecstatic' };
+      if (m.baldFrac > 0.25) return { line: CLASSIC_SPECIAL.tuanBald, mood: 'shocked' };
+      return { line: CLASSIC_SPECIAL.tuanLove, mood: 'ecstatic' };
     case 'bay':
-      if (m.highway) return { line: 'Chú bảo tỉa nhẹ, cháu xây đường cao tốc trên đầu chú à?', mood: 'angry' };
-      if (m.avg < 0.35) return { line: 'Tỉa nhẹ… cả phần đời còn lại của chú luôn à?', mood: 'shocked' };
-      return { line: 'Được. Hai mươi năm nay mới có đứa cắt được thế này.', mood: 'happy' };
+      if (m.highway) return { line: CLASSIC_SPECIAL.bayHighway, mood: 'angry' };
+      if (m.avg < 0.35) return { line: CLASSIC_SPECIAL.bayShort, mood: 'shocked' };
+      return { line: CLASSIC_SPECIAL.bayLove, mood: 'happy' };
     case 'khoa':
-      if (m.baldFrac > 0.2) return { line: 'Cô ấy sẽ hối hận… vì đã từng quen anh. Hu hu.', mood: 'crying' };
-      return { line: 'Người yêu cũ ơi, nhìn đi! NHÌN ĐI!!', mood: 'ecstatic' };
+      if (m.baldFrac > 0.2) return { line: CLASSIC_SPECIAL.khoaBald, mood: 'crying' };
+      return { line: CLASSIC_SPECIAL.khoaLove, mood: 'ecstatic' };
+    default:
+      // Data-driven customers: a good result gets their special line; a disaster gets their worst mirror line.
+      if (sat >= 70 && f.customer.specialLine) return f.customer.specialLine;
+      if (sat < 70 && f.customer.mirror?.disaster?.length) return { line: f.customer.mirror.disaster[0], mood: f.customer.personality === 'dramatic' ? 'crying' : 'shocked' };
+      return null;
   }
 }
 
@@ -421,6 +491,11 @@ function caption(f: RoundFacts, sat: number): string {
   if (e.comboSculpt) return 'Bắn màu bằng Súng Tóc, chải bằng Lược Rồng. Khách mọc sừng.';
   if (e.comboStormLong) return 'Kéo tóc dài gấp ba bằng Gậy Như Ý, rồi bật Máy Sấy Bão.';
   if (e.vacuumGulp) return 'Giữ máy hút hơi lâu. Máy hút hơi nhiều.';
+  if (e.concreteSpikes) return 'Keo vĩnh cửu gặp Máy Sấy Bão. Đầu khách thành trạm phát sóng.';
+  if (e.growRace) return 'Xịt thuốc mọc tóc rồi cầm tông đơ. Tóc thắng.';
+  if (e.autoMisread) return 'Tiệm ồn quá, máy tạo kiểu tự động nghe nhầm yêu cầu.';
+  if (e.karateChop) return 'Làm võ sư giật mình. Dụng cụ bay qua cửa sổ.';
+  if (e.dogShake) return 'Cậu Vàng sợ tông đơ, rũ lông khắp tiệm.';
   if (e.strayCut && f.metrics.baldCount > 0) return 'Khách quay đầu đúng lúc tông đơ đang chạy.';
   if (e.fixLoop) return `Sửa đi sửa lại một chỗ ${f.maxZoneStrokes} lần. Càng sửa càng sai.`;
   if (e.combOver) return 'Cố che chỗ trọc bằng máy sấy. Tóc quyết định bỏ trốn.';
@@ -453,21 +528,37 @@ export interface RoundResult {
   dramaScore: number;
   total: number;
   pay: string;
+  /** Money actually received (VND). */
+  paid: number;
+  tip: number;
   incidents: EventId[];
   walkedOut: boolean;
   special: boolean;
 }
 
 export function evaluateRound(f: RoundFacts, rng: Rng): RoundResult {
-  const sat = Math.round(f.customer.satisfaction(f.metrics));
+  // Name from the hair first (some customers judge by the style they got), then judge.
+  const preStyle = nameHairstyle(f, 0).id;
+  // (sat is computed with the customer's own context below)
+  const sat = Math.round(
+    f.customer.satisfaction(f.metrics, {
+      before: f.before,
+      timeUsed: f.timeUsed ?? 0,
+      timeLimit: f.timeLimit ?? 75,
+      viewers: f.viewers ?? 0,
+      styleId: preStyle,
+      wantStyle: f.wantStyle ?? null,
+    }),
+  );
   const tier = reactionTier(sat);
   const style = nameHairstyle(f, sat);
   const p = f.customer.personality;
   const special = specialReaction(f, sat);
   let line: string;
   let mood: Mood;
+  const own = f.customer.mirror;
   if (f.walkedOut) {
-    line = TIER_REACTIONS[p].disaster[0];
+    line = own?.disaster?.[0] ?? TIER_REACTIONS[p].disaster[0];
     mood = p === 'dramatic' ? 'crying' : 'angry';
   } else if (special) {
     line = special.line;
@@ -476,8 +567,10 @@ export function evaluateRound(f: RoundFacts, rng: Rng): RoundResult {
     mood = moodFor(p, tier);
     const defect = mainDefect(f);
     const defectPool = DEFECT_LINES[p][defect];
-    if (p === 'picky' && f.fixCount >= 5 && tier !== 'love') {
+    if (f.customer.id === 'bay' && f.fixCount >= 5 && tier !== 'love') {
       line = `Sửa ${f.fixCount} lần, mỗi lần một bên. Giờ chú không nhận ra mình nữa.`;
+    } else if (own?.[tier]?.length) {
+      line = pick(rng, own[tier]!);
     } else if (defectPool && tier !== 'love') {
       line = pick(rng, defectPool);
     } else {
@@ -487,12 +580,17 @@ export function evaluateRound(f: RoundFacts, rng: Rng): RoundResult {
   const incidents = (Object.keys(f.events) as EventId[]).filter((k) => (f.events[k] ?? 0) > 0);
   const skillScore = f.walkedOut ? 0 : sat * 10;
   const dramaScore = Math.round(f.chaos * 5) + incidents.length * 80;
+  const base = f.customer.pay.base;
+  const bonus = f.payBonus ?? 1;
+  const paid = f.walkedOut ? 0 : Math.round((tier === 'bad' ? base / 3 : tier === 'disaster' ? 0 : base) / 1000) * 1000;
+  const tip = !f.walkedOut && tier === 'love' ? Math.round((f.customer.pay.tip * bonus) / 1000) * 1000 : 0;
+  const vnd = (n: number) => `${n.toLocaleString('vi-VN')}đ`;
   let pay: string;
   if (f.walkedOut) pay = 'Khách bỏ về, không trả tiền, mang luôn khăn choàng.';
-  else if (tier === 'love') pay = 'Khách trả 60.000đ và boa thêm 20.000đ!';
-  else if (tier === 'ok') pay = 'Khách trả đủ 60.000đ.';
-  else if (tier === 'meh') pay = 'Khách trả 60.000đ… toàn bằng tiền lẻ.';
-  else if (tier === 'bad') pay = 'Khách trả 20.000đ “tiền công cầm kéo”.';
+  else if (tier === 'love') pay = `Khách trả ${vnd(paid)} và boa thêm ${vnd(tip)}!`;
+  else if (tier === 'ok') pay = `Khách trả đủ ${vnd(paid)}.`;
+  else if (tier === 'meh') pay = `Khách trả ${vnd(paid)}… toàn bằng tiền lẻ.`;
+  else if (tier === 'bad') pay = `Khách chỉ trả ${vnd(paid)} “tiền công cầm kéo”.`;
   else pay = 'Khách không trả tiền. Tiệm còn phải tặng mũ lưỡi trai.';
   return {
     sat,
@@ -506,6 +604,8 @@ export function evaluateRound(f: RoundFacts, rng: Rng): RoundResult {
     dramaScore,
     total: skillScore + dramaScore,
     pay,
+    paid,
+    tip,
     incidents,
     walkedOut: f.walkedOut,
     special: special !== null && !f.walkedOut,

@@ -1,5 +1,5 @@
 import { CUSTOMERS, CustomerDef } from '../game/customers';
-import { EVENT_TITLES } from '../game/evaluate';
+import { EVENT_TITLES, STYLE_RULES } from '../game/evaluate';
 import { useState } from 'react';
 import { GearStatus, gearStatus } from '../game/gear';
 import { RoundState, CHAOS_TIER_LABEL, Tool, chaosTier, timeLeft } from '../game/session';
@@ -155,15 +155,21 @@ export function Toolbar({ s, onTool, onFinish }: { s: RoundState; onTool(t: Tool
   );
 }
 
-export function IntroCard({ s, onStart, onPick }: { s: RoundState; onStart(): void; onPick(c: CustomerDef): void }) {
+export function IntroCard({ s, onStart, onPick, note }: { s: RoundState; onStart(): void; onPick?(c: CustomerDef): void; note?: string }) {
   const c = s.customer;
   return (
     <div className="overlay intro" data-testid="intro">
       <div className="intro-card">
-        <div className="intro-label">Khách mới vào tiệm</div>
+        <div className="intro-label">{note ?? 'Khách mới vào tiệm'}</div>
         <h2>{c.name}</h2>
         <div className="intro-title">{c.title}</div>
         <p className="intro-trait">{c.trait}</p>
+        {c.likes.length > 0 && (
+          <p className="intro-likes">
+            <span className="up">Thích: {c.likes.join(', ')}</span> · <span className="down">Ghét: {c.dislikes.join(', ')}</span>
+          </p>
+        )}
+        {s.wantStyle && <p className="intro-want">Muốn kiểu: <b>{STYLE_RULES.find((r) => r.id === s.wantStyle)?.name ?? s.wantStyle}</b></p>}
         <ul className="howto">
           <li>
             <b>Kéo trên tóc</b> để cắt bằng dụng cụ đang cầm.
@@ -178,14 +184,16 @@ export function IntroCard({ s, onStart, onPick }: { s: RoundState; onStart(): vo
         <button className="primary-btn" onClick={onStart} data-testid="start" autoFocus>
           Mời ngồi — Bắt đầu cắt ✂
         </button>
-        <div className="queue">
-          <span>Đổi khách:</span>
-          {CUSTOMERS.map((o) => (
-            <button key={o.id} className={`chip ${o.id === c.id ? 'is-active' : ''}`} onClick={() => onPick(o)} data-testid={`pick-${o.id}`}>
-              {o.name}
-            </button>
-          ))}
-        </div>
+        {onPick && (
+          <div className="queue">
+            <span>Đổi khách:</span>
+            {CUSTOMERS.filter((o) => o.appear.weight > 0).map((o) => (
+              <button key={o.id} className={`chip ${o.id === c.id ? 'is-active' : ''}`} onClick={() => onPick(o)} data-testid={`pick-${o.id}`}>
+                {o.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -24,7 +24,7 @@ async function newGame(viewport = { width: 1280, height: 800 }, opts = {}) {
   const errors = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`${BASE}?seed=${opts.seed ?? 11}${opts.unlockAll ? '&unlock=all' : ''}`);
+  await page.goto(`${BASE}?mode=free&seed=${opts.seed ?? 11}${opts.unlockAll ? '&unlock=all' : ''}`);
   await page.waitForSelector('[data-testid=start]');
   return { page, ctx, errors };
 }
@@ -236,7 +236,7 @@ async function finishAndWait(page) {
   await page.click('[data-testid=next]');
   await page.waitForTimeout(200);
   const next = await state(page);
-  check('E: next customer cycles', next.customer === 'tuan' && next.phase === 'intro', next.customer);
+  check('E: next customer cycles', next.customer === 'linh' && next.phase === 'intro', next.customer);
   check('E: no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
