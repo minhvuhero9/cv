@@ -29,10 +29,12 @@ export type EventId =
   | 'growRace'
   | 'concreteSpikes'
   | 'malfunction'
-  | 'autoMisread';
+  | 'autoMisread'
+  | 'transform';
 
 /** Human-readable names for the incident log / result screen. */
 export const EVENT_TITLES: Record<EventId, string> = {
+  transform: 'Gương Thần Biến Hình',
   baldPatch: 'Đường Cạo Định Mệnh',
   combOver: 'Mái Tóc Chạy Trốn',
   gelSpikes: 'Gió Đổi Chiều',

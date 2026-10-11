@@ -67,7 +67,7 @@ Các sự kiện đều có điều kiện kích hoạt cụ thể (`src/game/se
 
 **Ba chỉ số tách biệt:**
 - **Uy tín:** khách hài lòng thì tăng. Ảnh hưởng giá cắt (khoảng ×0,8 đến ×1,2), quyết định khách VIP có đến không, và khi quá thấp thì bị đánh giá 1 sao (bớt khách).
-- **Viral:** tăng nhờ Chaos, sự cố, combo, kiểu tóc gây sốc và người xem livestream. Nguội 20% mỗi đêm. Viral cao kéo đến KOL, người ngoài hành tinh và thêm khách.
+- **Viral:** tăng nhờ Chaos, sự cố, combo, kiểu tóc gây sốc và người xem livestream. Nguội 20% mỗi đêm. Viral cao kéo đến KOL, Bé Ba Hóa Thân và thêm khách.
 - **Chaos:** độ hỗn loạn trong từng ca cắt (như bản cũ).
 
 Cắt đẹp thì có uy tín và tiền boa. Thảm họa có thể thành viral nhưng mất uy tín. Làm VIP nổi giận thì uy tín rơi gấp ba.
@@ -94,14 +94,14 @@ Cắt đẹp thì có uy tín và tiền boa. Thảm họa có thể thành vira
 | Thầy Long (võ sư) | Giật mình (gió bão, tiếng súng, hắt xì…) là ra đòn: dụng cụ văng khỏi tay 4 giây, máy mòn thêm |
 | Anh Phúc (sợ hói) | Đến tiệm đã hói; thêm chỗ trọc là hoảng loạn; muốn che chỗ hói (thổi, chải hoặc cho mọc lại bằng phép) |
 | Chị Diễm (VIP) | Trả 500.000đ, uy tín ×3; mỗi sự cố làm chị mất kiên nhẫn gấp đôi |
-| Khách X-79 (ngoài hành tinh) | Tóc phản trọng lực (bay *về phía* máy sấy); thích tia súng; cần biển neon và Viral ≥ 45 |
+| Bé Ba Hóa Thân | Xin biến hình thành một phong cách cụ thể bằng Gương Thần; chỉ hài lòng khi chọn đúng và cắt theo đường viền; cần mua Gương Thần, Viral ≥ 20 |
 | Tèo (trốn học) | Muốn thay đổi càng nhiều càng tốt nhưng cấm trọc; thấy người quen là thụp đầu |
 | **Cậu Vàng** (chó) | Hình chó riêng. Sợ tông đơ và máy hút (run, rên ư ử); sợ quá thì rũ lông bay khắp tiệm. Mê máy sấy (bình tĩnh lại). Ngửi mùi đồ ăn ngày chợ phiên là quay đầu, xúc xích chữa được. Có kiểu lông riêng (Sư Tử Mini, Cún Bông Gòn, Chó Cỏ Hạng Sang…), tiếng sủa và lời bà Hai |
 | Fan Cuồng Trend | Chỉ xuất hiện khi có kiểu tóc viral; đòi đúng kiểu đó |
 
 ### Cửa hàng (mua là đổi gameplay)
 
-Đồ nghề phép (Gậy Như Ý, Súng Tóc 3000, Lược Rồng), máy móc (Máy Sấy Bão, Nồi Cơm Điện, Máy Hút, **Máy Tạo Kiểu Tự Động**), vật phẩm hỗn loạn (**Thuốc Mọc Tóc Siêu Tốc**, **Keo Tóc Vĩnh Cửu**, Xúc Xích), nâng cấp (Ghế Massage: khách bớt quay đầu một nửa; Tông Đơ Nhật: 0,85 giây mới trọc; Điều Hòa; Ghế Chờ: +1 khách; Máy Phát Điện), trang trí (Góc Sống Ảo: viral +30%, giá +10%; Bằng Khen: uy tín +15%; Cây Phong Thủy: Chaos −15%), đặc biệt (Biển Cho Phép Thú Cưng → Cậu Vàng; Biển Neon → khách X-79, +2 viral/ngày) và bảo dưỡng máy.
+Đồ nghề phép (Gậy Như Ý, Súng Tóc 3000, Lược Rồng), máy móc (Máy Sấy Bão, Nồi Cơm Điện, Máy Hút, **Máy Tạo Kiểu Tự Động**), vật phẩm hỗn loạn (**Thuốc Mọc Tóc Siêu Tốc**, **Keo Tóc Vĩnh Cửu**, Xúc Xích), nâng cấp (Ghế Massage: khách bớt quay đầu một nửa; Tông Đơ Nhật: 0,85 giây mới trọc; Điều Hòa; Ghế Chờ: +1 khách; Máy Phát Điện), trang trí (Góc Sống Ảo: viral +30%, giá +10%; Bằng Khen: uy tín +15%; Cây Phong Thủy: Chaos −15%), đặc biệt (Biển Cho Phép Thú Cưng → Cậu Vàng; **Gương Thần Biến Hình** → mở nút Gương Thần và Bé Ba Hóa Thân; Biển Neon → +2 viral/ngày) và bảo dưỡng máy.
 
 **Tương tác phát sinh:**
 - Thuốc mọc tóc + tông đơ → "Mọc Nhanh Hơn Cắt".
@@ -144,6 +144,14 @@ Mỗi combo có điều kiện cụ thể, giới hạn số lần mỗi lượt
 | **Hút Nhầm Cả Nồi** (Nồi Cơm Điện + Máy Hút) | Hút trong vòng 10 giây sau khi hấp, trúng ≥ 5 lọn tóc hấp | Cả "bánh bao" bị hút: phần lớn bị rút ngắn, phần giữa trọc | 1 lần mỗi lượt |
 
 Mỗi combo đều có pháo chữ "COMBO", âm thanh riêng, câu thoại theo tính cách khách, sự kiện trong nhật ký, chú thích trên thẻ kết quả và kiểu tóc riêng (Bão Cấp 12 Vừa Đi Qua, Kỳ Lân Bảy Sắc, Lỗ Đen Vũ Trụ).
+
+## Khách hàng khác nhau thật sự
+
+Mỗi khách có hộp sọ riêng (kích thước/vị trí đầu trong `hair.head`, tóc mọc theo đúng hộp sọ đó), kiểu hàm (oval, vuông, tròn, nhọn, trái tim, bạnh, dài), mắt, lông mày, mũi, miệng mặc định, tai, má, râu, dấu hiệu riêng (nốt ruồi, sẹo, băng cá nhân, mồ hôi, tăm xỉa răng…), cổ áo, độ rộng vai, bụng, cổ, tư thế và động tác chờ (thở, nhún, đung đưa, gật gù, rung chân). Dữ liệu nằm trong `look.face` / `look.body` (`src/game/look.ts`); renderer ở `src/components/character/`. Khách ngoài hành tinh đã bị bỏ; save cũ có khách này vẫn mở được (`sanitizeCareer`).
+
+## Gương Thần Biến Hình
+
+Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có; Mở Tiệm: mua trong cửa hàng). Mỗi khách soi được một lần, chọn một trong 6 phong cách **hư cấu**: Nữ TikToker Sang Chảnh, Giang Hồ Mạng Phông Bạt, Dân Chơi Tóc Dựng, Idol Livestream, Đại Gia Thích Thể Hiện, Cô Tám Hóng Biến. Mỗi phong cách có trang phục/phụ kiện/bóng dáng riêng (nơ, lô cuốn, tai mèo, tai nghe mic, dây chuyền to bản, quạt tiền đồ chơi…), xử lý tóc đặc trưng (nhuộm, dựng, xoăn, vuốt keo), đường viền kiểu tóc cần cắt, lời thoại và phản ứng khi soi gương riêng. Khách “hợp gu” thì mê, khách “ghét” thì nổi giận; biến hình là một sự cố cộng Chaos và người xem livestream; tên kiểu tóc trên thẻ kết quả ghi “· Bản <phong cách>”. Không dùng khuôn mặt, ảnh hay phát ngôn của người thật. Dữ liệu: `src/game/mirror.ts`.
 
 ## Cấu trúc code
 

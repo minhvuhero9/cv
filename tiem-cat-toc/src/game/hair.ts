@@ -57,14 +57,29 @@ export interface HairStyleInit {
   messiness?: number;
   /** Per-zone multiplier on the base length. */
   zoneLength?: Partial<Record<Zone, number>>;
-  /** Already bald when the customer walks in (thinning crown). */
+  /** Already bald when the customer walks in (thinning crown); x/y are on the default head and follow this head's shape. */
   preBald?: { x: number; y: number; r: number };
+  /** Skull size and position (default HEAD). Hair roots follow it. */
+  head?: Partial<HeadShape>;
   /** Angle range (degrees) of the outline rows; wider = fur down the cheeks. */
   phiRange?: [number, number];
 }
 
+/** Head geometry the hair grows on (every customer can have a different skull). */
+export interface HeadShape {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+}
+
 export interface HairState {
   tufts: Tuft[];
+  head: HeadShape;
+}
+
+export function headShape(init?: Partial<HeadShape>): HeadShape {
+  return { cx: HEAD.cx, cy: init?.cy ?? HEAD.cy, rx: init?.rx ?? HEAD.rx, ry: init?.ry ?? HEAD.ry };
 }
 
 export const CLIPPER_GUARD = 9;
@@ -74,14 +89,15 @@ export const SCISSOR_SNIP_RADIUS = 13;
 export const DRYER_RADIUS = 78;
 
 /** Hairline: forehead in the middle, dropping towards the temples. */
-export function hairlineY(x: number): number {
-  const u = (x - HEAD.cx) / HEAD.rx;
-  return HAIRLINE_Y + u * u * 48;
+export function hairlineY(x: number, head: HeadShape = HEAD): number {
+  const u = (x - head.cx) / head.rx;
+  const top = head.cy - (HEAD.cy - HAIRLINE_Y) * (head.ry / HEAD.ry);
+  return top + u * u * 48 * (head.ry / HEAD.ry);
 }
 
-function ellipsePoint(phiDeg: number, scale: number): Vec {
+function ellipsePoint(phiDeg: number, scale: number, head: HeadShape): Vec {
   const p = (phiDeg * Math.PI) / 180;
-  return { x: HEAD.cx + HEAD.rx * scale * Math.cos(p), y: HEAD.cy - HEAD.ry * scale * Math.sin(p) };
+  return { x: head.cx + head.rx * scale * Math.cos(p), y: head.cy - head.ry * scale * Math.sin(p) };
 }
 
 /** Normalise an angle into (-3PI/2, PI/2] so "falling down" is monotonic on both sides. */
@@ -91,9 +107,10 @@ function normAngle(a: number): number {
   return a;
 }
 
-function zoneForX(x: number): Zone {
-  if (x < HEAD.cx - 34) return 'left';
-  if (x > HEAD.cx + 34) return 'right';
+function zoneForX(x: number, head: HeadShape): Zone {
+  const w = 34 * (head.rx / HEAD.rx);
+  if (x < head.cx - w) return 'left';
+  if (x > head.cx + w) return 'right';
   return 'top';
 }
 
@@ -105,6 +122,9 @@ function noise(i: number): number {
 
 export function createHair(init: HairStyleInit): HairState {
   const tufts: Tuft[] = [];
+  const head = headShape(init.head);
+  const sx = head.rx / HEAD.rx;
+  const sy = head.ry / HEAD.ry;
   const mess = init.messiness ?? 0.12;
   let id = 0;
   const push = (
@@ -150,9 +170,9 @@ export function createHair(init: HairStyleInit): HairState {
   for (const row of rows) {
     for (let i = 0; i < steps; i++) {
       const phi = phiMin + ((i + row.offset) / (steps - 1 + row.offset)) * (phiMax - phiMin);
-      const root = ellipsePoint(phi, row.scale);
+      const root = ellipsePoint(phi, row.scale, head);
       const pr = (phi * Math.PI) / 180;
-      const normal = normAngle(Math.atan2(-Math.sin(pr) / HEAD.ry, Math.cos(pr) / HEAD.rx));
+      const normal = normAngle(Math.atan2(-Math.sin(pr) / head.ry, Math.cos(pr) / head.rx));
       const zone: Zone = phi < 52 ? 'right' : phi > 128 ? 'left' : 'top';
       const c = Math.cos(pr);
       const partSign: 1 | -1 = c > 0.04 ? 1 : c < -0.04 ? -1 : i % 2 === 0 ? 1 : -1;
@@ -161,21 +181,22 @@ export function createHair(init: HairStyleInit): HairState {
   }
 
   // Crown tufts: a grid on the front of the scalp (what you see from the front).
-  for (let y = HEAD.cy - HEAD.ry + 16; y < HAIRLINE_Y + 30; y += 17) {
-    for (let x = HEAD.cx - 80; x <= HEAD.cx + 80; x += 19) {
-      const jx = x + ((Math.round(y) / 17) % 2 === 0 ? 0 : 9);
-      const u = (jx - HEAD.cx) / (HEAD.rx * 0.86);
-      const v = (y - HEAD.cy) / (HEAD.ry * 0.88);
+  const hairTop = hairlineY(head.cx, head);
+  for (let row = 0, y = head.cy - head.ry + 16 * sy; y < hairTop + 30 * sy; row++, y += 17 * sy) {
+    for (let x = head.cx - 80 * sx; x <= head.cx + 80 * sx; x += 19 * sx) {
+      const jx = x + (row % 2 === 0 ? 0 : 9 * sx);
+      const u = (jx - head.cx) / (head.rx * 0.86);
+      const v = (y - head.cy) / (head.ry * 0.88);
       if (u * u + v * v > 1) continue;
-      if (y > hairlineY(jx) - 12) continue;
-      const fan = (jx - HEAD.cx) / 110;
-      const zone = zoneForX(jx);
+      if (y > hairlineY(jx, head) - 12) continue;
+      const fan = (jx - head.cx) / 110;
+      const zone = zoneForX(jx, head);
       push({
         kind: 'crown',
         zone,
         root: { x: jx, y },
         normal: -Math.PI / 2 + fan * 1.6,
-        partSign: jx >= HEAD.cx ? 1 : -1,
+        partSign: jx >= head.cx ? 1 : -1,
         origLen: init.length * 0.8 * (init.zoneLength?.[zone] ?? 1),
         gel: init.gel[zone] ?? 0,
       });
@@ -183,19 +204,20 @@ export function createHair(init: HairStyleInit): HairState {
   }
 
   // Fringe (mái): hangs over the forehead.
-  for (let x = HEAD.cx - 58; x <= HEAD.cx + 58.1; x += 9.6) {
+  for (let i = 0; i <= 12; i++) {
+    const x = head.cx + (-58 + i * 9.6) * sx;
     push({
       kind: 'fringe',
       zone: 'fringe',
-      root: { x, y: hairlineY(x) - 6 },
-      normal: Math.PI / 2 - (x - HEAD.cx) / 260,
-      partSign: x >= HEAD.cx ? 1 : -1,
+      root: { x, y: hairlineY(x, head) - 6 },
+      normal: Math.PI / 2 - (x - head.cx) / 260,
+      partSign: x >= head.cx ? 1 : -1,
       origLen: init.fringeLength,
       gel: init.gel.fringe ?? 0,
     });
   }
   if (init.preBald) {
-    const b = init.preBald;
+    const b = { x: head.cx + (init.preBald.x - HEAD.cx) * sx, y: head.cy + (init.preBald.y - HEAD.cy) * sy, r: init.preBald.r * Math.max(sx, sy) };
     for (const t of tufts) {
       if (dist(t.root, b) < b.r) {
         t.bald = true;
@@ -203,11 +225,11 @@ export function createHair(init: HairStyleInit): HairState {
       }
     }
   }
-  return { tufts };
+  return { tufts, head };
 }
 
 export function cloneHair(h: HairState): HairState {
-  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root }, sculpt: t.sculpt ? { ...t.sculpt } : null })) };
+  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root }, sculpt: t.sculpt ? { ...t.sculpt } : null })), head: { ...h.head } };
 }
 
 /** Centre-line of a tuft as 4 points (root, two bends, tip). */
@@ -416,9 +438,9 @@ export function dryerBlow(h: HairState, p: Vec, dt: number, invert = false): Dry
       }
     }
     // The dryer points at the head: hair is pushed from the nozzle towards (and past) the centre.
-    const toHead = { x: HEAD.cx - p.x, y: HEAD.cy - 20 - p.y };
+    const toHead = { x: h.head.cx - p.x, y: h.head.cy - 20 - p.y };
     let wind = Math.hypot(toHead.x, toHead.y) > 25 ? Math.atan2(toHead.y, toHead.x) : Math.atan2(mid.y - p.y, mid.x - p.x);
-    // Anti-gravity hair (Khách X-79) flies towards the nozzle instead.
+    // Anti-gravity hair flies towards the nozzle instead (no customer uses it at the moment).
     if (invert) wind += Math.PI;
     const start = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
     const stiff = t.spiked ? 0.25 : 1 - t.gel * 0.6;

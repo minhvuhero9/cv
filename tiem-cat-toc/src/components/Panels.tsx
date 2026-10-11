@@ -1,3 +1,4 @@
+import { personaById } from '../game/mirror';
 import { CUSTOMERS, CustomerDef } from '../game/customers';
 import { EVENT_TITLES, STYLE_RULES } from '../game/evaluate';
 import { useState } from 'react';
@@ -61,7 +62,7 @@ function statusText(st: GearStatus): string {
 }
 
 /** Toolbar: basic tools, then the Bộ Đồ Nghề Bất Ổn (scrolls sideways on phones). */
-export function Toolbar({ s, onTool, onFinish }: { s: RoundState; onTool(t: Tool): void; onFinish(): void }) {
+export function Toolbar({ s, onTool, onFinish, extra }: { s: RoundState; onTool(t: Tool): void; onFinish(): void; extra?: React.ReactNode }) {
   const [inspect, setInspect] = useState<ToolId | null>(null);
   const active = s.phase === 'cutting' && !s.walkout;
   const shown = toolDef(inspect ?? s.tool);
@@ -146,6 +147,7 @@ export function Toolbar({ s, onTool, onFinish }: { s: RoundState; onTool(t: Tool
             {magic.map(button)}
           </div>
         </div>
+        {extra}
         <button className="finish-btn" onClick={onFinish} disabled={!active} data-testid="finish">
           <span className="finish-big">Xong!</span>
           <span className="finish-small">Soi gương</span>
@@ -169,6 +171,7 @@ export function IntroCard({ s, onStart, onPick, note }: { s: RoundState; onStart
             <span className="up">Thích: {c.likes.join(', ')}</span> · <span className="down">Ghét: {c.dislikes.join(', ')}</span>
           </p>
         )}
+        {s.wantPersona && <p className="intro-want">Muốn biến hình thành: <b>{personaById(s.wantPersona)?.name}</b> — dùng Gương Thần!</p>}
         {s.wantStyle && <p className="intro-want">Muốn kiểu: <b>{STYLE_RULES.find((r) => r.id === s.wantStyle)?.name ?? s.wantStyle}</b></p>}
         <ul className="howto">
           <li>

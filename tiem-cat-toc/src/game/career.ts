@@ -526,6 +526,21 @@ export function saveCareer(c: CareerState, store: Storage | undefined = globalTh
   }
 }
 
+/**
+ * Old saves can mention customers that no longer exist (e.g. the removed "Khách X-79"):
+ * unserved visits by them become ordinary walk-ins, their return/loyal visits are dropped.
+ */
+export function sanitizeCareer(c: CareerState): CareerState {
+  const known = (id: string) => CUSTOMERS.some((d) => d.id === id);
+  c.today.queue = c.today.queue.map((q, i) =>
+    i < c.today.index || known(q.customer) ? q : { customer: 'tuan', reason: 'walkin', note: 'Khách vãng lai (thay cho khách cũ không còn ghé)' },
+  );
+  c.pending = (c.pending ?? []).filter((p) => known(p.customer));
+  for (const id of Object.keys(c.returnHair ?? {})) if (!known(id)) delete c.returnHair[id];
+  for (const id of Object.keys(c.history ?? {})) if (!known(id)) delete c.history[id];
+  return c;
+}
+
 export function loadCareer(store: Storage | undefined = globalThis.localStorage): CareerState | null {
   if (!store) return null;
   for (const key of [SAVE_KEY, BACKUP_KEY]) {
@@ -533,7 +548,7 @@ export function loadCareer(store: Storage | undefined = globalThis.localStorage)
       const raw = store.getItem(key);
       if (!raw) continue;
       const c = JSON.parse(raw);
-      if (valid(c)) return c;
+      if (valid(c)) return sanitizeCareer(c);
     } catch {
       /* corrupt: try the backup */
     }

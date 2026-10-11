@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playSfx, setMuted, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
 import { AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
+import { MirrorButton, MirrorPicker } from './components/MirrorPicker';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
 import { ResultPanel } from './components/ResultPanel';
 import { Stage } from './components/Stage';
@@ -25,6 +26,7 @@ import {
   Tool,
   beg,
   createRound,
+  transform,
   finish,
   pointerDown,
   pointerLeave,
@@ -81,7 +83,7 @@ declare global {
 function careerRound(c: CareerState): RoundState {
   const q = c.today.queue[Math.min(c.today.index, c.today.queue.length - 1)];
   const unlocked = unlockAll ? [...new Set([...careerTools(c), ...unlockedTools({ rounds: 0, styles: [], events: [] }, true)])] : careerTools(c);
-  return createRound(q?.customer ?? 'tuan', seedParam ?? (c.day * 1000 + c.today.index), { unlocked, ctx: roundContext(c) });
+  return createRound(q?.customer ?? 'tuan', seedParam ?? (c.day * 1000 + c.today.index), { unlocked, mirror: unlockAll, ctx: roundContext(c) });
 }
 
 export default function App() {
@@ -96,9 +98,10 @@ export default function App() {
   const [newTools, setNewTools] = useState<ToolId[]>([]);
   const [served, setServed] = useState<Served | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [mirrorOpen, setMirrorOpen] = useState(false);
   const [audio, setAudio] = useState<AudioSettings>(loadAudio);
   const [roundRef] = useState<{ current: RoundState }>(() => ({
-    current: mode === 'career' ? careerRound(careerRef.current) : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
+    current: mode === 'career' ? careerRound(careerRef.current) : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
   }));
   const [, setFrame] = useState(0);
   const [now, setNow] = useState(0);
@@ -180,13 +183,14 @@ export default function App() {
     setToolLoop(null);
     if (start) startCutting(r);
     roundRef.current = r;
+    setMirrorOpen(false);
     setServed(null);
     setNewTools([]);
     rerender();
   }, []);
 
   const newFreeRound = (id: CustomerId, start = false) =>
-    replaceRound(createRound(id, seedParam, { unlocked: freeTools(progressRef.current), ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }), start);
+    replaceRound(createRound(id, seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }), start);
 
   const onTool = useCallback((t: Tool) => setTool(roundRef.current, t), []);
   const onFinish = useCallback(() => finish(roundRef.current, 'done'), []);
@@ -349,7 +353,17 @@ export default function App() {
         </aside>
       </main>
 
-      <Toolbar s={s} onTool={onTool} onFinish={onFinish} />
+      <Toolbar s={s} onTool={onTool} onFinish={onFinish} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
+      {mirrorOpen && s.phase === 'cutting' && !s.persona && (
+        <MirrorPicker
+          s={s}
+          onClose={() => setMirrorOpen(false)}
+          onPick={(id) => {
+            transform(roundRef.current, id);
+            setMirrorOpen(false);
+          }}
+        />
+      )}
 
       {s.phase === 'intro' && !showMorning && !showSummary && !overlay && (
         <IntroCard

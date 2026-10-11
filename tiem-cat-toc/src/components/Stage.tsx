@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { BALD_DWELL, CLIPPER_RADIUS, DRYER_RADIUS } from '../game/hair';
-import { HEAD, Vec } from '../game/geometry';
+import type { Vec } from '../game/geometry';
 import { RoundState, Tool, currentMood } from '../game/session';
 import { Character } from './Character';
 import { FxLayer, MagicCursor } from './MagicLayer';
@@ -157,11 +157,12 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
           metrics={s.metrics}
           mood={mood}
           headOffset={offset}
-          ghost={showPhoto ? s.customer.target : null}
+          ghost={showPhoto || (s.persona && cutting) ? s.customer.target : null}
           highlightZone={cutting && s.demand ? s.demand.zone : null}
           pulse={pulse}
           idPrefix="live"
           showDanger={cutting}
+          t={now / 1000}
         />
       </g>
       {/* clippings */}
@@ -183,7 +184,7 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
       <FxLayer s={s} />
       {showPhoto && <Phone s={s} />}
       {(warn || s.walkout) && (
-        <g transform={`translate(${HEAD.cx + 92},${HEAD.cy - 120})`}>
+        <g transform={`translate(${s.hair.head.cx + s.hair.head.rx + 6},${s.hair.head.cy - s.hair.head.ry - 20})`}>
           <circle r={18} fill="#ffd23f" stroke="#2b1a12" strokeWidth={3} />
           <text y={9} textAnchor="middle" fontSize={28} fontWeight={900} fill="#2b1a12">
             !

@@ -1,4 +1,4 @@
-import { HEAD, Vec, angleDiff, clamp, dist, pointSegment, segmentSegment } from './geometry';
+import { Vec, angleDiff, clamp, dist, pointSegment, segmentSegment } from './geometry';
 import { HairState, Tuft, tuftPoints } from './hair';
 
 /**
@@ -193,7 +193,7 @@ export function sculptTo(tufts: Tuft[], target: Vec) {
 
 /** Nồi Cơm Điện: everything above the ears is steamed into a round, puffy bun. */
 export function cookerSteam(h: HairState): Tuft[] {
-  const done = h.tufts.filter((t) => !t.bald && t.root.y < HEAD.cy - 10);
+  const done = h.tufts.filter((t) => !t.bald && t.root.y < h.head.cy - 10);
   for (const t of done) {
     t.steamed = 1;
     t.fluff = 1;

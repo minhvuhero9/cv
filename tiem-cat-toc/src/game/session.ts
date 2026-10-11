@@ -21,6 +21,7 @@ import { HairMetrics, LEAN_RUNAWAY, localLean, measureHair } from './metrics';
 import { Rng, between, makeRng } from './rng';
 import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown, gearMove, gearTick, gearUp, isMagic, Fx, ComboState } from './gear';
 import { ToolId } from './tools';
+import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
 
 export type Tool = ToolId;
 export const BASIC_TOOLS: ToolId[] = ['clipper', 'scissors', 'dryer'];
@@ -124,6 +125,12 @@ interface PendingLine {
 
 export interface RoundState {
   customer: CustomerDef;
+  /** The customer as they walked in (customer changes when the Gương Thần is used). */
+  baseCustomer: CustomerDef;
+  /** Gương Thần: persona applied this round, the one asked for, and whether the mirror is in the shop. */
+  persona: PersonaId | null;
+  wantPersona: PersonaId | null;
+  mirrorReady: boolean;
   seed: number;
   rng: Rng;
   hair: HairState;
@@ -246,10 +253,14 @@ export interface RoundContext {
   blocked?: Tool[];
   /** Price multiplier from reputation and decor. */
   payMultiplier?: number;
+  /** Persona a "Hóa Thân" customer asks for. */
+  wantPersona?: PersonaId | null;
 }
 
 export interface RoundOptions {
   unlocked?: ToolId[];
+  /** Gương Thần Biến Hình available (free mode, or bought in career). */
+  mirror?: boolean;
   ctx?: Partial<RoundContext>;
 }
 
@@ -258,10 +269,17 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
   const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };
+  const rng = makeRng(seed);
+  const wantPersona = customer.behaviors.includes('transform') ? (ctx.wantPersona ?? PERSONA_IDS[Math.floor(rng() * PERSONA_IDS.length) % PERSONA_IDS.length]) : null;
+  const request = customer.request.replace('{persona}', personaById(wantPersona)?.name ?? 'người khác');
   return {
     customer,
+    baseCustomer: customer,
+    persona: null,
+    wantPersona,
+    mirrorReady: (opts.mirror ?? false) || ctx.items.includes('mirror'),
     seed,
-    rng: makeRng(seed),
+    rng,
     hair,
     before: cloneHair(hair),
     beforeMetrics: metrics,
@@ -285,7 +303,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     log: [],
     toasts: [],
     toastSeq: 0,
-    bubble: { text: customer.request, until: 4, shout: false },
+    bubble: { text: request, until: 4, shout: false },
     pending: [{ at: 1.6, text: customer.catch }],
     moodOverride: null,
     zoneStrokes: { left: 0, right: 0, top: 0, fringe: 0 },
@@ -650,6 +668,46 @@ export function toolReaction(s: RoundState, tool: Tool) {
   }
 }
 
+/** Gương Thần can be used once per customer, while cutting, on humans. */
+export function canTransform(s: RoundState): boolean {
+  return s.mirrorReady && s.phase === 'cutting' && !s.persona && s.customer.look.species !== 'dog';
+}
+
+/** Gương Thần Biến Hình: dress the customer up as a persona (look, signature hair, lines, verdict). */
+export function transform(s: RoundState, id: PersonaId): boolean {
+  const p = personaById(id);
+  if (!p) return false;
+  if (!canTransform(s)) {
+    if (s.customer.look.species === 'dog' && s.phase === 'cutting') say(s, 'Gâu? (Gương Thần không soi được lông chó.)', 'suspicious');
+    s.deniedAt = s.time;
+    s.sfx.push('deny');
+    return false;
+  }
+  s.persona = id;
+  s.customer = transformCustomer(s.baseCustomer, p, s.wantPersona);
+  p.treat(s.hair);
+  s.viewers += p.viewers;
+  s.flashUntil = s.time + 0.3;
+  s.sfx.push('sparkle');
+  incident(s, 'transform', p.chaos);
+  refreshMetrics(s);
+  const aff = affinity(p, s.baseCustomer.id);
+  const asked = s.wantPersona;
+  if (asked && asked !== id) {
+    s.patience = clamp(s.patience - 18, 0, 100);
+    say(s, `Ơ! Em xin ${personaById(asked)?.name}, sao lại thành ${p.name}?!`, 'shocked', { shout: true });
+  } else if (asked || aff === 'fan') {
+    s.patience = clamp(s.patience + 12, 0, 100);
+    say(s, p.entrance[Math.floor(s.rng() * p.entrance.length) % p.entrance.length], 'ecstatic');
+  } else if (aff === 'hater') {
+    s.patience = clamp(s.patience - 15, 0, 100);
+    say(s, `${s.baseCustomer.name} nhìn gương: “Cái gì đây?! Trả lại mặt cho tôi!”`, 'angry', { shout: true });
+  } else {
+    say(s, p.entrance[0], 'shocked');
+  }
+  return true;
+}
+
 export function beg(s: RoundState) {
   if (!s.walkout || !s.walkout.canBeg) return;
   s.walkout = null;
@@ -693,6 +751,8 @@ export function finish(s: RoundState, reason: EndReason) {
     },
     s.rng,
   );
+  const persona = personaById(s.persona);
+  if (persona) s.result.style = { ...s.result.style, name: `${s.result.style.name} · Bản ${persona.tag}` };
   if (reason === 'walkout') {
     say(s, line(s, 'walkout'), 'angry', { dur: 3, shout: true });
   } else {
@@ -1024,7 +1084,7 @@ function malfunction(s: RoundState, local: Vec, dt: number) {
 }
 
 function blow(s: RoundState, local: Vec, dt: number) {
-  const r = dryerBlow(s.hair, local, dt, has(s, 'alien'));
+  const r = dryerBlow(s.hair, local, dt, false);
   s.pointer.dryerUsed = true;
   if (r.newlySpiked.length) s.sfx.push('pop');
   if (s.customer.toolReactions.dryer?.kind === 'love') {
@@ -1038,7 +1098,8 @@ function blow(s: RoundState, local: Vec, dt: number) {
     s.patience = clamp(s.patience - 5, 0, 100);
     say(s, line(s, 'hotDryer'), 'angry', { shout: true, dur: 1.6 });
   }
-  if (s.clippings >= 18 && dist(local, NOSE) < 85) s.sneezeBuild += dt;
+  const h = s.hair.head;
+  if (s.clippings >= 18 && dist(local, { x: h.cx, y: h.cy + NOSE.y - 250 }) < 85) s.sneezeBuild += dt;
 }
 
 function flushPending(s: RoundState) {

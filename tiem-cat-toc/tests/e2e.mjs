@@ -410,6 +410,62 @@ async function finishAndWait(page) {
   await ctx.close();
 }
 
+/* ---------------- Distinct customers + Gương Thần Biến Hình ---------------- */
+{
+  const { page, ctx, errors } = await newGame();
+  const ids = await page.$$eval('[data-testid^=pick-]', (els) => els.map((e) => e.dataset.testid.slice(5)));
+  check('Roster: the alien customer is gone', !ids.includes('alien'), ids.join(','));
+  // Every customer is drawn from their own skull: head sizes must differ across the roster.
+  const heads = new Set();
+  for (const id of ids) {
+    await page.click(`[data-testid=pick-${id}]`);
+    const h = await page.evaluate(() => window.__tctbo.state().hair.head);
+    heads.add(`${h.rx}x${h.ry}@${h.cy}`);
+  }
+  check('Roster: customers have different head shapes', heads.size >= ids.length - 2, `${heads.size} shapes for ${ids.length}`);
+  await page.click('[data-testid=pick-hoathan]');
+  await page.click('[data-testid=start]');
+  const want = await page.evaluate(() => window.__tctbo.state().wantPersona);
+  await page.click('[data-testid=guong-than]');
+  await page.waitForSelector('[data-testid=mirror-picker]');
+  check('Gương Thần: picker shows 6 personas', (await page.locator('[data-testid^=persona-]').count()) === 6);
+  await page.screenshot({ path: `${OUT}/G1-mirror-picker.png` });
+  await page.click(`[data-testid=persona-${want}]`);
+  await page.waitForTimeout(300);
+  const st = await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    return { persona: s.persona, collar: s.customer.look.body?.collar, ev: s.events.transform ?? 0 };
+  });
+  check('Gương Thần: choosing a persona transforms the customer', st.persona === want && st.ev === 1 && !!st.collar, JSON.stringify(st));
+  check('Gương Thần: only once per customer', await page.isDisabled('[data-testid=guong-than]'));
+  await page.screenshot({ path: `${OUT}/G2-transformed.png` });
+  await page.click('[data-testid=finish]');
+  await page.waitForTimeout(300);
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=card-img]');
+  const name = await page.textContent('[data-testid=style-name]');
+  check('Gương Thần: result card names the persona version', /· Bản /.test(name), name);
+  await page.screenshot({ path: `${OUT}/G3-result.png` });
+  check('Gương Thần: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+{
+  const { page, ctx, errors } = await newGame({ width: 390, height: 844 }, { touch: true });
+  await page.tap('[data-testid=start]');
+  await page.tap('[data-testid=guong-than]');
+  await page.waitForSelector('[data-testid=mirror-picker]');
+  const fits = await page.evaluate(() => {
+    const r = document.querySelector('[data-testid=mirror-picker]').getBoundingClientRect();
+    return r.left >= 0 && r.right <= window.innerWidth && document.documentElement.scrollWidth <= window.innerWidth + 1;
+  });
+  check('Gương Thần (phone): picker fits the screen', fits);
+  await page.screenshot({ path: `${OUT}/G4-phone-picker.png` });
+  await page.tap('[data-testid=persona-idol]');
+  check('Gương Thần (phone): tap transforms', (await page.evaluate(() => window.__tctbo.state().persona)) === 'idol');
+  check('Gương Thần (phone): no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 /* ---------------- Responsive / touch ---------------- */
 for (const vp of [
   { width: 390, height: 844, name: 'phone' },

@@ -64,7 +64,8 @@ export const SHOP: ShopItem[] = [
   { id: 'plant', name: 'Chậu Cây Phong Thủy', category: 'decor', price: 90000, desc: 'Cân bằng âm dương, giảm hỗn loạn.', effect: 'Chaos từ sự cố giảm 15%.', unlock: { day: 1 } },
   // ---- special: unlocks customers/events
   { id: 'petSign', name: 'Biển “Cho Phép Thú Cưng”', category: 'special', price: 100000, desc: 'Chào mừng các khách bốn chân.', effect: 'Cậu Vàng bắt đầu đến tiệm.', unlock: { day: 2 } },
-  { id: 'neon', name: 'Biển Hiệu Neon Nhấp Nháy', category: 'special', price: 500000, desc: 'Sáng đến mức nhìn thấy từ ngoài vũ trụ.', effect: '+2 Viral mỗi ngày; thu hút Khách X-79 khi Viral ≥ 45.', unlock: { viral: 30 } },
+  { id: 'mirror', name: 'Gương Thần Biến Hình', category: 'special', price: 280000, desc: 'Gương khung gỗ chạm hoa sen, soi vào là hóa thân.', effect: 'Mỗi khách được biến hình 1 lần (6 phong cách). Bé Ba Hóa Thân bắt đầu đến tiệm.', unlock: { day: 2 } },
+  { id: 'neon', name: 'Biển Hiệu Neon Nhấp Nháy', category: 'special', price: 500000, desc: 'Sáng đến mức nhìn thấy từ ngoài vũ trụ.', effect: '+2 Viral mỗi ngày; khách mới thấy tiệm từ xa.', unlock: { viral: 30 } },
 ];
 
 export function shopItem(id: string): ShopItem | undefined {
