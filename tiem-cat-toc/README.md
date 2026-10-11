@@ -3,6 +3,11 @@
 Game hài mô phỏng tiệm cắt tóc bình dân, chơi ngay trên trình duyệt (máy tính và điện thoại).
 Bạn cắt tóc cho khách bằng chuột hoặc ngón tay. Mỗi thao tác thay đổi mái tóc thật, và các tai nạn xảy ra vì chính những thao tác đó.
 
+## Chơi online
+
+https://minhvuhero9.github.io/cv/game/ (GitHub Pages phục vụ nhánh `main`).
+Cập nhật bản online: `npm run build:pages` (build vào thư mục `game/` ở gốc repo), rồi commit và merge vào `main`.
+
 ## Chạy game
 
 ```bash
