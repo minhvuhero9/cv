@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CareerState, applyRound, careerTools, easeFor, endDay, newCareer, planDay, rentFor, roundContext } from './career';
+import { CareerState, applyRound, careerTools, easeFor, endDay, newCareer, planDay, rentFor, roundContext, sanitizeCareer, shopLevel } from './career';
 import { customerById } from './customers';
 import { LEVELS } from './level';
 import { createRound, finish, tick } from './session';
@@ -56,6 +56,16 @@ describe('cân bằng', () => {
     const r1 = rentFor(c);
     c.xp = 450;
     expect(rentFor(c)).toBe(r1 + 45000);
+  });
+
+  it('older saves keep their shop level after the thresholds went up', () => {
+    const old = newCareer();
+    delete old.xpScale;
+    old.xp = 170; // level 3 on the old thresholds
+    expect(shopLevel(sanitizeCareer(old)).level).toBe(3);
+    const fresh = newCareer();
+    fresh.xp = 100;
+    expect(sanitizeCareer(fresh).xp).toBe(100);
   });
 
   it('the VIP is never a catalog / tùy thợ / contest model', () => {

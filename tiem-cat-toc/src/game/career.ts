@@ -182,6 +182,8 @@ export interface CareerState {
   stats: { served: number; walkouts: number; earned: number; days: number };
   /** Kinh nghiệm của tiệm (Cấp tiệm). Older saves start at 0. */
   xp?: number;
+  /** 2 = XP on the current level thresholds (older saves are scaled up once on load). */
+  xpScale?: number;
   /** Hạt giống riêng của tiệm: each new shop gets its own customers. Older saves: 0. */
   seed?: number;
   /** Catalog id of a design born yesterday from a freestyle cut (ordered first). */
@@ -220,6 +222,7 @@ export function newCareer(seed = 0): CareerState {
   const c: CareerState = {
     v: CAREER_VERSION,
     seed,
+    xpScale: 2,
     day: 1,
     money: START_MONEY,
     rep: 50,
@@ -820,6 +823,11 @@ export function saveCareer(c: CareerState, store: Storage | undefined = globalTh
  * unserved visits by them become ordinary walk-ins, their return/loyal visits are dropped.
  */
 export function sanitizeCareer(c: CareerState): CareerState {
+  // The level thresholds went up ~35%: scale older saves so nobody drops a level.
+  if (c.xpScale !== 2) {
+    c.xp = Math.ceil((c.xp ?? 0) * 1.35);
+    c.xpScale = 2;
+  }
   const known = (id: string) => CUSTOMERS.some((d) => d.id === id);
   c.today.queue = c.today.queue.map((q, i) =>
     i < c.today.index || known(q.customer) ? q : { customer: 'tuan', reason: 'walkin', note: 'Khách vãng lai (thay cho khách cũ không còn ghé)' },
