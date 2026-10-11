@@ -165,6 +165,18 @@ function Face({ mood, look }: { mood: Mood; look: CustomerLook }) {
             <path d={`M${cx + ex + 4},${ey + 6} q6,26 2,60 l-10,0 q-2,-34 0,-60z`} fill="#6ec6ff" opacity={0.85} />
           </g>
         );
+      case 'sleepy':
+        return (
+          <g>
+            <g fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round">
+              <path d={`M${cx - ex - 10},${ey + 2} Q${cx - ex},${ey + 6} ${cx - ex + 10},${ey + 2}`} />
+              <path d={`M${cx + ex - 10},${ey + 2} Q${cx + ex},${ey + 6} ${cx + ex + 10},${ey + 2}`} />
+            </g>
+            <text x={cx + rx - 4} y={cy - 60} fontSize={22} fontWeight={900} fill="#5a6bd6" stroke="#fff" strokeWidth={3} paintOrder="stroke">
+              Zzz
+            </text>
+          </g>
+        );
       case 'flinch':
       case 'sneeze':
         return (
@@ -251,6 +263,8 @@ function Face({ mood, look }: { mood: Mood; look: CustomerLook }) {
         );
       case 'worried':
         return <path d={`M${cx - 20},${my + 4} q5,-7 10,0 q5,7 10,0 q5,-7 10,0 q5,7 10,0`} fill="none" stroke={ink} strokeWidth={3.5} strokeLinecap="round" />;
+      case 'sleepy':
+        return <ellipse cx={cx} cy={my + 4} rx={7} ry={9} fill="#5a1414" stroke={ink} strokeWidth={3} />;
       case 'flinch':
         return <path d={`M${cx - 18},${my + 4} l6,-6 l6,6 l6,-6 l6,6 l6,-6`} fill="none" stroke={ink} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />;
       case 'sneeze':
@@ -310,6 +324,156 @@ function Face({ mood, look }: { mood: Mood; look: CustomerLook }) {
   );
 }
 
+
+/** Things on the head that sit over the hair (drawn after the tufts). */
+function HeadExtras({ look }: { look: CustomerLook }) {
+  return (
+    <g>
+      {look.headband && (
+        <g>
+          <path d={`M${cx - rx + 4},${cy - 42} Q${cx},${cy - 66} ${cx + rx - 4},${cy - 42} L${cx + rx - 2},${cy - 30} Q${cx},${cy - 54} ${cx - rx + 2},${cy - 30}Z`} fill={look.headband} stroke="#7a1512" strokeWidth={2} />
+          <path d={`M${cx + rx - 6},${cy - 36} q24,6 30,26 M${cx + rx - 6},${cy - 34} q18,14 16,36`} fill="none" stroke={look.headband} strokeWidth={7} strokeLinecap="round" />
+        </g>
+      )}
+      {look.antennae && (
+        <g stroke="#2f6e1f" strokeWidth={6} fill="#c6ff7a">
+          <path d={`M${cx - 30},${cy - ry + 10} q-20,-70 -44,-96`} fill="none" strokeLinecap="round" />
+          <path d={`M${cx + 30},${cy - ry + 10} q20,-70 44,-96`} fill="none" strokeLinecap="round" />
+          <circle cx={cx - 76} cy={cy - ry - 88} r={13} strokeWidth={4} />
+          <circle cx={cx + 76} cy={cy - ry - 88} r={13} strokeWidth={4} />
+          <circle cx={cx - 80} cy={cy - ry - 92} r={4} fill="#fff" stroke="none" />
+          <circle cx={cx + 72} cy={cy - ry - 92} r={4} fill="#fff" stroke="none" />
+        </g>
+      )}
+    </g>
+  );
+}
+
+/** Things on the face drawn over the expression. */
+function FaceExtras({ look }: { look: CustomerLook }) {
+  const ey = cy + 12;
+  return (
+    <g>
+      {look.freckles && (
+        <g fill="#b9784f" opacity={0.7}>
+          {[-58, -50, -44, 44, 50, 58].map((dx, i) => (
+            <circle key={i} cx={cx + dx} cy={cy + 30 + (i % 2) * 6} r={2.2} />
+          ))}
+        </g>
+      )}
+      {look.beard && <path d={`M${cx - 52},${cy + 52} Q${cx - 40},${cy + ry + 26} ${cx},${cy + ry + 30} Q${cx + 40},${cy + ry + 26} ${cx + 52},${cy + 52} Q${cx},${cy + 92} ${cx - 52},${cy + 52}Z`} fill="#e6e3dc" stroke="#9c968b" strokeWidth={2} opacity={0.95} />}
+      {look.sunglasses && (
+        <g>
+          <rect x={cx - 32 - 22} y={ey - 14} width={44} height={26} rx={10} fill="#1b1b2a" stroke="#d4af37" strokeWidth={3} />
+          <rect x={cx + 32 - 22} y={ey - 14} width={44} height={26} rx={10} fill="#1b1b2a" stroke="#d4af37" strokeWidth={3} />
+          <path d={`M${cx - 10},${ey - 4} h20`} stroke="#d4af37" strokeWidth={3} />
+          <path d={`M${cx - 44},${ey - 8} l10,-4 M${cx + 20},${ey - 8} l10,-4`} stroke="#fff" strokeWidth={3} opacity={0.6} />
+        </g>
+      )}
+    </g>
+  );
+}
+
+/** Body extras: ties, pearls, props next to the chair. */
+function BodyExtras({ look }: { look: CustomerLook }) {
+  return (
+    <g>
+      {look.tie && <path d={`M${cx - 9},${cy + 124} h18 l-4,10 l6,26 l-11,10 l-11,-10 l6,-26z`} fill={look.tie} stroke="#0d2a66" strokeWidth={2} />}
+      {look.necklace && (
+        <g fill="#fffaf0" stroke="#c9c2b0" strokeWidth={1}>
+          {Array.from({ length: 9 }, (_, i) => {
+            const a = Math.PI * (0.15 + (0.7 * i) / 8);
+            return <circle key={i} cx={cx - Math.cos(a) * 36} cy={cy + 112 + Math.sin(a) * 24} r={4.5} />;
+          })}
+        </g>
+      )}
+      {look.prop === 'helmet' && (
+        <g transform={`translate(${cx + 128},${cy + 178})`}>
+          <path d="M-40,10 Q-40,-38 0,-40 Q40,-38 40,10Z" fill="#2fa84f" stroke="#145c2a" strokeWidth={4} />
+          <rect x={-44} y={6} width={88} height={12} rx={5} fill="#145c2a" />
+          <path d="M-18,-20 h36" stroke="#fff" strokeWidth={5} strokeLinecap="round" opacity={0.7} />
+        </g>
+      )}
+      {look.prop === 'phoneStick' && (
+        <g transform={`translate(${cx + 118},${cy - 60})`}>
+          <path d="M10,200 L-4,40" stroke="#555" strokeWidth={5} />
+          <rect x={-26} y={-10} width={46} height={78} rx={8} fill="#1d1f24" />
+          <rect x={-22} y={-4} width={38} height={64} rx={4} fill="#ff4fa0" />
+          <circle cx={-3} cy={28} r={11} fill="#fff" />
+          <text x={-3} y={33} textAnchor="middle" fontSize={12} fontWeight={900} fill="#ff4fa0">
+            LIVE
+          </text>
+        </g>
+      )}
+      {look.prop === 'schoolBag' && (
+        <g>
+          <path d={`M${cx - 70},${cy + 140} q-6,60 -4,110`} stroke="#1f4fb5" strokeWidth={12} fill="none" />
+          <path d={`M${cx + 70},${cy + 140} q6,60 4,110`} stroke="#1f4fb5" strokeWidth={12} fill="none" />
+        </g>
+      )}
+      {look.prop === 'briefcase' && (
+        <g transform={`translate(${cx - 140},${cy + 200})`}>
+          <rect x={-34} y={-24} width={68} height={48} rx={6} fill="#5a3a22" stroke="#2b1a0e" strokeWidth={3} />
+          <path d="M-12,-24 v-10 h24 v10" fill="none" stroke="#2b1a0e" strokeWidth={4} />
+        </g>
+      )}
+    </g>
+  );
+}
+
+/** Cậu Vàng's face: snout, nose, tongue, floppy ears are drawn separately. */
+function DogFace({ mood }: { mood: Mood }) {
+  const ink = '#2b1a12';
+  const ey = cy + 4;
+  const happy = mood === 'happy' || mood === 'ecstatic';
+  const scared = mood === 'worried' || mood === 'flinch' || mood === 'shocked' || mood === 'crying';
+  const eyeR = scared ? 11 : 9;
+  return (
+    <g>
+      {/* muzzle */}
+      <ellipse cx={cx} cy={cy + 48} rx={46} ry={36} fill="#f6e2b8" stroke="#c79c5c" strokeWidth={3} />
+      {/* eyes */}
+      {happy ? (
+        <g fill="none" stroke={ink} strokeWidth={4.5} strokeLinecap="round">
+          <path d={`M${cx - 42},${ey + 4} Q${cx - 32},${ey - 8} ${cx - 22},${ey + 4}`} />
+          <path d={`M${cx + 22},${ey + 4} Q${cx + 32},${ey - 8} ${cx + 42},${ey + 4}`} />
+        </g>
+      ) : mood === 'sleepy' ? (
+        <g stroke={ink} strokeWidth={4} strokeLinecap="round">
+          <path d={`M${cx - 42},${ey} h20 M${cx + 22},${ey} h20`} />
+        </g>
+      ) : (
+        <g>
+          <circle cx={cx - 32} cy={ey} r={eyeR} fill={ink} />
+          <circle cx={cx + 32} cy={ey} r={eyeR} fill={ink} />
+          <circle cx={cx - 29} cy={ey - 3} r={3} fill="#fff" />
+          <circle cx={cx + 35} cy={ey - 3} r={3} fill="#fff" />
+        </g>
+      )}
+      {scared && (
+        <g fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round">
+          <path d={`M${cx - 46},${ey - 20} L${cx - 22},${ey - 14} M${cx + 46},${ey - 20} L${cx + 22},${ey - 14}`} />
+        </g>
+      )}
+      {mood === 'angry' && (
+        <g fill="none" stroke={ink} strokeWidth={4.5} strokeLinecap="round">
+          <path d={`M${cx - 46},${ey - 22} L${cx - 22},${ey - 12} M${cx + 46},${ey - 22} L${cx + 22},${ey - 12}`} />
+        </g>
+      )}
+      {/* nose */}
+      <path d={`M${cx - 15},${cy + 30} Q${cx},${cy + 22} ${cx + 15},${cy + 30} Q${cx + 12},${cy + 44} ${cx},${cy + 46} Q${cx - 12},${cy + 44} ${cx - 15},${cy + 30}Z`} fill={ink} />
+      <ellipse cx={cx - 5} cy={cy + 30} rx={4} ry={2.5} fill="#fff" opacity={0.6} />
+      {/* mouth */}
+      <path d={`M${cx},${cy + 46} v8 M${cx - 20},${cy + 58} Q${cx - 10},${cy + 66} ${cx},${cy + 54} Q${cx + 10},${cy + 66} ${cx + 20},${cy + 58}`} fill="none" stroke={ink} strokeWidth={3.5} strokeLinecap="round" />
+      {(happy || mood === 'neutral') && (
+        <path d={`M${cx - 9},${cy + 60} Q${cx - 10},${cy + 86} ${cx},${cy + 88} Q${cx + 10},${cy + 86} ${cx + 9},${cy + 60}Z`} fill="#ff7a8a" stroke="#c9485a" strokeWidth={2} />
+      )}
+      {mood === 'angry' && <path d={`M${cx - 18},${cy + 60} l5,7 l5,-7 l5,7 l5,-7 l5,7 l5,-7`} fill="#fff" stroke={ink} strokeWidth={1.5} />}
+      {mood === 'crying' && <path d={`M${cx - 34},${ey + 10} q-4,18 0,30 M${cx + 34},${ey + 10} q4,18 0,30`} stroke="#6ec6ff" strokeWidth={6} strokeLinecap="round" fill="none" />}
+    </g>
+  );
+}
+
 export function Character({ look, hair, metrics, mood, headOffset, ghost, highlightZone, pulse = 0, idPrefix, showDanger }: CharacterProps) {
   const off = headOffset ?? { x: 0, y: 0 };
   const tufts = hair.tufts;
@@ -318,6 +482,7 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
   const bald = tufts.filter((t) => t.bald);
   const clipId = `${idPrefix}-skull`;
   const tilt = off.x * 0.25;
+  const dog = look.species === 'dog';
 
   return (
     <g>
@@ -337,6 +502,9 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
       {look.chain && (
         <path d={`M${cx - 30},${cy + 112} Q${cx},${cy + 150} ${cx + 30},${cy + 112}`} fill="none" stroke="#f2c230" strokeWidth={5} strokeDasharray="5 3" />
       )}
+      {dog && <path d={`M${cx - 40},${cy + 116} Q${cx},${cy + 134} ${cx + 40},${cy + 116} l0,12 Q${cx},${cy + 146} ${cx - 40},${cy + 128}Z`} fill={look.shirt} stroke="#7a1512" strokeWidth={2} />}
+      {dog && <circle cx={cx} cy={cy + 140} r={8} fill="#ffd23f" stroke="#a8740c" strokeWidth={2} />}
+      <BodyExtras look={look} />
 
       <g transform={`translate(${off.x.toFixed(1)},${off.y.toFixed(1)}) rotate(${tilt.toFixed(1)} ${cx} ${cy + 80})`}>
         <defs>
@@ -345,8 +513,17 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
           </clipPath>
         </defs>
         {/* ears */}
-        <ellipse cx={cx - rx + 2} cy={cy + 14} rx={15} ry={21} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
-        <ellipse cx={cx + rx - 2} cy={cy + 14} rx={15} ry={21} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
+        {dog ? (
+          <g fill={look.hairShade} stroke="#6b4a12" strokeWidth={3}>
+            <path d={`M${cx - rx + 10},${cy - 70} Q${cx - rx - 46},${cy - 40} ${cx - rx - 30},${cy + 50} Q${cx - rx - 8},${cy + 60} ${cx - rx + 14},${cy - 10}Z`} />
+            <path d={`M${cx + rx - 10},${cy - 70} Q${cx + rx + 46},${cy - 40} ${cx + rx + 30},${cy + 50} Q${cx + rx + 8},${cy + 60} ${cx + rx - 14},${cy - 10}Z`} />
+          </g>
+        ) : (
+          <>
+            <ellipse cx={cx - rx + 2} cy={cy + 14} rx={15} ry={21} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
+            <ellipse cx={cx + rx - 2} cy={cy + 14} rx={15} ry={21} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
+          </>
+        )}
         {look.earring && <circle cx={cx + rx + 2} cy={cy + 36} r={5} fill="none" stroke="#f2c230" strokeWidth={3} />}
         {/* skull */}
         <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
@@ -427,7 +604,9 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
         {ghost && (
           <path d={ghostPath(hair, ghost)} fill="none" stroke="#21d07a" strokeWidth={3.5} strokeDasharray="7 6" strokeLinecap="round" opacity={0.9} />
         )}
-        <Face mood={mood} look={look} />
+        <HeadExtras look={look} />
+        {dog ? <DogFace mood={mood} /> : <Face mood={mood} look={look} />}
+        {!dog && <FaceExtras look={look} />}
       </g>
     </g>
   );

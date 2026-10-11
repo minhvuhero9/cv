@@ -148,8 +148,25 @@ const EVENT_LINES: Record<EventLineKey, Record<Personality, string[]>> = {
   },
 };
 
-export function eventLine(rng: Rng, key: EventLineKey, p: Personality): string {
-  return pick(rng, EVENT_LINES[key][p]);
+/** Generic lines for behaviour events, used when a customer has no line of their own. */
+const GENERIC: Record<string, string[]> = {
+  sleepy: ['Khò… khò…'],
+  startle: ['Hả?! Gì đấy?!'],
+  flexWarn: ['Xem này!'],
+  phone: ['Alo? Alo?'],
+  duckWarn: ['Suỵt!'],
+  chop: ['Hây-ya!'],
+  dogFearWarn: ['Ư ử…'],
+  dogShake: ['Rũ rũ rũ!'],
+  dogSniff: ['Khịt khịt…'],
+  dogHappy: ['Gâu!'],
+  deadline: ['Nhanh lên em ơi!'],
+  boring: ['Chán quá…'],
+};
+
+export function eventLine(rng: Rng, key: EventLineKey | string, p: Personality): string {
+  const pool = EVENT_LINES[key as EventLineKey]?.[p] ?? GENERIC[key];
+  return pool?.length ? pick(rng, pool) : '…';
 }
 
 /** Tuấn checks the reference photo. The line depends on what the hair looks like right now. */

@@ -1,4 +1,5 @@
-import { CustomerDef, CustomerId, customerById } from './customers';
+import { BehaviorId, CustomerDef, CustomerId, customerById } from './customers';
+import { BEHAVIOR_RULES, behaviorTick, onMotionEnd, startle } from './behaviors';
 import { demandIgnored, demandLine, demandMet, eventLine, EventLineKey, photoLine, tierLine } from './dialogue';
 import { EventId, EVENT_TITLES, Mood, RoundResult, evaluateRound } from './evaluate';
 import { NOSE, Vec, clamp, dist } from './geometry';
@@ -41,7 +42,12 @@ export type Sfx =
   | 'steam'
   | 'deny'
   | 'overheat'
-  | 'combo';
+  | 'combo'
+  | 'ring'
+  | 'chop'
+  | 'bark'
+  | 'whimper'
+  | 'cash';
 export type EndReason = 'done' | 'timeout' | 'walkout';
 
 export const TIME_LIMIT = 75;
@@ -73,7 +79,7 @@ export interface Bubble {
   shout: boolean;
 }
 
-export type MotionKind = 'turn' | 'flinch' | 'sneeze';
+export type MotionKind = 'turn' | 'flinch' | 'sneeze' | 'nod' | 'startle' | 'pose' | 'phone' | 'duck' | 'chop' | 'dogShake' | 'sniff';
 export interface Motion {
   kind: MotionKind;
   stage: 'warn' | 'act';
@@ -83,8 +89,30 @@ export interface Motion {
   strayed: boolean;
 }
 
-const WARN_TIME: Record<MotionKind, number> = { turn: 0.95, flinch: 0.75, sneeze: 1.05 };
-const ACT_TIME: Record<MotionKind, number> = { turn: 0.95, flinch: 0.6, sneeze: 0.55 };
+interface MotionSpec {
+  /** Warning time before the head moves (the player's chance to lift the tool). */
+  warn: number;
+  act: number;
+  dx: number;
+  dy: number;
+  line?: string;
+  mood?: Mood;
+}
+
+/** Every way a head can move. Each has a visible/audible warning except reactions to the player's own actions. */
+const MOTIONS: Record<MotionKind, MotionSpec> = {
+  turn: { warn: 0.95, act: 0.95, dx: 46, dy: 4, line: 'turnWarn', mood: 'suspicious' },
+  flinch: { warn: 0.75, act: 0.6, dx: 26, dy: -24, line: 'flinchWarn', mood: 'flinch' },
+  sneeze: { warn: 1.05, act: 0.55, dx: 8, dy: 30, line: 'sneezeWarn', mood: 'sneeze' },
+  nod: { warn: 1.1, act: 6, dx: 4, dy: 26, line: 'sleepy', mood: 'sleepy' },
+  startle: { warn: 0, act: 0.5, dx: 20, dy: -22 },
+  pose: { warn: 0.8, act: 1.0, dx: 44, dy: -10, line: 'flexWarn', mood: 'happy' },
+  phone: { warn: 0.9, act: 0.95, dx: 46, dy: 4, line: 'phone', mood: 'suspicious' },
+  duck: { warn: 0.8, act: 1.2, dx: 6, dy: 34, line: 'duckWarn', mood: 'worried' },
+  chop: { warn: 0, act: 0.35, dx: 14, dy: -6 },
+  dogShake: { warn: 0.9, act: 0.9, dx: 18, dy: 0, line: 'dogFearWarn', mood: 'worried' },
+  sniff: { warn: 0.7, act: 1.1, dx: 50, dy: 6, line: 'dogSniff', mood: 'happy' },
+};
 
 interface PendingLine {
   at: number;
@@ -171,16 +199,51 @@ export interface RoundState {
   toolsUsed: ToolId[];
   /** When a tool use was refused (cooldown/locked), for UI feedback. */
   deniedAt: number;
+  /** Uses per tool that got a reaction from this customer. */
+  toolReacted: Partial<Record<Tool, number>>;
+  /** Round length for this customer. */
+  timeLimit: number;
+  /* behaviour state */
+  drowsy: number;
+  nextBehaviorAt: number;
+  viewers: number;
+  boredAt: number;
+  deadlineSaid: boolean;
+  /** A tool knocked out of the barber's hand (võ sư) until `until`. */
+  jam: { tool: Tool; until: number } | null;
+  reflexCooldown: number;
+  /** How messy the shop got (fur/hair everywhere) — carried into the day. */
+  mess: number;
+  /** Wear dealt to machines this round (career applies it). */
+  wear: Partial<Record<Tool, number>>;
+  /** Copycat: the style they want. */
+  wantStyle: string | null;
+  /** Context from the shop (career mode). */
+  ctx: RoundContext;
+}
+
+export interface RoundContext {
+  /** Owned upgrades / consumables that change the round. */
+  items: string[];
+  /** Today's events that affect the round (e.g. food smell, power cut). */
+  dayEvents: string[];
+  /** Hair this customer left with last time, if they are back to get it fixed. */
+  returnHair?: HairState | null;
+  wantStyle?: string | null;
+  /** Machines with low condition (0..100) behave badly. */
+  condition?: Partial<Record<Tool, number>>;
 }
 
 export interface RoundOptions {
   unlocked?: ToolId[];
+  ctx?: Partial<RoundContext>;
 }
 
 export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, opts: RoundOptions = {}): RoundState {
   const customer = customerById(customerId);
-  const hair = createHair(customer.hair);
+  const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
+  const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };
   return {
     customer,
     seed,
@@ -191,7 +254,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     metrics,
     phase: 'intro',
     time: 0,
-    tool: customer.id === 'khoa' ? 'dryer' : customer.id === 'bay' ? 'scissors' : 'clipper',
+    tool: customer.startTool && [...BASIC_TOOLS, ...(opts.unlocked ?? [])].includes(customer.startTool) ? customer.startTool : 'scissors',
     pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0, magicUsed: false },
     headOffset: { x: 0, y: 0 },
     motion: null,
@@ -242,6 +305,19 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     fxSeq: 0,
     toolsUsed: [],
     deniedAt: -99,
+    toolReacted: {},
+    timeLimit: customer.timeLimit ?? TIME_LIMIT,
+    drowsy: 0,
+    nextBehaviorAt: 6,
+    viewers: 120,
+    boredAt: -99,
+    deadlineSaid: false,
+    jam: null,
+    reflexCooldown: 0,
+    mess: 0,
+    wear: {},
+    wantStyle: ctx.wantStyle ?? null,
+    ctx,
   };
 }
 
@@ -257,8 +333,15 @@ export function sayLater(s: RoundState, delay: number, text: PendingLine['text']
   s.pending.push({ at: s.time + delay, text, mood, shout });
 }
 
-function line(s: RoundState, key: EventLineKey) {
-  return eventLine(s.rng, key, s.customer.personality);
+/** A customer's own line for this event if they have one, else their temperament's. */
+export function line(s: RoundState, key: string) {
+  const own = s.customer.lines?.[key];
+  if (own?.length) return own[Math.floor(s.rng() * own.length) % own.length];
+  return eventLine(s.rng, key as EventLineKey, s.customer.personality);
+}
+
+export function has(s: RoundState, b: BehaviorId) {
+  return s.customer.behaviors.includes(b);
 }
 
 /** Records an incident: adds to the event log, chaos, and shows a toast. */
@@ -267,6 +350,9 @@ export function incident(s: RoundState, id: EventId, chaos: number, toast = true
   if (toast) s.log.push({ id, t: s.time });
   s.incident = clamp(s.incident + chaos, 0, 100);
   s.lastIncidentAt = s.time;
+  // Livestream: every incident is content. VIP: every incident is an insult.
+  if (has(s, 'livestream')) s.viewers += 40 + chaos * 15 + (id.startsWith('combo') ? 400 : 0);
+  if (has(s, 'vip')) s.patience = clamp(s.patience - chaos * 0.6, 0, 100);
   if (toast) {
     s.toasts.push({ id: s.toastSeq++, title: EVENT_TITLES[id], until: s.time + 2.4 });
     if (s.toasts.length > 3) s.toasts.shift();
@@ -328,6 +414,11 @@ export function canCut(s: RoundState) {
 
 export function pointerDown(s: RoundState, p: Vec) {
   if (!canCut(s)) return;
+  if (s.jam && s.jam.tool === s.tool && s.time < s.jam.until) {
+    s.deniedAt = s.time;
+    s.sfx.push('deny');
+    return;
+  }
   const ptr = s.pointer;
   ptr.down = true;
   ptr.stage = p;
@@ -400,6 +491,11 @@ function onBald(s: RoundState) {
   refreshMetrics(s);
   const gap = s.time - s.lastBaldAt;
   s.lastBaldAt = s.time;
+  // Người sợ hói: every new bald moment is a catastrophe.
+  if (has(s, 'fearBald') && gap > 1.5) {
+    incident(s, 'baldPanic', 15);
+    s.patience = clamp(s.patience - 25, 0, 100);
+  }
   if (!s.events.baldPatch) {
     incident(s, 'baldPatch', 14);
     s.sfx.push('bald');
@@ -443,27 +539,15 @@ function endStroke(s: RoundState) {
   refreshMetrics(s);
   const c = s.customer;
   const zones = [...ptr.zones];
+  toolReaction(s, s.tool);
 
   if (cutSomething) {
     for (const z of zones) s.zoneStrokes[z]++;
 
-    // Wrong tool for this customer.
-    if (s.tool === 'clipper') {
-      // Tuấn only minds the clipper once it starts eating the long top he wants to keep.
-      const wrong = c.id === 'bay' || c.id === 'khoa' || (c.id === 'tuan' && ptr.zones.has('top') && s.metrics.zone.top < 0.55);
-      if (wrong) {
-        const n = s.events.wrongTool ?? 0;
-        incident(s, 'wrongTool', n === 0 ? 10 : 4, n === 0);
-        s.patience = clamp(s.patience - (c.id === 'bay' ? 10 : 5), 0, 100);
-        if (n < 3) say(s, line(s, 'wrongTool'), c.id === 'bay' ? 'angry' : 'worried', { shout: c.id !== 'tuan' });
-      }
-    }
-
-    // Khoa: every snip scares him a bit more.
-    if (c.id === 'khoa') s.nerves = clamp(s.nerves + 14 + ptr.removed / 9 + (s.tool === 'clipper' ? 20 : 0), 0, 100);
-
+    // Khoa (and anyone nervous): every snip scares him a bit more.
+    if (has(s, 'nervous')) s.nerves = clamp(s.nerves + 14 + ptr.removed / 9, 0, 100);
     // Chú Bảy: did we do what he asked?
-    if (c.id === 'bay' && s.demand && ptr.zones.has(s.demand.zone)) {
+    if (has(s, 'demands') && s.demand && ptr.zones.has(s.demand.zone)) {
       s.fixCount++;
       s.patience = clamp(s.patience + 6, 0, 100);
       say(s, demandMet(s.rng), 'neutral', { dur: 1.4 });
@@ -493,6 +577,31 @@ function endStroke(s: RoundState) {
     sayLater(s, 0.5, line(s, 'ruin'), c.personality === 'dramatic' ? 'crying' : 'angry');
   }
   s.bestSat = Math.max(s.bestSat, sat);
+}
+
+/**
+ * The customer's data says how they feel about a tool (hate / fear / love). Called once per
+ * stroke or use that actually changed their hair.
+ */
+export function toolReaction(s: RoundState, tool: Tool) {
+  const r = s.customer.toolReactions[tool];
+  if (!r) return;
+  if (r.when === 'topTooShort' && !(s.pointer.zones.has('top') && s.metrics.zone.top < 0.55)) return;
+  const n = s.toolReacted[tool] ?? 0;
+  s.toolReacted[tool] = n + 1;
+  s.patience = clamp(s.patience + r.patience, 0, 100);
+  if (r.nerves) s.nerves = clamp(s.nerves + r.nerves, 0, 100);
+  if (r.kind === 'love') {
+    if (n === 0 && r.lines?.length) say(s, r.lines[Math.floor(s.rng() * r.lines.length)], 'happy');
+    return;
+  }
+  const w = s.events.wrongTool ?? 0;
+  incident(s, 'wrongTool', n === 0 ? r.chaos : Math.ceil(r.chaos / 3), w === 0);
+  if (n < 3) {
+    const text = r.lines?.length ? r.lines[Math.floor(s.rng() * r.lines.length)] : line(s, 'wrongTool');
+    const strong = r.kind === 'fear' || r.patience <= -8;
+    say(s, text, r.kind === 'hate' ? 'angry' : 'worried', { shout: strong });
+  }
 }
 
 export function beg(s: RoundState) {
@@ -530,6 +639,11 @@ export function finish(s: RoundState, reason: EndReason) {
       maxZoneStrokes: Math.max(...Object.values(s.zoneStrokes)),
       walkedOut: reason === 'walkout',
       timedOut: reason === 'timeout',
+      timeUsed: s.time,
+      timeLimit: s.timeLimit,
+      viewers: s.viewers,
+      wantStyle: s.wantStyle,
+      payBonus: s.ctx.items.includes('ringLight') ? 1.2 : 1,
     },
     s.rng,
   );
@@ -562,15 +676,12 @@ function reveal(s: RoundState) {
 
 /* ------------------------------------------------------------------ simulation */
 
-function startMotion(s: RoundState, kind: MotionKind) {
+export function startMotion(s: RoundState, kind: MotionKind) {
+  const spec = MOTIONS[kind];
   const dir = s.rng() < 0.5 ? -1 : 1;
-  const dx = kind === 'turn' ? dir * 46 : kind === 'flinch' ? dir * 26 : dir * 8;
-  const dy = kind === 'turn' ? 4 : kind === 'flinch' ? -24 : 30;
-  s.motion = { kind, stage: 'warn', t: 0, dx, dy, strayed: false };
-  s.sfx.push('warn');
-  if (kind === 'turn') say(s, line(s, 'turnWarn'), 'suspicious', { dur: 1.6 });
-  if (kind === 'flinch') say(s, line(s, 'flinchWarn'), 'flinch', { dur: 1.3 });
-  if (kind === 'sneeze') say(s, line(s, 'sneezeWarn'), 'sneeze', { dur: 1.3 });
+  s.motion = { kind, stage: spec.warn > 0 ? 'warn' : 'act', t: 0, dx: dir * spec.dx, dy: spec.dy, strayed: false };
+  if (spec.warn > 0) s.sfx.push(kind === 'phone' ? 'ring' : 'warn');
+  if (spec.line) say(s, line(s, spec.line), spec.mood, { dur: Math.max(1.3, spec.warn + 0.6) });
 }
 
 function updateMotion(s: RoundState, dt: number) {
@@ -582,33 +693,40 @@ function updateMotion(s: RoundState, dt: number) {
   m.t += dt;
   if (m.stage === 'warn') {
     s.headOffset = { x: 0, y: 0 };
-    if (m.t >= WARN_TIME[m.kind]) {
+    if (m.t >= MOTIONS[m.kind].warn) {
       m.stage = 'act';
       m.t = 0;
       if (m.kind === 'sneeze') {
         say(s, line(s, 'sneeze'), 'sneeze', { dur: 1.2, shout: true });
         s.sfx.push('sneeze');
         burstClippings(s);
+        startle(s);
       }
       if (m.kind === 'flinch') s.sfx.push('gasp');
     }
     return;
   }
-  const T = ACT_TIME[m.kind];
+  const T = MOTIONS[m.kind].act;
   const u = m.t / T;
-  // Quick out, hold, ease back.
-  const k = u < 0.22 ? u / 0.22 : u < 0.62 ? 1 : Math.max(0, 1 - (u - 0.62) / 0.38);
+  // Quick out, hold, ease back (a dozing head sinks slowly and stays down).
+  const k =
+    m.kind === 'nod'
+      ? u < 0.3 ? u / 0.3 : u < 0.9 ? 1 : Math.max(0, 1 - (u - 0.9) / 0.1)
+      : u < 0.22 ? u / 0.22 : u < 0.62 ? 1 : Math.max(0, 1 - (u - 0.62) / 0.38);
   const e = k * k * (3 - 2 * k);
-  s.headOffset = { x: m.dx * e, y: m.dy * e };
+  const shake = m.kind === 'dogShake' ? Math.sin(m.t * 42) : 1;
+  s.headOffset = { x: m.dx * e * shake, y: m.dy * e };
   if (m.t >= T) {
     s.headOffset = { x: 0, y: 0 };
     const kind = m.kind;
     const strayed = m.strayed;
     s.motion = null;
-    if (kind === 'turn') {
+    if (kind === 'turn' || kind === 'pose' || kind === 'phone' || kind === 'duck' || kind === 'sniff') {
       incident(s, 'headTurn', strayed ? 6 : 2, !strayed);
       if (!strayed) say(s, line(s, 'turnSafe'), 'neutral', { dur: 1.6 });
     }
+    if (kind === 'nod') s.drowsy = 0.2;
+    onMotionEnd(s, kind, strayed);
     if (kind === 'sneeze') {
       incident(s, 'sneeze', 8);
       s.sneezeCooldown = s.time + 9;
@@ -617,7 +735,7 @@ function updateMotion(s: RoundState, dt: number) {
       s.nerves = 25;
       incident(s, 'headTurn', strayed ? 6 : 1, false);
     }
-    if (strayed) sayLater(s, 0.3, line(s, 'turnStray'), kind === 'flinch' ? 'crying' : 'angry', true);
+    if (strayed && kind !== 'chop' && kind !== 'startle') sayLater(s, 0.3, line(s, 'turnStray'), kind === 'flinch' ? 'crying' : 'angry', true);
   }
 }
 
@@ -656,7 +774,7 @@ function strayCut(s: RoundState) {
   ptr.lastLocal = local;
 }
 
-interface Rule {
+export interface Rule {
   id: string;
   check(s: RoundState): boolean;
   fire(s: RoundState): void;
@@ -731,7 +849,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'flinch',
-    check: (s) => s.customer.id === 'khoa' && !s.motion && s.nerves >= 75,
+    check: (s) => has(s, 'nervous') && !s.motion && s.nerves >= 75,
     fire: (s) => startMotion(s, 'flinch'),
   },
   {
@@ -741,7 +859,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'photoCheck',
-    check: (s) => s.customer.id === 'tuan' && s.time >= s.nextPhotoAt,
+    check: (s) => has(s, 'photoCheck') && s.time >= s.nextPhotoAt,
     fire: (s) => {
       s.photoUntil = s.time + 3.4;
       s.nextPhotoAt = s.time + between(s.rng, 10, 13);
@@ -750,7 +868,7 @@ const RULES: Rule[] = [
   },
   {
     id: 'demand',
-    check: (s) => s.customer.id === 'bay' && s.hasCut && !s.demand && s.time >= s.nextDemandAt,
+    check: (s) => has(s, 'demands') && s.hasCut && !s.demand && s.time >= s.nextDemandAt,
     fire: (s) => {
       const z = s.metrics.zone;
       const zones: Zone[] = ['left', 'right', 'top', 'fringe'];
@@ -806,6 +924,7 @@ export function tick(s: RoundState, dt: number) {
   }
   if (ptr.down && local && s.tool === 'dryer') blow(s, local, dt);
   gearTick(s, dt, ptr.down && local ? local : null);
+  behaviorTick(s, dt, ptr.down && local ? local : null);
 
   s.patience = clamp(s.patience - s.customer.patienceDecay * dt * (1 + chaosTier(s.chaos) * 0.35), 0, 100);
   s.nerves = clamp(s.nerves - 9 * dt, 0, 100);
@@ -815,7 +934,7 @@ export function tick(s: RoundState, dt: number) {
   if (s.ruleTimer >= 0.25) {
     s.ruleTimer = 0;
     refreshMetrics(s);
-    for (const r of RULES) {
+    for (const r of [...RULES, ...BEHAVIOR_RULES]) {
       if (s.walkout && r.id !== 'chaosTier') continue;
       if (r.check(s)) r.fire(s);
     }
@@ -826,14 +945,14 @@ export function tick(s: RoundState, dt: number) {
     finish(s, 'walkout');
     return;
   }
-  if (s.time >= TIME_LIMIT) finish(s, 'timeout');
+  if (s.time >= s.timeLimit) finish(s, 'timeout');
 }
 
 function blow(s: RoundState, local: Vec, dt: number) {
-  const r = dryerBlow(s.hair, local, dt);
+  const r = dryerBlow(s.hair, local, dt, has(s, 'alien'));
   s.pointer.dryerUsed = true;
   if (r.newlySpiked.length) s.sfx.push('pop');
-  if (s.customer.id === 'khoa') {
+  if (s.customer.toolReactions.dryer?.kind === 'love') {
     s.nerves = clamp(s.nerves - 14 * dt, 0, 100);
     if (!s.moodOverride) s.moodOverride = { mood: 'happy', until: s.time + 0.3 };
   }
@@ -887,7 +1006,8 @@ export function currentMood(s: RoundState): Mood {
   if (m?.kind === 'sneeze') return 'sneeze';
   if (m?.kind === 'flinch') return 'flinch';
   if (m?.kind === 'turn' && m.stage === 'act') return 'neutral';
-  if (s.customer.id === 'khoa' && s.nerves > 50) return 'worried';
+  if ((has(s, 'nervous') || has(s, 'dog')) && s.nerves > 50) return 'worried';
+  if (s.motion?.kind === 'nod' && s.motion.stage === 'act') return 'sleepy';
   const tier = chaosTier(s.chaos);
   const p = s.customer.personality;
   if (tier === 3) return p === 'dramatic' ? 'crying' : 'angry';
@@ -897,5 +1017,5 @@ export function currentMood(s: RoundState): Mood {
 }
 
 export function timeLeft(s: RoundState) {
-  return Math.max(0, TIME_LIMIT - s.time);
+  return Math.max(0, s.timeLimit - s.time);
 }

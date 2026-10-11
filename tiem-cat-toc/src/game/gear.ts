@@ -19,7 +19,8 @@ import {
   wandSelect,
   wandStretch,
 } from './magic';
-import { RoundState, incident, refreshMetrics, say, sayLater } from './session';
+import { RoundState, incident, refreshMetrics, say, sayLater, toolReaction } from './session';
+import { startle } from './behaviors';
 import { TOOLS, ToolId, toolDef } from './tools';
 
 /**
@@ -262,6 +263,7 @@ export function gearDown(s: RoundState, p: Vec): boolean {
       addFx(s, 'ring', at, { color, dur: 0.5 });
       s.sfx.push('zap');
       touched(s, hit);
+      startle(s);
       firstUse(s, id);
       return true;
     }
@@ -287,6 +289,8 @@ export function gearDown(s: RoundState, p: Vec): boolean {
       m.potPending = true;
       addFx(s, 'pot', { x: 200, y: 150 }, { dur: 1.9 });
       s.sfx.push('steam');
+      toolReaction(s, 'cooker');
+      startle(s);
       firstUse(s, id);
       return false;
     }
@@ -369,6 +373,7 @@ export function gearUp(s: RoundState) {
       spend(s, 'storm', toolDef('storm').energy!.costPerUse!);
       addFx(s, 'gust', stage(s, aim.from), { x2: dir.x, y2: dir.y, dur: 0.9, color: '#bfe8ff' });
       s.sfx.push('whoosh');
+      startle(s);
       ptr.magicUsed = true;
       s.hasCut = true;
       // Combo: Gậy Như Ý + Máy Sấy Bão.
@@ -514,6 +519,7 @@ function suck(s: RoundState, p: Vec, dt: number) {
     m.vacuumGulped = true;
     const gone = vacuumGulp(s.hair, p, m.vacuumRadius);
     if (gone.length) {
+      startle(s);
       incident(s, 'vacuumGulp', 12);
       s.sfx.push('gulp');
       s.lastBaldAt = s.time;

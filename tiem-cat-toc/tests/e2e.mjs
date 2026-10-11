@@ -236,7 +236,7 @@ async function finishAndWait(page) {
   await page.click('[data-testid=next]');
   await page.waitForTimeout(200);
   const next = await state(page);
-  check('E: next customer cycles', next.customer === 'tuan' && next.phase === 'intro', next.customer);
+  check('E: next customer cycles', next.customer === 'linh' && next.phase === 'intro', next.customer);
   check('E: no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
