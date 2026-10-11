@@ -22,6 +22,8 @@ export interface HairMetrics {
   fringeTipSpread: number;
   /** Highest number of strokes any single tuft received. */
   maxTouches: number;
+  /** How jagged the cut is: spread of lengths inside each zone (0 = neat). */
+  choppiness: number;
 }
 
 /** Sideways push of one tuft's tip vs. its natural fall, per unit length. */
@@ -105,5 +107,12 @@ export function measureHair(h: HairState): HairMetrics {
     unevenLR: Math.abs(zone.left - zone.right),
     fringeTipSpread: spread,
     maxTouches: Math.max(0, ...tufts.map((t) => t.touches)),
+    choppiness: mean(
+      ZONES.map((z) => {
+        const r = tufts.filter((t) => t.zone === z && !t.bald).map(tuftRatio);
+        const m = mean(r);
+        return Math.sqrt(mean(r.map((x) => (x - m) * (x - m))));
+      }),
+    ),
   };
 }

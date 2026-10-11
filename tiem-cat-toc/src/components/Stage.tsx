@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { CLIPPER_RADIUS, DRYER_RADIUS } from '../game/hair';
+import { BALD_DWELL, CLIPPER_RADIUS, DRYER_RADIUS } from '../game/hair';
 import { HEAD, Vec } from '../game/geometry';
 import { RoundState, Tool, currentMood } from '../game/session';
 import { Character } from './Character';
@@ -18,17 +18,28 @@ interface Props {
   onLeave(): void;
 }
 
-function ToolCursor({ tool, p, down, now }: { tool: Tool; p: Vec; down: boolean; now: number }) {
+function ToolCursor({ tool, p, down, now, danger }: { tool: Tool; p: Vec; down: boolean; now: number; danger: number }) {
   const t = now / 1000;
   if (tool === 'clipper') {
     const buzz = down ? Math.sin(t * 90) * 1.2 : 0;
     return (
       <g transform={`translate(${p.x + buzz},${p.y})`} pointerEvents="none">
-        <circle r={CLIPPER_RADIUS} fill="none" stroke="#ff4d4d" strokeWidth={1.5} strokeDasharray="3 4" opacity={0.8} />
-        <rect x={-15} y={-6} width={30} height={10} rx={2} fill="#d9dde2" stroke="#4a4f57" strokeWidth={2} />
-        <path d="M-14,-6 v-5 M-9,-6 v-5 M-4,-6 v-5 M1,-6 v-5 M6,-6 v-5 M11,-6 v-5" stroke="#4a4f57" strokeWidth={2} />
-        <rect x={-13} y={4} width={26} height={52} rx={11} fill="#2f6fd6" stroke="#173c7a" strokeWidth={2.5} />
-        <rect x={-4} y={18} width={8} height={14} rx={3} fill={down ? '#7dff9a' : '#c4d6f5'} />
+        {/* Warning: the ring fills red while the clipper sits on the same roots. */}
+        {danger > 0.05 && <circle r={CLIPPER_RADIUS + 4} fill="#ff2a2a" opacity={Math.min(0.6, danger * 0.6)} />}
+        <circle
+          r={CLIPPER_RADIUS + 4}
+          fill="none"
+          stroke={danger > 0.05 ? '#ff2a2a' : '#ff4d4d'}
+          strokeWidth={danger > 0.05 ? 3 + danger * 3 : 1.5}
+          strokeDasharray={danger > 0.05 ? undefined : '3 4'}
+          opacity={0.9}
+        />
+        <g transform="translate(16,14) rotate(-35)">
+          <rect x={-15} y={-6} width={30} height={10} rx={2} fill="#d9dde2" stroke="#4a4f57" strokeWidth={2} />
+          <path d="M-14,-6 v-5 M-9,-6 v-5 M-4,-6 v-5 M1,-6 v-5 M6,-6 v-5 M11,-6 v-5" stroke="#4a4f57" strokeWidth={2} />
+          <rect x={-13} y={4} width={26} height={52} rx={11} fill="#2f6fd6" stroke="#173c7a" strokeWidth={2.5} />
+          <rect x={-4} y={18} width={8} height={14} rx={3} fill={down ? '#7dff9a' : '#c4d6f5'} />
+        </g>
       </g>
     );
   }
@@ -85,6 +96,12 @@ function Phone({ s }: { s: RoundState }) {
       </text>
     </g>
   );
+}
+
+function maxDwell(s: RoundState): number {
+  let m = 0;
+  for (const t of s.hair.tufts) if (!t.bald && t.dwell > m) m = t.dwell;
+  return m;
 }
 
 export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) {
@@ -170,7 +187,9 @@ export function Stage({ s, narrow, now, onDown, onMove, onUp, onLeave }: Props) 
           </text>
         </g>
       )}
-      {cutting && s.pointer.stage && <ToolCursor tool={s.tool} p={s.pointer.stage} down={s.pointer.down} now={now} />}
+      {cutting && s.pointer.stage && (
+        <ToolCursor tool={s.tool} p={s.pointer.stage} down={s.pointer.down} now={now} danger={s.tool === 'clipper' ? maxDwell(s) / BALD_DWELL : 0} />
+      )}
       {s.time < s.flashUntil && <rect x={0} y={0} width={400} height={600} fill="#fff" opacity={0.85} />}
     </svg>
   );

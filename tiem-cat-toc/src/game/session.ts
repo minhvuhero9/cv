@@ -621,7 +621,7 @@ const RULES: Rule[] = [
       if (!s.events.baldPatch || s.events.combOver || s.combAttempt < 0.8) return false;
       const bald = s.hair.tufts.filter((t) => t.bald);
       const c = { x: bald.reduce((a, t) => a + t.root.x, 0) / bald.length, y: bald.reduce((a, t) => a + t.root.y, 0) / bald.length };
-      return Math.abs(localLean(s.hair, c, 90)) >= 0.35 || Math.abs(s.metrics.leanAvg) >= LEAN_RUNAWAY;
+      return Math.abs(localLean(s.hair, c, 90)) >= 0.25 || Math.abs(s.metrics.leanAvg) >= LEAN_RUNAWAY;
     },
     fire: (s) => {
       incident(s, 'combOver', 10);

@@ -77,6 +77,24 @@ async function drag(page, pts, { steps = 6, pause = 0 } = {}) {
   await page.mouse.up();
 }
 
+/** Drag at a fixed real-time speed (head-local px per second), independent of machine speed. */
+async function slowDrag(page, pts, pxPerSec) {
+  const first = await toClient(page, ...pts[0]);
+  await page.mouse.move(first.x, first.y);
+  await page.mouse.down();
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1];
+    const [bx, by] = pts[i];
+    const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 3);
+    for (let k = 1; k <= n; k++) {
+      const c = await toClient(page, ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n);
+      await page.mouse.move(c.x, c.y);
+      await page.waitForTimeout((3 / pxPerSec) * 1000);
+    }
+  }
+  await page.mouse.up();
+}
+
 async function hold(page, x, y, ms) {
   const c = await toClient(page, x, y);
   await page.mouse.move(c.x, c.y);
@@ -144,7 +162,7 @@ async function finishAndWait(page) {
   await start(page, 'bay');
   await page.click('[data-testid=tool-clipper]');
   // Slow clipper drag right across the top of the scalp: dwell builds up -> bald strip.
-  await drag(page, [[140, 175], [175, 165], [205, 162], [235, 165], [262, 175]], { steps: 12, pause: 60 });
+  await slowDrag(page, [[140, 175], [175, 165], [205, 162], [235, 165], [262, 175]], 30);
   await page.waitForTimeout(1200);
   const mid = await state(page);
   await page.screenshot({ path: `${OUT}/B1-bald.png` });

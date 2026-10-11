@@ -129,6 +129,33 @@ export const STYLE_RULES: StyleRule[] = [
     },
   },
   {
+    id: 'rooster',
+    name: 'Mào Gà Tự Phát',
+    why: 'Hai bên cạo sát, phía trên dựng một dải dài.',
+    when: (f, sat) => {
+      const z = f.metrics.zone;
+      return z.left < 0.5 && z.right < 0.5 && z.top > 0.65 && !(f.customer.id === 'tuan' && sat >= 75);
+    },
+  },
+  {
+    id: 'mushroom',
+    name: 'Nấm Rơm Lộn Ngược',
+    why: 'Phía trên bị cắt cụt, hai bên vẫn dài thượt.',
+    when: (f) => {
+      const z = f.metrics.zone;
+      return z.top < 0.5 && z.left > 0.75 && z.right > 0.75;
+    },
+  },
+  {
+    id: 'forehead',
+    name: 'Trán Rộng Thênh Thang',
+    why: 'Cái mái biến mất, phần còn lại thì vẫn nguyên.',
+    when: (f) => {
+      const z = f.metrics.zone;
+      return z.fringe < 0.35 && z.left > 0.6 && z.right > 0.6 && z.top > 0.6;
+    },
+  },
+  {
     id: 'nest',
     name: 'Tổ Chim Sau Bão',
     why: 'Máy sấy làm cả đầu bung xù.',
@@ -145,6 +172,12 @@ export const STYLE_RULES: StyleRule[] = [
     name: 'Như Chưa Hề Có Cuộc Chia Ly',
     why: 'Gần như chưa cắt sợi nào.',
     when: (f) => f.metrics.avg > f.before.avg - 0.06,
+  },
+  {
+    id: 'token',
+    name: 'Tỉa Cho Có Lệ',
+    why: 'Cắt vài nhát lấy lệ, nhìn kỹ mới thấy.',
+    when: (f, sat) => f.metrics.avg > f.before.avg - 0.18 && sat < 75,
   },
   {
     id: 'perfect-tuan',
@@ -165,10 +198,22 @@ export const STYLE_RULES: StyleRule[] = [
     when: (f, sat) => f.customer.id === 'khoa' && sat >= 75,
   },
   {
+    id: 'chewed',
+    name: 'Chó Gặm Nghệ Thuật',
+    why: 'Dài ngắn lởm chởm, mỗi lọn một số phận.',
+    when: (f) => f.metrics.choppiness >= 0.26,
+  },
+  {
     id: 'buzz',
     name: 'Đầu Đinh Bất Đắc Dĩ',
     why: 'Cả đầu bị cắt rất ngắn.',
     when: (f) => f.metrics.avg < 0.35,
+  },
+  {
+    id: 'heavyhand',
+    name: 'Tỉa Nhẹ… Nhưng Tay Nặng',
+    why: 'Cắt đều tay, chỉ là hơi nhiều.',
+    when: (f) => f.metrics.unevenLR < 0.15 && f.metrics.choppiness < 0.18 && f.metrics.avg < 0.75,
   },
   {
     id: 'science',
