@@ -220,6 +220,11 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
    - Phiếu yêu cầu hiện đúng tác phẩm của bạn và chấm độ dài từng vùng, màu, từng hình cạo.
    - Làm tốt thì được trả ×1,3, tiền boa ×1,5 và +2 Viral; sổ ghi “được đặt N lần”.
 5. **Tường tác phẩm:** 3 mẫu mới nhất treo trên tường tiệm.
+6. **Khách tùy thợ** (`freestyle.ts`, từ ngày 2): “Làm gì cũng được, miễn hợp gu em”.
+   - Không có ảnh mẫu, không có đường viền. Phiếu yêu cầu chỉ ghi gu: *Thích…* và *Ghét…*. Góc trên hiện “🎨 Hợp gu N%”.
+   - 9 gu: Gọn Gàng, Càng Ngắn Càng Chất, Bất Đối Xứng (chỉ cần kéo/tông đơ), Rực Lửa, Biển Xanh, Dễ Thương, Cầu Vồng (cần Cọ Nhuộm), Ngầu Đường Phố (cần Khuôn Cạo), Nghệ Sĩ (cần cả hai). Gu cần đồ nghề chỉ xuất hiện khi tiệm đã có đồ nghề đó.
+   - Để nguyên không làm gì hoặc cạo trọc thì khách không chịu. Hợp gu từ 75% trở lên: kiểu tóc **tự lưu vào cuốn mẫu**, và hôm sau (khi tiệm có Cọ Nhuộm hoặc Khuôn Cạo) sẽ có khách đặt lại đúng kiểu đó trước tiên.
+   - Trả ×1,25, boa ×1,4, được thêm kinh nghiệm như khách đặt mẫu.
 
 ## Cấu trúc code
 

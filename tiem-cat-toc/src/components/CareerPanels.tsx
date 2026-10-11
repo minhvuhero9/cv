@@ -100,7 +100,7 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
   );
 }
 
-const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu' } as const;
+const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu', freestyle: 'Khách tùy thợ' } as const;
 
 /** Morning: what happens today (with causes) and who is coming. */
 export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void }) {

@@ -24,6 +24,7 @@ import { ToolId } from './tools';
 import { checkSheet, requestSheet } from './request';
 import type { Creation } from './creation';
 import { DesignOrder, designCustomer, designOrder, templateOrder } from './design';
+import { Taste, tasteById, tasteCustomer } from './freestyle';
 import { templateById } from './templates';
 import { ArtKit, ArtSettings, brushHair, carveHair, fullKit, newArt } from './art';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
@@ -150,6 +151,8 @@ export interface RoundState {
   stage: number;
   /** Cuốn mẫu: the design this customer ordered. */
   design: DesignOrder | null;
+  /** Khách tùy thợ: no picture, just a taste. */
+  taste: Taste | null;
   /** Đồ nghề sáng tạo: current colours / stencil, and what the barber owns. */
   art: ArtSettings;
   kit: ArtKit;
@@ -306,6 +309,8 @@ export interface RoundContext {
   design?: Creation | null;
   /** …or a built-in template (mẫu có sẵn). */
   designTemplate?: string | null;
+  /** …or no picture at all: "làm gì cũng được, miễn hợp gu" (freestyle.ts). */
+  taste?: string | null;
 }
 
 export interface RoundOptions {
@@ -325,7 +330,8 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
   const baseDef = customerById(customerId);
   const tpl = templateById(opts.ctx?.designTemplate);
   const design = opts.ctx?.design ? designOrder(opts.ctx.design, baseDef.id) : tpl ? templateOrder(tpl, baseDef.id) : null;
-  const customer = design ? designCustomer(baseDef, design) : baseDef;
+  const taste = design ? null : tasteById(opts.ctx?.taste);
+  const customer = design ? designCustomer(baseDef, design) : taste ? tasteCustomer(baseDef, taste) : baseDef;
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
   const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };
@@ -336,6 +342,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     customer,
     baseCustomer: customer,
     design,
+    taste,
     persona: null,
     wantPersona,
     mirrorReady: (opts.mirror ?? false) || ctx.items.includes('mirror'),

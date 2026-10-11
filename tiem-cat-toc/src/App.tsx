@@ -6,7 +6,8 @@ import { Coach } from './components/Coach';
 import { AirCon, StageDecor, WallDecor } from './components/Decor';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
-import { deleteFromBook, loadBook, saveToBook } from './game/creation';
+import { deleteFromBook, loadBook, saveToBook, snapCreation } from './game/creation';
+import { tasteScore } from './game/freestyle';
 import { BookPanel, PhotoPanel } from './components/PhotoBook';
 import { careerKit, fullKit } from './game/art';
 import { designScore } from './game/design';
@@ -242,6 +243,15 @@ export default function App() {
         if (cr) saveToBook({ ...cr, orders: (cr.orders ?? 0) + 1 });
         setBookVer((v) => v + 1);
       }
+      // Khách tùy thợ loved it: the cut goes into the catalog, and is ordered first tomorrow.
+      if (sv.saveDesign) {
+        const cr = snapCreation(s, sv.saveDesign.name, sv.saveDesign.caption, { mood: 'happy', bg: 'salon', frame: 'polaroid', stickers: [] });
+        if (saveToBook(cr)) {
+          c.freshDesign = cr.id;
+          sv.savedDesign = true;
+          setBookVer((v) => v + 1);
+        }
+      }
       setNewTools([]);
       saveCareer(c);
       playSfx('cash');
@@ -403,6 +413,12 @@ export default function App() {
             <div className="design-score" data-testid="design-score" data-value={Math.round(designScore(s.design, s.hair))}>
               📐 Giống mẫu <b>{Math.round(designScore(s.design, s.hair))}%</b>
               <small>{s.design.name}</small>
+            </div>
+          )}
+          {s.phase === 'cutting' && s.taste && (
+            <div className="design-score taste-score" data-testid="taste-score" data-value={tasteScore(s.taste, s.metrics, s.hair)}>
+              🎨 Hợp gu <b>{tasteScore(s.taste, s.metrics, s.hair)}%</b>
+              <small>{s.taste.name}</small>
             </div>
           )}
           {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && (

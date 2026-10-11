@@ -3,6 +3,7 @@ import { STYLE_RULES } from './evaluate';
 import { clamp } from './geometry';
 import { HairState, Tuft, createHair } from './hair';
 import { makeRng, pick } from './rng';
+import { tasteById, tasteDesignName, tastesFor } from './freestyle';
 import type { RoundContext, RoundState } from './session';
 import { ELECTRIC, MACHINES, SHOP, ShopItem, shopItem } from './shop';
 import { TOOLS, ToolId } from './tools';
@@ -22,7 +23,7 @@ export const BASE_CUSTOMERS = 3;
 /** Viral gained from one customer that turns their hairstyle into tomorrow's trend. */
 export const VIRAL_TREND = 6;
 
-export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip' | 'boss' | 'design';
+export type QueueReason = 'walkin' | 'return' | 'loyal' | 'copycat' | 'vip' | 'boss' | 'design' | 'freestyle';
 
 export interface QueueEntry {
   customer: string;
@@ -33,6 +34,8 @@ export interface QueueEntry {
   designId?: string;
   /** …or the built-in template. */
   templateId?: string;
+  /** Khách tùy thợ: their taste (freestyle.ts). */
+  tasteId?: string;
 }
 
 export interface DayEvent {
@@ -61,6 +64,10 @@ export interface Served {
   quests?: string[];
   /** Ordered from the catalog: the creation id. */
   designId?: string;
+  /** A freestyle cut the customer loved: the app saves it into the catalog. */
+  saveDesign?: { name: string; caption: string };
+  /** …and it was saved. */
+  savedDesign?: boolean;
   /** XP earned, and the level reached if this round levelled the shop up. */
   xp?: number;
   levelUp?: number;
@@ -121,6 +128,8 @@ export interface CareerState {
   xp?: number;
   /** Hạt giống riêng của tiệm: each new shop gets its own customers. Older saves: 0. */
   seed?: number;
+  /** Catalog id of a design born yesterday from a freestyle cut (ordered first). */
+  freshDesign?: string | null;
   today: {
     phase: 'morning' | 'open' | 'closed';
     queue: QueueEntry[];
@@ -277,7 +286,9 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   //     day once you have some, a design you saved yourself.
   const artShop = c.owned.includes('brush') || c.owned.includes('stencil');
   const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)) && !queue.some((q) => q.customer === d.id);
-  const own = artShop && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null;
+  const fresh = artShop ? catalog.find((x) => x.id === c.freshDesign) : undefined;
+  c.freshDesign = null;
+  const own = fresh ?? (artShop && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null);
   const ready = artShop ? TEMPLATES.filter((t) => templateReady(t, shopLevel(c).level, careerTools(c), c.owned)) : [];
   const tpl = !own && ready.length ? ready[(c.day * 7 + c.stats.served) % ready.length] : null;
   if (own || tpl) {
@@ -286,6 +297,27 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
     const who = model && ok(model) ? model : others.length ? others[Math.floor(rng() * others.length) % others.length] : null;
     if (who && own) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu “${own.name}” (do bạn tạo) trong cuốn mẫu`, designId: own.id });
     else if (who && tpl) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu có sẵn “${tpl.name}” ${'★'.repeat(tpl.stars)}`, templateId: tpl.id });
+  }
+
+  // 2c) Khách tùy thợ: from day 2, most days someone just says "làm gì cũng được, miễn
+  //     hợp gu em". Tastes that need colours or patterns only come once the shop has them.
+  const tastes = tastesFor(careerTools(c));
+  if (c.day >= 2 && tastes.length && rng() < 0.75) {
+    const w = tastes.map((t) => (t.needs.length ? 2 : 1));
+    let r = rng() * w.reduce((a, b) => a + b, 0);
+    let taste = tastes[0];
+    for (let i = 0; i < tastes.length; i++) {
+      r -= w[i];
+      if (r <= 0) {
+        taste = tastes[i];
+        break;
+      }
+    }
+    const notRecent = (d: CustomerDef) => !(c.history[d.id] && c.history[d.id].day >= c.day - 2) && !c.pending.some((p) => p.customer === d.id);
+    const pool = CUSTOMERS.filter((d) => ok(d) && !d.behaviors.includes('transform') && !d.stages?.length);
+    const cands = pool.filter(notRecent).length ? pool.filter(notRecent) : pool;
+    const who = cands.length ? cands[Math.floor(rng() * cands.length) % cands.length] : null;
+    if (who) queue.push({ customer: who.id, reason: 'freestyle', note: `Tùy thợ: “${taste.name}”`, tasteId: taste.id });
   }
 
   // 3) Walk-ins, weighted, no duplicates; drama lovers more likely after a viral clip.
@@ -367,6 +399,7 @@ export function roundContext(c: CareerState): Partial<RoundContext> {
     payMultiplier: repMultiplier(c),
     wantStyle: q?.wantStyle ?? null,
     returnHair: snap ? unsnap(snap, q.customer) : null,
+    taste: q?.tasteId ?? null,
   };
 }
 
@@ -475,11 +508,16 @@ export function applyRound(c: CareerState, s: RoundState): Served {
     served.viralDelta = Math.round((served.viralDelta + 2) * 10) / 10;
   }
   if (q?.designId) served.designId = q.designId;
+  // Tùy thợ: a cut they loved goes into the catalog; tomorrow someone orders it.
+  const taste = tasteById(q?.tasteId);
+  if (taste && !r.walkedOut && r.sat >= 75) {
+    served.saveDesign = { name: tasteDesignName(taste, d.name), caption: `${taste.name} · ${r.style.name} · khách chấm ${r.sat}%` };
+  }
   const done = updateQuests(c, s, served);
   if (done.length) served.quests = done.map((q) => q.label);
   // Cấp tiệm.
   const before = shopLevel(c).level;
-  const gained = xpFor(r, { design: q?.reason === 'design', art: s.metrics.carvingCount > 0 || s.metrics.tintedFrac > 0.1, boss: q?.reason === 'boss', quests: done.length });
+  const gained = xpFor(r, { design: q?.reason === 'design' || q?.reason === 'freestyle', art: s.metrics.carvingCount > 0 || s.metrics.tintedFrac > 0.1, boss: q?.reason === 'boss', quests: done.length });
   c.xp = (c.xp ?? 0) + gained;
   served.xp = gained;
   if (shopLevel(c).level > before) served.levelUp = shopLevel(c).level;

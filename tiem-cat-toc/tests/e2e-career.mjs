@@ -169,6 +169,53 @@ async function playDay(page) {
   await ctx.close();
 }
 
+/* ---------------- Khách tùy thợ: no outline, taste checklist, loved cut goes to the catalog ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.evaluate(() => localStorage.setItem('tctbo-coach', '4'));
+  await page.waitForSelector('[data-testid=morning]');
+  await page.click('[data-testid=open-day]');
+  await serveOne(page);
+  await page.evaluate(() => {
+    window.__tctbo.career().today.queue[1] = { customer: 'tuan', reason: 'freestyle', note: 'Tùy thợ', tasteId: 'gon' };
+  });
+  await page.click('[data-testid=next]');
+  await page.waitForSelector('[data-testid=start]');
+  check('Tùy thợ: the request card names the taste', /Khách tùy thợ · Gu Gọn Gàng/.test(await page.textContent('[data-testid=request-card]')));
+  check('Tùy thợ: no outline toggle (no picture to follow)', (await page.locator('[data-testid=ghost-toggle]').count()) === 0);
+  await page.click('[data-testid=start]');
+  await page.waitForSelector('[data-testid=taste-score]');
+  const v0 = Number(await page.getAttribute('[data-testid=taste-score]', 'data-value'));
+  await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    const z = { left: 0.5, right: 0.5, top: 0.6, fringe: 0.5 };
+    for (const t of s.hair.tufts) if (!t.bald) t.len = t.origLen * z[t.zone];
+    s.nextTurnCheck = 1e9;
+    s.nextBehaviorAt = 1e9;
+  });
+  // One small snip so the round re-measures the hair.
+  await page.click('[data-testid=tool-scissors]');
+  const a = await toClient(page, 60, 120);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 5, a.y + 2, { steps: 2 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const v1 = Number(await page.getAttribute('[data-testid=taste-score]', 'data-value'));
+  check('Tùy thợ: live "Hợp gu" score rises with a fitting cut', v1 > v0 && v1 >= 80, `${v0} → ${v1}`);
+  await page.screenshot({ path: `${OUT}/K5-freestyle.png` });
+  await page.click('[data-testid=finish]');
+  await page.waitForSelector('[data-testid=mirror]');
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=next]');
+  check('Tùy thợ: a loved cut is saved into the catalog', (await page.locator('[data-testid=design-saved]').count()) === 1);
+  const book = await page.evaluate(() => JSON.parse(localStorage.getItem('tctbo-studio-book') ?? '[]'));
+  const c = await career(page);
+  check('Tùy thợ: the catalog has it and tomorrow orders it first', book.length === 1 && /Gọn Gàng/.test(book[0].name) && c.freshDesign === book[0].id, JSON.stringify(book.map((b) => b.name)));
+  check('Tùy thợ: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 /* ---------------- Sound settings: volume and mute persist ---------------- */
 {
   const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);

@@ -156,6 +156,12 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, d
               +{career.served.xp} kinh nghiệm cho tiệm
             </div>
           )}
+          {career?.served.savedDesign && career.served.saveDesign && (
+            <div className="quest-done design-saved" data-testid="design-saved">
+              📒 Đúng gu khách! Kiểu này được lưu vào cuốn mẫu: <b>{career.served.saveDesign.name}</b>
+              <small> Tiệm có Cọ Nhuộm hoặc Khuôn Cạo thì hôm sau sẽ có khách đặt lại.</small>
+            </div>
+          )}
           {career?.served.quests?.map((q) => (
             <div key={q} className="quest-done" data-testid="quest-done">
               🎯 Hoàn thành nhiệm vụ: <b>{q}</b>
