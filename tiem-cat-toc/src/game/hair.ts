@@ -89,6 +89,19 @@ export interface HairState {
   tufts: Tuft[];
   head: HeadShape;
   texture: HairTexture;
+  /** Xưởng Tạo Kiểu: patterns shaved into the hair (drawn as scalp lines). */
+  carvings?: Carving[];
+}
+
+export type StencilId = 'bolt' | 'star' | 'heart' | 'stripes' | 'zigzag' | 'text';
+export interface Carving {
+  kind: StencilId;
+  x: number;
+  y: number;
+  /** Scale and rotation (degrees). */
+  s: number;
+  r: number;
+  text?: string;
 }
 
 export function headShape(init?: Partial<HeadShape>): HeadShape {
@@ -273,7 +286,7 @@ function applyTexture(tufts: Tuft[], texture: HairTexture) {
 }
 
 export function cloneHair(h: HairState): HairState {
-  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root }, sculpt: t.sculpt ? { ...t.sculpt } : null })), head: { ...h.head }, texture: h.texture };
+  return { tufts: h.tufts.map((t) => ({ ...t, root: { ...t.root }, sculpt: t.sculpt ? { ...t.sculpt } : null })), head: { ...h.head }, texture: h.texture, ...(h.carvings ? { carvings: h.carvings.map((c) => ({ ...c })) } : {}) };
 }
 
 /** Centre-line of a tuft as 4 points (root, two bends, tip). */

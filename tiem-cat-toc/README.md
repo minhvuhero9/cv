@@ -177,6 +177,23 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
 - **Xem lại 5 giây** ở màn kết quả và **Tải video** (WebM hoặc MP4 tùy trình duyệt, quay bằng MediaRecorder ngay trong trình duyệt).
 - Hiệu năng: đo bằng Chromium giả lập CPU chậm trên khung điện thoại 390×844: ~60 fps ở tốc độ thường, ~35 fps khi chậm 4×, ~21 fps khi chậm 6×. Đã cache đường vẽ từng lọn tóc, cô lập vùng vẽ sân khấu và ghi nhớ ảnh mẫu; phần lớn thời gian còn lại là trình duyệt tô SVG.
 
+## Xưởng Tạo Kiểu (sáng tạo tự do)
+
+Vào từ nút **🎨 Xưởng Tạo Kiểu** ở thẻ khách (chế độ tự do), link trên biển hiệu, hoặc `?mode=studio`.
+- **Không chấm điểm, không tính giờ:** người mẫu ngồi yên, không quay đầu, không bỏ về.
+- **Chọn người mẫu** là bất kỳ khách nào. Dùng được mọi dụng cụ và Gương Thần.
+- **Ba chế độ thao tác:**
+  - ✂ Dụng cụ: Súng Tóc 3000 bắn đúng màu đang chọn.
+  - 🖌 Cọ nhuộm: tô màu mà không làm đổi kiểu tóc.
+  - ⚡ Cạo hình: cạo theo khuôn tia sét, ngôi sao, trái tim, sọc, răng cưa, hoặc chữ tự gõ (tối đa 8 ký tự).
+- **Màu:** bảng 10 màu, chọn màu tự do, và **loang 2 màu** từ đỉnh đầu xuống đuôi tóc.
+- **Hoàn tác / Làm lại** (cả Ctrl+Z / Ctrl+Y), và nút "Tóc gốc" để làm lại từ đầu.
+- **📷 Chụp ảnh:**
+  - Tự đặt tên kiểu tóc và lời chú thích.
+  - Chọn biểu cảm, phông nền (Tiệm, Pastel, Phố đêm, Tết, Trơn), khung (Polaroid, Khung vàng, Phim) và dán sticker.
+  - Tải ảnh PNG 1080×1350, hoặc tải video quá trình tạo kiểu.
+- **📒 Sổ kiểu tóc:** lưu tối đa 40 tác phẩm trong trình duyệt, mở lại để sửa tiếp, xóa có hỏi lại.
+
 ## Cấu trúc code
 
 ```
@@ -200,9 +217,10 @@ src/game/request.ts    phiếu yêu cầu: điều kiện từng khách, tick tr
 src/game/quests.ts     nhiệm vụ trong ngày
 src/game/album.ts      Album Gương Thần
 src/game/daily.ts      thử thách hằng ngày + bảng xếp hạng trên máy
+src/game/studio.ts     Xưởng Tạo Kiểu: cọ nhuộm, cạo hình, hoàn tác, sổ kiểu tóc; photoExport.ts xuất ảnh
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
-                       MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer
+                       MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, StudioPanels, PhotoComposition
 src/audio/sfx.ts       âm thanh và nhạc nền WebAudio
 ```
 
@@ -216,4 +234,4 @@ npm run e2e                   # chơi thử tự động bằng Playwright/Chrom
 BASE_URL=http://localhost:4173/ npm run e2e   # chạy với bản build (npm run preview)
 ```
 
-Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900. Phần đồ nghề: dụng cụ bị khóa với người chơi mới, mở khóa sau một lượt, từng dụng cụ phép thuật, cả ba combo, đổi dụng cụ giữa chừng, chơi lại để reset, và thanh công cụ trên điện thoại (87 kiểm tra, gồm Gương Thần, phiếu yêu cầu, hiệu ứng, hướng dẫn, chất tóc, khách trùm, album, thử thách hằng ngày và tải video xem lại).
+Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900. Phần đồ nghề: dụng cụ bị khóa với người chơi mới, mở khóa sau một lượt, từng dụng cụ phép thuật, cả ba combo, đổi dụng cụ giữa chừng, chơi lại để reset, và thanh công cụ trên điện thoại (102 kiểm tra, gồm Xưởng Tạo Kiểu, Gương Thần, phiếu yêu cầu, hiệu ứng, hướng dẫn, chất tóc, khách trùm, album, thử thách hằng ngày và tải video xem lại).

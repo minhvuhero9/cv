@@ -4,6 +4,7 @@ import type { Vec } from '../game/geometry';
 import { RoundState, Tool, currentMood } from '../game/session';
 import { Character } from './Character';
 import { requestSheet } from '../game/request';
+import { BRUSH_RADIUS, carvingLines } from '../game/studio';
 import { FxLayer, MagicCursor } from './MagicLayer';
 import { isMagic } from '../game/gear';
 
@@ -101,6 +102,34 @@ function Phone({ s }: { s: RoundState }) {
       <text x={39} y={112} fontSize={9} textAnchor="middle" fill="#2a6" fontWeight={700}>
         ẢNH MẪU ✓
       </text>
+    </g>
+  );
+}
+
+/** Brush ring or a ghost of the stencil under the pointer (Xưởng Tạo Kiểu). */
+function StudioCursor({ s, p }: { s: RoundState; p: Vec }) {
+  const st = s.studio!;
+  if (st.mode === 'brush') {
+    return (
+      <g pointerEvents="none">
+        <circle cx={p.x} cy={p.y} r={BRUSH_RADIUS} fill={st.colorA} fillOpacity={0.25} stroke={st.colorA} strokeWidth={3} />
+        {st.blend && <circle cx={p.x} cy={p.y} r={BRUSH_RADIUS - 6} fill="none" stroke={st.colorB} strokeWidth={3} strokeDasharray="4 4" />}
+      </g>
+    );
+  }
+  const h = s.hair.head;
+  const c = { kind: st.stencil, x: p.x, y: p.y, s: st.size, r: ((p.x - h.cx) / h.rx) * 25, text: st.text.slice(0, 8).toUpperCase() };
+  if (c.kind === 'text')
+    return (
+      <text x={p.x} y={p.y + 9 * c.s} textAnchor="middle" fontSize={26 * c.s} fontWeight={900} fill="none" stroke="#ff3fa4" strokeWidth={1.5} strokeDasharray="3 2" transform={`rotate(${c.r.toFixed(1)} ${p.x} ${p.y})`} pointerEvents="none">
+        {c.text}
+      </text>
+    );
+  return (
+    <g pointerEvents="none" fill="none" stroke="#ff3fa4" strokeWidth={2.5} strokeDasharray="4 3">
+      {carvingLines(c).map((l, i) => (
+        <path key={i} d={`M${l.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join('L')}`} />
+      ))}
     </g>
   );
 }
@@ -216,7 +245,9 @@ export function Stage({ s, ghostOn, chair = 'basic', narrow, now, onDown, onMove
           </text>
         </g>
       )}
-      {cutting && s.pointer.stage && (
+      {cutting && s.pointer.stage && s.studio && s.studio.mode !== 'tool' ? (
+        <StudioCursor s={s} p={s.pointer.stage} />
+      ) : cutting && s.pointer.stage && (
         isMagic(s.tool) ? (
           <MagicCursor s={s} p={s.pointer.stage} now={now} />
         ) : (

@@ -56,6 +56,11 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] GĐ3: nhiệm vụ trong ngày, khách trùm cuối tuần nhiều bước, đồ mua hiện trong tiệm, Album Gương Thần
 - [x] GĐ4: thử thách hằng ngày + bảng xếp hạng trên máy, xem lại 5 giây + tải video, đo và giảm tải hiệu năng
 
+## 13. Sáng tạo của người chơi
+- [x] A. Xưởng Tạo Kiểu: chế độ tự do, cọ nhuộm + loang 2 màu, cạo hình theo khuôn/chữ, hoàn tác/làm lại, chụp ảnh (tên, chú thích, biểu cảm, phông, khung, sticker, PNG, video), sổ kiểu tóc
+- [ ] C. Thử thách do người chơi làm (link/QR, chấm theo vùng so với bản gốc)
+- [ ] D. Tiệm của riêng bạn (tên, màu, kéo thả đồ trang trí, tự tạo phong cách Gương Thần)
+
 ## Việc tiếp theo nếu làm tiếp
 - [ ] Cân bằng kinh tế bằng người chơi thật (hiện mới cân chỉnh bằng mô phỏng)
 - [ ] Con Dấu Phán Quyết, Pháo Hoa Tạo Kiểu

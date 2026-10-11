@@ -22,6 +22,7 @@ import { Rng, between, makeRng } from './rng';
 import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown, gearMove, gearTick, gearUp, isMagic, Fx, ComboState } from './gear';
 import { ToolId } from './tools';
 import { checkSheet, requestSheet } from './request';
+import type { StudioState } from './studio';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
 
 export type Tool = ToolId;
@@ -144,6 +145,8 @@ export interface RoundState {
   textureSaid: boolean;
   /** Multi-step request: steps already met. */
   stage: number;
+  /** Xưởng Tạo Kiểu (sandbox): palette, stencils, undo; no clock and no judging. */
+  studio?: StudioState;
   /** Frames for the 5-second replay (sampled while cutting). */
   replay: ReplayFrame[];
   nextReplayAt: number;
@@ -1150,12 +1153,27 @@ export function tick(s: RoundState, dt: number) {
   }
   if (ptr.down && local && s.tool === 'dryer') blow(s, local, dt);
   gearTick(s, dt, ptr.down && local ? local : null);
-  behaviorTick(s, dt, ptr.down && local ? local : null);
+  if (!s.studio) behaviorTick(s, dt, ptr.down && local ? local : null);
   if (ptr.down && local) {
     s.usage[s.tool] = (s.usage[s.tool] ?? 0) + dt;
     malfunction(s, local, dt);
   }
 
+  // Xưởng Tạo Kiểu: the model sits still and never runs out of patience; no events, no clock.
+  if (s.studio) {
+    s.patience = 100;
+    s.nerves = 0;
+    s.motion = null;
+    s.demand = null;
+    s.walkout = null;
+    if (s.time - s.lastIncidentAt > 5) s.incident = clamp(s.incident - 0.8 * dt, 0, 100);
+    s.ruleTimer += dt;
+    if (s.ruleTimer >= 0.25) {
+      s.ruleTimer = 0;
+      refreshMetrics(s);
+    }
+    return;
+  }
   const comfort = (hasItem(s, 'chair') ? 0.8 : 1) * (hasItem(s, 'aircon') ? 0.75 : 1);
   s.patience = clamp(s.patience - s.customer.patienceDecay * comfort * dt * (1 + chaosTier(s.chaos) * 0.35), 0, 100);
   s.nerves = clamp(s.nerves - 9 * dt, 0, 100);

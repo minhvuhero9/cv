@@ -19,7 +19,7 @@ const BODY_FRAMES = 48;
 const HOLD_FRAMES = 12;
 
 /** ~5 seconds: the round squeezed into 4 s, then a 1 s hold on the verdict. */
-export function replayShots(s: RoundState): ReplayShot[] {
+export function replayShots(s: RoundState, finalMood?: Mood): ReplayShot[] {
   const src = s.replay;
   const out: ReplayShot[] = [];
   const end = Math.max(s.time, 0.01);
@@ -29,7 +29,7 @@ export function replayShots(s: RoundState): ReplayShot[] {
       out.push({ hair: f.hair, off: f.off, mood: f.mood, at: f.t / end, final: false, transformed: f.transformed });
     }
   }
-  for (let i = 0; i < HOLD_FRAMES; i++) out.push({ hair: s.hair, off: { x: 0, y: 0 }, mood: s.result?.mood ?? 'neutral', at: 1, final: true, transformed: !!s.persona });
+  for (let i = 0; i < HOLD_FRAMES; i++) out.push({ hair: s.hair, off: { x: 0, y: 0 }, mood: finalMood ?? s.result?.mood ?? 'neutral', at: 1, final: true, transformed: !!s.persona });
   return out;
 }
 

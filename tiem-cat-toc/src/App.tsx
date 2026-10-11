@@ -6,6 +6,9 @@ import { Coach } from './components/Coach';
 import { AirCon, StageDecor, WallDecor } from './components/Decor';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
+import { Creation, brush, carve, deleteFromBook, loadBook, openCreation, pushUndo, redo, resetHair, saveToBook, studioRound, undo } from './game/studio';
+import { BookPanel, PhotoPanel, StudioPanel } from './components/StudioPanels';
+import type { Vec } from './game/geometry';
 import { DailyChallenge, dailyFor, dailyOptions, dailyScore, loadBoard, recordDaily, streak, todayKey } from './game/daily';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
 import { ResultPanel } from './components/ResultPanel';
@@ -41,12 +44,13 @@ import {
   skipMirror,
   startCutting,
   tick,
+  toLocal,
 } from './game/session';
 import { loadProgress, recordRound, saveProgress } from './game/progress';
 import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
 
-type Mode = 'career' | 'free';
-type Overlay = 'shop' | 'settings' | 'album' | null;
+type Mode = 'career' | 'free' | 'studio';
+type Overlay = 'shop' | 'settings' | 'album' | 'photo' | 'book' | null;
 
 const params = new URLSearchParams(location.search);
 /** `?unlock=all` opens the whole Bộ Đồ Nghề without earning it (for trying things out). */
@@ -58,10 +62,10 @@ const dailyDate = () => (dailyParam && /^\d{4}-\d{2}-\d{2}$/.test(dailyParam) ? 
 
 function initialMode(): Mode {
   const m = params.get('mode');
-  if (m === 'free' || m === 'career') return m;
+  if (m === 'free' || m === 'career' || m === 'studio') return m;
   try {
     const saved = localStorage.getItem('tctbo-mode');
-    if (saved === 'free' || saved === 'career') return saved;
+    if (saved === 'free' || saved === 'career' || saved === 'studio') return saved;
   } catch {
     /* ignore */
   }
@@ -137,6 +141,8 @@ export default function App() {
     current:
       mode === 'career'
         ? careerRound(careerRef.current)
+        : mode === 'studio'
+          ? studioRound('tuan')
         : dailyParam
           ? dailyRound(dailyFor(dailyDate()), progressRef.current)
           : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
@@ -280,12 +286,46 @@ export default function App() {
     }
     setOverlay(null);
     if (m === 'career') replaceRound(careerRound(c));
-    else newFreeRound('tuan');
+    else if (m === 'studio') {
+      setEditing(null);
+      replaceRound(studioRound('tuan'));
+    } else newFreeRound('tuan');
   };
+
+  /* Xưởng Tạo Kiểu */
+  const [editing, setEditing] = useState<Creation | null>(null);
+  const studio = mode === 'studio' && !!s.studio;
+  const studioDown = (p: Vec): boolean => {
+    const st = roundRef.current;
+    if (!st.studio || st.studio.mode === 'tool') return false;
+    pushUndo(st);
+    const local = toLocal(st, p);
+    if (st.studio.mode === 'brush') {
+      if (!brush(st, local)) st.studio.undo.pop();
+      brushing.current = true;
+      return true;
+    }
+    if (st.studio.mode === 'stencil') {
+      if (carve(st, local)) playSfx('bald');
+      else st.studio.undo.pop();
+      rerender();
+      return true;
+    }
+    return false;
+  };
+  const brushing = useRef(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const st = roundRef.current;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
+      if (st.studio && (e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.key === 'y' || (e.key === 'Z' && e.shiftKey)) redo(st);
+        else undo(st);
+        return;
+      }
       if (st.phase !== 'cutting') return;
       const t = TOOLS.find((d) => d.hotkey === e.key);
       if (t) setTool(st, t.id);
@@ -311,9 +351,20 @@ export default function App() {
         </div>
         {career ? (
           <CareerHud c={c} onSettings={() => setOverlay('settings')} onShop={() => setOverlay('shop')} />
+        ) : mode === 'studio' ? (
+          <div className="sign-sub">
+            Xưởng Tạo Kiểu ·{' '}
+            <button className="link-btn light" onClick={() => switchMode('free')} data-testid="studio-exit">
+              Về cắt tự do
+            </button>
+          </div>
         ) : (
           <div className="sign-sub">
             Chế độ cắt tự do ·{' '}
+            <button className="link-btn light" onClick={() => switchMode('studio')} data-testid="to-studio">
+              🎨 Xưởng Tạo Kiểu
+            </button>{' '}
+            ·{' '}
             <button className="link-btn light" onClick={() => switchMode('career')} data-testid="to-career">
               Mở tiệm thật
             </button>
@@ -334,8 +385,26 @@ export default function App() {
 
       <main className="shop">
         <aside className="side side-left">
-          <RequestCard s={s} ghost={ghostOn} onGhost={toggleGhost} />
-          <IncidentLog s={s} />
+          {studio ? (
+            <StudioPanel
+              s={s}
+              onModel={(id) => {
+                setEditing(null);
+                replaceRound(studioRound(id));
+              }}
+              onChange={rerender}
+              onUndo={() => undo(roundRef.current)}
+              onRedo={() => redo(roundRef.current)}
+              onReset={() => resetHair(roundRef.current)}
+              onPhoto={() => setOverlay('photo')}
+              onBook={() => setOverlay('book')}
+            />
+          ) : (
+            <>
+              <RequestCard s={s} ghost={ghostOn} onGhost={toggleGhost} />
+              <IncidentLog s={s} />
+            </>
+          )}
         </aside>
 
         <section className="stage-box">
@@ -349,11 +418,27 @@ export default function App() {
               now={now}
               onDown={(p) => {
                 unlockAudio();
+                if (studioDown(p)) return;
+                if (roundRef.current.studio) pushUndo(roundRef.current);
                 pointerDown(roundRef.current, p);
               }}
-              onMove={(p) => pointerMove(roundRef.current, p)}
-              onUp={() => pointerUp(roundRef.current)}
-              onLeave={() => pointerLeave(roundRef.current)}
+              onMove={(p) => {
+                const st = roundRef.current;
+                if (st.studio && brushing.current) {
+                  st.pointer.stage = p;
+                  brush(st, toLocal(st, p));
+                  return;
+                }
+                pointerMove(st, p);
+              }}
+              onUp={() => {
+                brushing.current = false;
+                pointerUp(roundRef.current);
+              }}
+              onLeave={() => {
+                brushing.current = false;
+                pointerLeave(roundRef.current);
+              }}
             />
           </div>
           {bubble && (
@@ -368,8 +453,8 @@ export default function App() {
               </div>
             ))}
           </div>
-          {s.phase === 'cutting' && <Clock s={s} />}
-          {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && (
+          {s.phase === 'cutting' && !studio && <Clock s={s} />}
+          {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && !studio && (
             <div className="viewers" data-testid="viewers">
               🔴 LIVE · {Math.round(s.viewers).toLocaleString('vi-VN')} người xem
             </div>
@@ -424,8 +509,44 @@ export default function App() {
         </aside>
       </main>
 
-      <Toolbar s={s} onTool={onTool} onFinish={onFinish} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
-      {!overlay && !mirrorOpen && <Coach s={s} />}
+      <Toolbar s={s} onTool={onTool} onFinish={studio ? () => setOverlay('photo') : onFinish} finishLabel={studio ? ['Chụp!', 'Ảnh & lưu'] : undefined} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
+      {!overlay && !mirrorOpen && !studio && <Coach s={s} />}
+      {overlay === 'photo' && studio && (
+        <PhotoPanel
+          s={s}
+          editing={editing}
+          onClose={() => setOverlay(null)}
+          onSaved={(cr) => {
+            const ok = saveToBook(cr);
+            if (ok) setEditing(cr);
+            return ok;
+          }}
+        />
+      )}
+      {overlay === 'book' && (
+        <BookPanel
+          book={loadBook()}
+          onClose={() => setOverlay(null)}
+          onOpen={(cr) => {
+            if (mode !== 'studio') {
+              setMode('studio');
+              try {
+                localStorage.setItem('tctbo-mode', 'studio');
+              } catch {
+                /* ignore */
+              }
+            }
+            setEditing(cr);
+            replaceRound(openCreation(cr));
+            setOverlay(null);
+          }}
+          onDelete={(id) => {
+            deleteFromBook(id);
+            if (editing?.id === id) setEditing(null);
+            rerender();
+          }}
+        />
+      )}
       {mirrorOpen && s.phase === 'cutting' && !s.persona && (
         <MirrorPicker
           s={s}
@@ -449,6 +570,7 @@ export default function App() {
           onPick={career ? undefined : (o) => newFreeRound(o.id)}
           daily={career ? undefined : daily}
           onDaily={career ? undefined : () => startDaily()}
+          onStudio={career ? undefined : () => switchMode('studio')}
         />
       )}
       {s.phase === 'result' && s.result && !showSummary && !overlay && (

@@ -320,8 +320,8 @@ export function SettingsPanel({
   onAudio(a: AudioSettings): void;
   onReset(): void;
   onClose(): void;
-  mode: 'career' | 'free';
-  onMode(m: 'career' | 'free'): void;
+  mode: 'career' | 'free' | 'studio';
+  onMode(m: 'career' | 'free' | 'studio'): void;
 }) {
   const [confirm, setConfirm] = useState(false);
   const slider = (key: 'master' | 'sfx' | 'music', label: string) => (
