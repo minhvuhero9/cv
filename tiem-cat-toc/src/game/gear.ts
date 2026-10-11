@@ -1,4 +1,4 @@
-import { magicLine, MagicLineKey } from './dialogue';
+import type { MagicLineKey } from './dialogue';
 import type { EventId, Mood } from './evaluate';
 import { Vec, angleDiff, clamp, dist } from './geometry';
 import { Tuft } from './hair';
@@ -196,7 +196,7 @@ function stage(s: RoundState, p: Vec): Vec {
 }
 
 function mline(s: RoundState, key: MagicLineKey) {
-  return magicLine(s.rng, key, s.customer.personality);
+  return line(s, key);
 }
 
 function moodFor(s: RoundState, loves: Mood, others: Mood): Mood {

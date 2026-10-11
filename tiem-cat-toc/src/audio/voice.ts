@@ -29,7 +29,7 @@ interface Job {
 /** Same clip is not repeated within this many ms. */
 const REPEAT_COOLDOWN = 15000;
 /** A queued line older than this is dropped (the moment has passed). */
-const STALE_MS = 2500;
+const STALE_MS = 4500;
 
 export const normalizeLine = (t: string) => t.replace(/\s+/g, ' ').trim();
 
@@ -42,6 +42,8 @@ class VoiceManager {
   private lastPlayed = new Map<string, number>();
   private broken = new Set<string>();
   private lastBubble: unknown = null;
+  private lastRound: unknown = null;
+  private lastCombos = 0;
   private volume = 1;
   private muted = false;
   private unlocked = false;
@@ -105,6 +107,25 @@ class VoiceManager {
     }
   }
 
+  /** Read-only snapshot for debugging and tests. */
+  status() {
+    const a = this.audio;
+    return {
+      loaded: this.loaded,
+      lines: this.byText.size,
+      engine: this.engine,
+      unlocked: this.unlocked,
+      muted: this.muted,
+      volume: a ? a.volume : this.volume,
+      src: a?.currentSrc ?? '',
+      paused: a ? a.paused : true,
+      currentTime: a ? a.currentTime : 0,
+      duration: a && Number.isFinite(a.duration) ? a.duration : 0,
+      played: [...this.played],
+      broken: [...this.broken],
+    };
+  }
+
   has(speaker: string, text: string) {
     return this.byText.has(`${speaker}|${normalizeLine(text)}`);
   }
@@ -118,6 +139,16 @@ class VoiceManager {
 
   /** Speak whatever the customer just said in the bubble, if we have that line recorded. */
   update(s: RoundState) {
+    // A combo just fired in this round: the announcer celebrates (after the customer's line).
+    if (s !== this.lastRound) {
+      this.lastRound = s;
+      this.lastCombos = 0;
+    }
+    const combos = Object.entries(s.events).reduce((a, [k, n]) => a + (k.startsWith('combo') ? (n ?? 0) : 0), 0);
+    if (combos > this.lastCombos) {
+      this.lastCombos = combos;
+      this.say('narrator', 'combo', 1);
+    }
     const b = s.bubble;
     if (b === this.lastBubble) return;
     this.lastBubble = b;

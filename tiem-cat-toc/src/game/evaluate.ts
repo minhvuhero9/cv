@@ -378,7 +378,7 @@ function mainDefect(f: RoundFacts): Defect {
   return 'none';
 }
 
-const DEFECT_LINES: Record<Personality, Partial<Record<Defect, string[]>>> = {
+export const DEFECT_LINES: Record<Personality, Partial<Record<Defect, string[]>>> = {
   loyal: {
     highway: ['Trong ảnh làm gì có cái đường băng nào?!'],
     bald: ['Ảnh mẫu đâu có cái lỗ này hả em?', 'Đẹp đấy. Đẹp đến mức anh không dám về nhà.'],
@@ -411,7 +411,7 @@ const DEFECT_LINES: Record<Personality, Partial<Record<Defect, string[]>>> = {
   },
 };
 
-const TIER_REACTIONS: Record<Personality, Record<ReactionTier, string[]>> = {
+export const TIER_REACTIONS: Record<Personality, Record<ReactionTier, string[]>> = {
   loyal: {
     love: ['Giống ảnh! Giống y như ảnh! Em là thiên tài!'],
     ok: ['Ừ… cũng giống ảnh. Nếu nheo mắt lại.'],
@@ -435,20 +435,31 @@ const TIER_REACTIONS: Record<Personality, Record<ReactionTier, string[]>> = {
   },
 };
 
+/** Over-the-top mirror lines of the three classic customers. */
+export const CLASSIC_SPECIAL = {
+  tuanBald: 'Thôi… để anh đổi ảnh mẫu cho khớp với tóc vậy.',
+  tuanLove: 'Giống ảnh đến mức anh tưởng mình là người trong ảnh!',
+  bayHighway: 'Chú bảo tỉa nhẹ, cháu xây đường cao tốc trên đầu chú à?',
+  bayShort: 'Tỉa nhẹ… cả phần đời còn lại của chú luôn à?',
+  bayLove: 'Được. Hai mươi năm nay mới có đứa cắt được thế này.',
+  khoaBald: 'Cô ấy sẽ hối hận… vì đã từng quen anh. Hu hu.',
+  khoaLove: 'Người yêu cũ ơi, nhìn đi! NHÌN ĐI!!',
+};
+
 function specialReaction(f: RoundFacts, sat: number): { line: string; mood: Mood } | null {
   const m = f.metrics;
   if (!f.customer.special(m, sat)) return null;
   switch (f.customer.id) {
     case 'tuan':
-      if (m.baldFrac > 0.25) return { line: 'Thôi… để anh đổi ảnh mẫu cho khớp với tóc vậy.', mood: 'shocked' };
-      return { line: 'Giống ảnh đến mức anh tưởng mình là người trong ảnh!', mood: 'ecstatic' };
+      if (m.baldFrac > 0.25) return { line: CLASSIC_SPECIAL.tuanBald, mood: 'shocked' };
+      return { line: CLASSIC_SPECIAL.tuanLove, mood: 'ecstatic' };
     case 'bay':
-      if (m.highway) return { line: 'Chú bảo tỉa nhẹ, cháu xây đường cao tốc trên đầu chú à?', mood: 'angry' };
-      if (m.avg < 0.35) return { line: 'Tỉa nhẹ… cả phần đời còn lại của chú luôn à?', mood: 'shocked' };
-      return { line: 'Được. Hai mươi năm nay mới có đứa cắt được thế này.', mood: 'happy' };
+      if (m.highway) return { line: CLASSIC_SPECIAL.bayHighway, mood: 'angry' };
+      if (m.avg < 0.35) return { line: CLASSIC_SPECIAL.bayShort, mood: 'shocked' };
+      return { line: CLASSIC_SPECIAL.bayLove, mood: 'happy' };
     case 'khoa':
-      if (m.baldFrac > 0.2) return { line: 'Cô ấy sẽ hối hận… vì đã từng quen anh. Hu hu.', mood: 'crying' };
-      return { line: 'Người yêu cũ ơi, nhìn đi! NHÌN ĐI!!', mood: 'ecstatic' };
+      if (m.baldFrac > 0.2) return { line: CLASSIC_SPECIAL.khoaBald, mood: 'crying' };
+      return { line: CLASSIC_SPECIAL.khoaLove, mood: 'ecstatic' };
     default:
       // Data-driven customers: a good result gets their special line; a disaster gets their worst mirror line.
       if (sat >= 70 && f.customer.specialLine) return f.customer.specialLine;

@@ -1,6 +1,6 @@
 import { BehaviorId, CustomerDef, CustomerId, customerById } from './customers';
 import { BEHAVIOR_RULES, behaviorTick, onMotionEnd, startle } from './behaviors';
-import { demandIgnored, demandLine, demandMet, eventLine, EventLineKey, photoLine, tierLine } from './dialogue';
+import { demandIgnored, demandLine, demandMet, eventLine, EventLineKey, fallbackLine, photoLine, tierLine } from './dialogue';
 import { EventId, EVENT_TITLES, Mood, RoundResult, evaluateRound } from './evaluate';
 import { NOSE, Vec, clamp, dist } from './geometry';
 import {
@@ -366,6 +366,8 @@ export function sayLater(s: RoundState, delay: number, text: PendingLine['text']
 export function line(s: RoundState, key: string) {
   const own = s.customer.lines?.[key];
   if (own?.length) return own[Math.floor(s.rng() * own.length) % own.length];
+  const fb = s.customer.fallback ?? 'neutral';
+  if (fb !== 'personality') return fallbackLine(s.rng, key, fb);
   return eventLine(s.rng, key as EventLineKey, s.customer.personality);
 }
 
@@ -862,7 +864,8 @@ const RULES: Rule[] = [
     check: (s) => chaosTier(s.chaos) > s.maxTierSaid,
     fire: (s) => {
       s.maxTierSaid = chaosTier(s.chaos);
-      const text = tierLine(s.rng, s.customer.personality, s.maxTierSaid);
+      const text =
+        (s.customer.fallback ?? 'neutral') === 'personality' ? tierLine(s.rng, s.customer.personality, s.maxTierSaid) : s.maxTierSaid > 0 ? line(s, `tier${s.maxTierSaid}`) : null;
       if (text && !(s.bubble && s.bubble.until > s.time + 0.5)) {
         say(s, text, s.maxTierSaid >= 3 ? 'angry' : s.maxTierSaid === 2 ? 'suspicious' : 'worried', {
           shout: s.maxTierSaid >= 3,

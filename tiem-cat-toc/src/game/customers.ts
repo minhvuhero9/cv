@@ -148,6 +148,8 @@ export interface CustomerDef {
   startTool?: ToolId;
   /** Round length override (seconds). */
   timeLimit?: number;
+  /** Which lines to use for events this customer doesn't override (default 'neutral'). */
+  fallback?: 'personality' | 'neutral' | 'dog';
 }
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -180,6 +182,7 @@ const NO_RETURN = { onDisaster: false, onLove: false };
 export const CUSTOMERS: CustomerDef[] = [
   {
     id: 'tuan',
+    fallback: 'personality',
     name: 'Anh Tuấn',
     title: 'Anh Trai Chung Thủy Với Ảnh Mẫu',
     personality: 'loyal',
@@ -229,6 +232,7 @@ export const CUSTOMERS: CustomerDef[] = [
   },
   {
     id: 'bay',
+    fallback: 'personality',
     name: 'Chú Bảy',
     title: 'Chú Khách Hàng Khó Tính',
     personality: 'picky',
@@ -278,6 +282,7 @@ export const CUSTOMERS: CustomerDef[] = [
   },
   {
     id: 'khoa',
+    fallback: 'personality',
     name: 'Khoa',
     title: 'Thanh Niên Muốn Đổi Đời',
     personality: 'dramatic',
@@ -820,6 +825,7 @@ export const CUSTOMERS: CustomerDef[] = [
   },
   {
     id: 'vang',
+    fallback: 'dog',
     name: 'Cậu Vàng',
     title: 'Khách Hàng Bốn Chân',
     personality: 'dramatic',

@@ -40,12 +40,18 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] Sự kiện ngày có nguyên nhân hiển thị (chợ phiên, cắt điện, clip viral, kiểm tra vệ sinh, báo khen, đánh giá 1 sao)
 
 ## 7. TTS miễn phí và pipeline
-- [ ] Xuất danh sách thoại từ dữ liệu, script batch tạo file, kiểm tra file, manifest, danh sách thiếu
-- [ ] Hỗ trợ engine: eSpeak NG (chạy được ở đây), Piper, KhanhTTS (cần máy có HuggingFace)
+- [x] Xuất danh sách thoại từ dữ liệu, script batch tạo file, kiểm tra file, manifest, danh sách thiếu (1109/1109 file, 0 lỗi)
+- [x] Hỗ trợ engine: eSpeak NG (đã chạy), Piper và KhanhTTS (đã viết sẵn đường chạy; cần máy truy cập được HuggingFace)
 
 ## 8. Lồng tiếng trong game
-- [ ] VoiceManager: hàng đợi, ưu tiên, chống lặp, âm lượng, tắt tiếng, xử lý file lỗi, autoplay
+- [x] VoiceManager: hàng đợi, ưu tiên, chống lặp, âm lượng, tắt tiếng, xử lý file lỗi, autoplay (đã kiểm thử trong Chromium)
 
 ## 9–10. Giao diện, cân bằng, kiểm thử toàn luồng
-- [ ] Shop, tổng kết ngày, HUD tiền/uy tín/viral, cài đặt âm lượng
-- [ ] E2E: chơi 3 ngày, lưu/tải lại, mua đồ, Cậu Vàng, thoại phát được
+- [x] Shop, tổng kết ngày, HUD tiền/uy tín/viral, cài đặt âm lượng
+- [x] E2E: chơi 3 ngày, lưu/tải lại, mua đồ, Cậu Vàng, thoại phát được (`tests/e2e-career.mjs`, 28 kiểm tra)
+
+## Việc tiếp theo nếu làm tiếp
+- [ ] Tạo lại toàn bộ giọng bằng KhanhTTS-OmniVoice hoặc Piper trên máy truy cập được HuggingFace (và đọc giấy phép từng voice)
+- [ ] Cân bằng kinh tế bằng người chơi thật (hiện mới cân chỉnh bằng mô phỏng)
+- [ ] Con Dấu Phán Quyết, Pháo Hoa Tạo Kiểu
+- [ ] Nhép miệng nhân vật theo âm thanh (hiện chỉ có viền sáng ở bong bóng thoại)

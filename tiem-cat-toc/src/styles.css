@@ -1528,3 +1528,11 @@ button {
     display: none;
   }
 }
+
+/* Overlays start below the sign: settings / shop / sound buttons stay reachable. */
+.sign {
+  z-index: 20;
+}
+.overlay {
+  top: var(--hdr, 0px);
+}

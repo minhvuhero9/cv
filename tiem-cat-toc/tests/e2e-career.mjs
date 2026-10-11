@@ -1,0 +1,231 @@
+// Sandbox playtest: several days through the real UI, shop, save/reload, voice, Cậu Vàng.
+// Usage: npm run dev, then `npm run e2e:career` (BASE_URL to override).
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const BASE = process.env.BASE_URL ?? 'http://localhost:5173/';
+const OUT = process.env.SHOTS ?? path.resolve('test-results');
+fs.mkdirSync(OUT, { recursive: true });
+const browser = await chromium.launch({ args: ['--autoplay-policy=user-gesture-required'] });
+const results = [];
+let failures = 0;
+function check(name, cond, detail = '') {
+  results.push(`${cond ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`);
+  if (!cond) failures++;
+}
+
+async function open(url, viewport = { width: 1280, height: 800 }, touch = false) {
+  const ctx = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(url);
+  return { ctx, page, errors };
+}
+
+const career = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__tctbo.career())));
+const round = (page) => page.evaluate(() => {
+  const s = window.__tctbo.state();
+  return { phase: s.phase, customer: s.customer.id, tool: s.tool, events: { ...s.events }, nerves: s.nerves, unlocked: s.unlocked };
+});
+
+async function toClient(page, x, y) {
+  return page.evaluate(([x, y]) => {
+    const svg = document.querySelector('[data-testid=stage]');
+    const pt = svg.createSVGPoint();
+    pt.x = x;
+    pt.y = y;
+    const r = pt.matrixTransform(svg.getScreenCTM());
+    return { x: r.x, y: r.y };
+  }, [x, y]);
+}
+
+/** Serve the current customer: a quick trim across the fringe, then finish. */
+async function serveOne(page) {
+  await page.waitForSelector('[data-testid=start]');
+  await page.click('[data-testid=start]');
+  await page.click('[data-testid=tool-scissors]');
+  const a = await toClient(page, 110, 232);
+  const b = await toClient(page, 290, 232);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 10 });
+  await page.mouse.up();
+  if (await page.locator('[data-testid=beg]').count()) await page.click('[data-testid=beg]');
+  if ((await round(page)).phase === 'cutting') await page.click('[data-testid=finish]');
+  await page.waitForSelector('[data-testid=mirror]');
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=next]');
+}
+
+async function playDay(page) {
+  for (let i = 0; i < 8; i++) {
+    await serveOne(page);
+    const label = await page.textContent('[data-testid=next]');
+    await page.click('[data-testid=next]');
+    if (/Đóng cửa/.test(label)) break;
+  }
+  await page.waitForSelector('[data-testid=summary]');
+}
+
+/* ---------------- 3 days, shop, persistence ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.waitForSelector('[data-testid=morning]');
+  const c0 = await career(page);
+  check('Career: day 1 starts with a planned queue', c0.day === 1 && c0.today.queue.length >= 3, `queue=${c0.today.queue.length}`);
+  await page.screenshot({ path: `${OUT}/K1-morning.png` });
+  await page.click('[data-testid=open-day]');
+  await playDay(page);
+  await page.screenshot({ path: `${OUT}/K2-summary-day1.png` });
+  const c1 = await career(page);
+  check('Career: day 1 ledger has revenue and costs', c1.lastSummary && c1.lastSummary.costs.length >= 2 && c1.lastSummary.served.length >= 3, `net=${c1.lastSummary?.net}`);
+  check('Career: reputation moved from real results', c1.rep !== 50, `rep=${c1.rep}`);
+  await page.click('[data-testid=next-day]');
+  await page.waitForSelector('[data-testid=morning]');
+  // Day 2: give the shop some money, buy a tool and check it really appears in the toolbar.
+  await page.evaluate(() => {
+    window.__tctbo.career().money += 400000;
+  });
+  await page.click('[data-testid=morning-shop]');
+  await page.click('[data-testid=buy-wand]');
+  await page.screenshot({ path: `${OUT}/K3-shop.png` });
+  await page.click('[data-testid=close-shop]');
+  const c2 = await career(page);
+  check('Shop: buying Gậy Như Ý spends money and owns it', c2.owned.includes('wand'), `money=${c2.money}`);
+  await page.click('[data-testid=open-day]');
+  await page.waitForSelector('[data-testid=start]');
+  check('Shop: the bought tool is in the toolbar and usable', (await page.getAttribute('[data-testid=tool-wand]', 'data-locked')) === 'false' && (await round(page)).unlocked.includes('wand'));
+  await playDay(page);
+  await page.click('[data-testid=next-day]');
+  await page.waitForSelector('[data-testid=morning]');
+  await page.click('[data-testid=open-day]');
+  await playDay(page);
+  const c3 = await career(page);
+  check('Career: played 3 full days', c3.stats.days >= 3 && c3.day === 3, `days=${c3.stats.days} day=${c3.day} served=${c3.stats.served}`);
+  // Reload: everything must still be there.
+  const before = await career(page);
+  await page.goto(`${BASE}?seed=4`); // a normal reload (no ?fresh)
+  await page.waitForSelector('[data-testid=summary], [data-testid=morning], [data-testid=start]');
+  const after = await career(page);
+  check('Save: day, money, rep, owned tools survive a reload', after.day === before.day && after.money === before.money && after.rep === before.rep && after.owned.includes('wand'), `day=${after.day} money=${after.money}`);
+  await page.click('[data-testid=next-day]');
+  await page.waitForSelector('[data-testid=morning]');
+  check('Career: day 4 morning after reload', (await career(page)).day === 4);
+  // Reset needs confirmation.
+  await page.click('[data-testid=open-settings]');
+  await page.click('[data-testid=reset]');
+  check('Settings: reset asks for confirmation first', (await career(page)).day === 4);
+  await page.click('[data-testid=reset-confirm]');
+  await page.waitForSelector('[data-testid=morning]');
+  const fresh = await career(page);
+  check('Settings: confirmed reset starts again at day 1', fresh.day === 1 && fresh.owned.length === 0);
+  check('Career: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+/* ---------------- Voice: real audio files play, volume and mute work ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.waitForSelector('[data-testid=open-day]');
+  const st0 = await page.evaluate(() => window.__tctbo.voice.status());
+  check('Voice: manifest loaded', st0.loaded && st0.lines > 1000, `${st0.lines} lines, engine ${st0.engine}`);
+  await page.click('[data-testid=open-day]');
+  await page.waitForFunction(() => window.__tctbo.voice.status().currentTime > 0.2, null, { timeout: 8000 });
+  const st1 = await page.evaluate(() => window.__tctbo.voice.status());
+  check('Voice: a narrator clip actually plays after the click', !st1.paused || st1.currentTime > 0.2, `${st1.src.split('/').slice(-2).join('/')} @ ${st1.currentTime.toFixed(2)}s/${st1.duration.toFixed(2)}s`);
+  await page.waitForFunction(() => window.__tctbo.voice.status().played.length >= 2, null, { timeout: 10000 });
+  const st2 = await page.evaluate(() => window.__tctbo.voice.status());
+  const cust = (await round(page)).customer;
+  check('Voice: then the customer’s own line plays (correct speaker)', st2.src.includes(`/voice/${cust}/`), st2.src.split('/').slice(-2).join('/'));
+  // The file served is a real MP3.
+  const res = await page.request.get(st2.src);
+  const body = await res.body();
+  check('Voice: the file is a real MP3', res.ok() && (body.subarray(0, 3).toString() === 'ID3' || (body[0] === 0xff && (body[1] & 0xe0) === 0xe0)), `${body.length} bytes`);
+  // Volume and mute from settings.
+  await page.click('[data-testid=open-settings]');
+  await page.locator('[data-testid=vol-voice]').fill('0.3');
+  const vol = await page.evaluate(() => window.__tctbo.voice.status().volume);
+  check('Voice: volume slider changes voice volume', Math.abs(vol - 0.3) < 0.01, `${vol}`);
+  await page.check('[data-testid=mute]');
+  const muted = await page.evaluate(() => window.__tctbo.voice.status());
+  check('Voice: mute stops and silences voice', muted.muted && muted.paused);
+  await page.goto(`${BASE}?seed=4`);
+  await page.waitForSelector('[data-testid=start], [data-testid=morning]');
+  const persisted = await page.evaluate(() => window.__tctbo.voice.status());
+  check('Voice: audio settings persist after reload', persisted.muted && Math.abs(persisted.volume - 0.3) < 0.01);
+  check('Voice: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+/* ---------------- Voice: a missing file does not break the game ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?mode=free&seed=4`);
+  await page.route('**/voice/narrator/**', (r) => r.fulfill({ status: 404, body: 'nope' }));
+  await page.route('**/voice/tuan/**', (r) => r.fulfill({ status: 404, body: 'nope' }));
+  await page.click('[data-testid=start]');
+  await page.waitForTimeout(1500);
+  await page.click('[data-testid=finish]');
+  await page.waitForSelector('[data-testid=mirror]');
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=result]');
+  const st = await page.evaluate(() => window.__tctbo.voice.status());
+  check('Voice: missing files are skipped, the round still finishes', st.broken.length >= 1, `broken=${st.broken.length}`);
+  check('Voice: no page errors with missing files', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+/* ---------------- Cậu Vàng in the browser ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?mode=free&seed=4`);
+  await page.click('[data-testid=pick-vang]');
+  await page.click('[data-testid=start]');
+  await page.screenshot({ path: `${OUT}/V1-vang.png` });
+  await page.click('[data-testid=tool-clipper]');
+  const p = await toClient(page, 200, 335);
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  await page.waitForFunction(() => (window.__tctbo.state().events.dogShake ?? 0) >= 1, null, { timeout: 15000 }).catch(() => {});
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/V2-vang-shake.png` });
+  const r = await round(page);
+  check('Cậu Vàng: a buzzing clipper makes him shake fur everywhere', (r.events.dogShake ?? 0) >= 1, JSON.stringify(r.events));
+  await page.click('[data-testid=tool-dryer]');
+  const before = (await round(page)).nerves;
+  const d = await toClient(page, 200, 140);
+  await page.mouse.move(d.x, d.y);
+  await page.mouse.down();
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
+  const after = (await round(page)).nerves;
+  check('Cậu Vàng: the dryer calms him down', after < before, `${before.toFixed(0)} -> ${after.toFixed(0)}`);
+  await page.screenshot({ path: `${OUT}/V3-vang-dryer.png` });
+  check('Cậu Vàng: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+/* ---------------- Phone layout of the career panels ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`, { width: 390, height: 844 }, true);
+  await page.waitForSelector('[data-testid=morning]');
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  check('Phone: morning panel fits', !(await overflow()));
+  await page.screenshot({ path: `${OUT}/P1-phone-morning.png` });
+  await page.tap('[data-testid=morning-shop]');
+  check('Phone: shop fits', !(await overflow()));
+  await page.screenshot({ path: `${OUT}/P2-phone-shop.png` });
+  await page.tap('[data-testid=close-shop]');
+  await page.tap('[data-testid=open-day]');
+  await serveOne(page);
+  check('Phone: result panel fits', !(await overflow()));
+  check('Phone: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+await browser.close();
+console.log(results.join('\n'));
+console.log(`\n${results.length - failures}/${results.length} checks passed. Screenshots: ${OUT}`);
+process.exit(failures ? 1 : 0);

@@ -109,6 +109,16 @@ export default function App() {
   const c = careerRef.current;
   const rerender = () => setFrame((f) => f + 1);
 
+  // Overlays sit below the sign so its buttons (settings, shop, sound) stay usable.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--hdr', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 520px)');
     const on = () => setNarrow(mq.matches);
@@ -161,6 +171,8 @@ export default function App() {
     saveProgress(next);
     progressRef.current = next;
     setProgress(next);
+    if (s.result.walkedOut) voice.say('narrator', 'walkout', 1);
+    else if (s.result.tip > 0) voice.say('narrator', 'tip', 1);
     if (mode === 'career') {
       setServed(applyRound(c, s));
       setNewTools([]);
@@ -236,7 +248,7 @@ export default function App() {
 
   return (
     <div className={`app customer-${s.customer.id} phase-${s.phase} mode-${mode}`}>
-      <header className="sign">
+      <header className="sign" ref={headerRef}>
         <div className="sign-board">
           <span className="sign-pole" aria-hidden />
           <h1>TIỆM CẮT TÓC BẤT ỔN</h1>
@@ -358,6 +370,7 @@ export default function App() {
             voice.unlock();
             startCutting(roundRef.current);
             if (career && c.today.phase === 'morning') c.today.phase = 'open';
+            if (career && q?.reason === 'return') voice.say('narrator', 'returnCustomer', 2);
           }}
           onPick={career ? undefined : (o) => newFreeRound(o.id)}
         />
@@ -381,7 +394,8 @@ export default function App() {
             c.today.phase = 'open';
             saveCareer(c);
             replaceRound(careerRound(c));
-            voice.say('narrator', 'openDay');
+            const ev = c.today.events.map((e) => e.id);
+            voice.say('narrator', ev.includes('viralClip') ? 'viralClip' : ev.includes('powerCut') ? 'powerCut' : 'openDay', 2);
           }}
           onShop={() => setOverlay('shop')}
           onFree={() => switchMode('free')}
@@ -407,6 +421,7 @@ export default function App() {
             if (r.ok) {
               saveCareer(c);
               playSfx('cash');
+              voice.say('narrator', 'purchase', 1);
               // New tools are usable from the next customer on.
               if (s.phase === 'intro') replaceRound(careerRound(c));
               rerender();
