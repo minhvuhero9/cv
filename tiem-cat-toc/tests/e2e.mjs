@@ -466,6 +466,96 @@ async function finishAndWait(page) {
   await ctx.close();
 }
 
+/* ---------------- Update: request sheet, juice, coach, textures, bosses, album, daily, replay ---------------- */
+{
+  const { page, ctx, errors } = await newGame();
+  // Coach shows for a first-time player and can be skipped.
+  await page.evaluate(() => localStorage.removeItem('tctbo-coach'));
+  await page.reload();
+  await start(page, 'bay');
+  check('Coach: first-time guide appears while cutting', (await page.locator('[data-testid=coach]').count()) === 1);
+  await page.click('[data-testid=coach-skip]');
+  check('Coach: "Bỏ qua" hides it for good', (await page.locator('[data-testid=coach]').count()) === 0 && (await page.evaluate(() => localStorage.getItem('tctbo-coach'))) === '4');
+  // Request sheet: reference picture, checklist, outline toggle.
+  check('Phiếu yêu cầu: reference picture and checklist', (await page.locator('[data-testid=ref-pic]').count()) === 1 && (await page.locator('[data-testid=req-list] li').count()) >= 3);
+  const ghostBefore = await page.locator('[data-testid=stage] path[stroke-dasharray="7 6"]').count();
+  await page.click('[data-testid=ghost-toggle]');
+  const ghostAfter = await page.locator('[data-testid=stage] path[stroke-dasharray="7 6"]').count();
+  check('Phiếu yêu cầu: the green outline toggles', ghostBefore === 1 && ghostAfter === 0, `${ghostBefore} -> ${ghostAfter}`);
+  await page.click('[data-testid=ghost-toggle]');
+  // Disaster moment: clipper held still -> banner + screen shake.
+  await page.click('[data-testid=tool-clipper]');
+  const p = await toClient(page, 200, 175);
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  await page.waitForFunction(() => (window.__tctbo.state().events.baldPatch ?? 0) >= 1, null, { timeout: 8000 });
+  const juice = await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    return { banner: s.fx.some((f) => f.kind === 'banner'), shake: s.shakeUntil > s.time, slow: s.slowUntil > 0 };
+  });
+  await page.mouse.up();
+  check('Hiệu ứng: shaving shows a banner, shakes and slows down', juice.banner && juice.shake && juice.slow, JSON.stringify(juice));
+  await page.screenshot({ path: `${OUT}/U1-banner.png` });
+  const end = await finishAndWait(page);
+  check('Kết quả: zone report with per-zone bars', (await page.locator('[data-testid=zone-report]').count()) === 1 && (await page.locator('[data-testid^=zone-]').count()) >= 5, end.result.style.name);
+  // Replay: plays, and downloads a real video file.
+  await page.click('[data-testid=replay-play]');
+  await page.waitForTimeout(600);
+  const frames = await page.evaluate(() => window.__tctbo.state().replay.length);
+  check('Replay: frames were recorded during the round', frames >= 5, `frames=${frames}`);
+  if (await page.locator('[data-testid=replay-save]').count()) {
+    const dl = page.waitForEvent('download', { timeout: 30000 });
+    await page.click('[data-testid=replay-save]');
+    const d = await dl;
+    const size = (await fs.promises.stat(await d.path())).size;
+    check('Replay: "Tải video" downloads a video', /\.(webm|mp4)$/.test(d.suggestedFilename()) && size > 10000, `${d.suggestedFilename()} ${size}B`);
+  } else check('Replay: "Tải video" downloads a video', false, 'no MediaRecorder');
+  await page.screenshot({ path: `${OUT}/U2-result.png` });
+  check('Update A: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+{
+  const { page, ctx, errors } = await newGame();
+  await page.evaluate(() => localStorage.setItem('tctbo-coach', '4'));
+  // Hair textures and starting cuts.
+  const tex = {};
+  for (const id of ['na', 'cutu', 'vosu', 'shipper']) {
+    await page.click(`[data-testid=pick-${id}]`);
+    tex[id] = await page.evaluate(() => window.__tctbo.state().hair.texture);
+  }
+  check('Chất tóc: curly / thin / wiry customers', tex.na === 'curly' && tex.cutu === 'thin' && tex.vosu === 'wiry' && tex.shipper === 'straight', JSON.stringify(tex));
+  // Boss: one step at a time.
+  await start(page, 'thanhtra');
+  const rows = await page.locator('[data-testid=req-list] li').allTextContents();
+  check('Khách trùm: steps are revealed one at a time', rows.filter((r) => r.includes('???')).length === 2, rows.join(' / '));
+  await page.screenshot({ path: `${OUT}/U3-boss.png` });
+  // Album after a transformation.
+  await page.click('[data-testid=guong-than]');
+  await page.click('[data-testid=persona-daigia]');
+  await finishAndWait(page);
+  await page.click('[data-testid=open-album]');
+  await page.waitForSelector('[data-testid=album]');
+  const count = Number(await page.textContent('[data-testid=album-count]'));
+  check('Album Gương Thần: the transformation is collected', count >= 1 && (await page.locator('[data-cell="thanhtra:daigia"]').textContent()).includes('%'), `count=${count}`);
+  await page.screenshot({ path: `${OUT}/U4-album.png` });
+  await page.click('[data-testid=close-album]');
+  // Daily challenge.
+  await page.click('[data-testid=next]');
+  await page.click('[data-testid=daily]');
+  await page.waitForSelector('[data-testid=daily-banner]');
+  const d1 = await page.evaluate(() => ({ c: window.__tctbo.state().customer.id, seed: window.__tctbo.state().seed }));
+  await page.click('[data-testid=start]');
+  await finishAndWait(page);
+  await page.waitForSelector('[data-testid=daily-result]');
+  check('Thử thách hằng ngày: a score lands on the local board', Number(await page.textContent('[data-testid=daily-score]')) >= 0 && (await page.locator('[data-testid=daily-result] li').count()) >= 1);
+  await page.goto(`${BASE}?mode=free&daily=1`);
+  await page.waitForSelector('[data-testid=daily-banner]');
+  const d2 = await page.evaluate(() => ({ c: window.__tctbo.state().customer.id, seed: window.__tctbo.state().seed }));
+  check('Thử thách hằng ngày: same customer and seed for the whole day', d1.c === d2.c && d1.seed === d2.seed, `${JSON.stringify(d1)} ${JSON.stringify(d2)}`);
+  check('Update B: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 /* ---------------- Responsive / touch ---------------- */
 for (const vp of [
   { width: 390, height: 844, name: 'phone' },

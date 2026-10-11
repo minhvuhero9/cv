@@ -21,6 +21,7 @@ import { HairMetrics, LEAN_RUNAWAY, localLean, measureHair } from './metrics';
 import { Rng, between, makeRng } from './rng';
 import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown, gearMove, gearTick, gearUp, isMagic, Fx, ComboState } from './gear';
 import { ToolId } from './tools';
+import { checkSheet, requestSheet } from './request';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
 
 export type Tool = ToolId;
@@ -49,7 +50,8 @@ export type Sfx =
   | 'chop'
   | 'bark'
   | 'whimper'
-  | 'cash';
+  | 'cash'
+  | 'good';
 export type EndReason = 'done' | 'timeout' | 'walkout';
 
 export const TIME_LIMIT = 75;
@@ -131,6 +133,20 @@ export interface RoundState {
   persona: PersonaId | null;
   wantPersona: PersonaId | null;
   mirrorReady: boolean;
+  /** The request as said (placeholders filled in). */
+  requestText: string;
+  /* presentation (juice): screen shake, slow motion, request lines already praised */
+  shakeUntil: number;
+  shakeAmp: number;
+  slowUntil: number;
+  praised: string[];
+  /** Said the hair-texture line already. */
+  textureSaid: boolean;
+  /** Multi-step request: steps already met. */
+  stage: number;
+  /** Frames for the 5-second replay (sampled while cutting). */
+  replay: ReplayFrame[];
+  nextReplayAt: number;
   seed: number;
   rng: Rng;
   hair: HairState;
@@ -237,6 +253,26 @@ export interface RoundState {
   malfunctionT: number;
 }
 
+export interface ReplayFrame {
+  t: number;
+  hair: HairState;
+  off: Vec;
+  mood: Mood;
+  /** Taken after the Gương Thần (draw with the persona look). */
+  transformed: boolean;
+}
+
+const REPLAY_STEP = 0.25;
+const REPLAY_MAX = 320;
+
+/** Samples the head for the replay; keeps an even spread when the round runs long. */
+function recordReplay(s: RoundState) {
+  if (s.time < s.nextReplayAt) return;
+  s.replay.push({ t: s.time, hair: cloneHair(s.hair), off: { ...s.headOffset }, mood: currentMood(s), transformed: !!s.persona });
+  s.nextReplayAt = s.time + REPLAY_STEP * (s.replay.length > REPLAY_MAX / 2 ? 2 : 1);
+  if (s.replay.length > REPLAY_MAX) s.replay = s.replay.filter((_, i) => i % 2 === 0);
+}
+
 export interface RoundContext {
   /** Owned upgrades / consumables that change the round. */
   items: string[];
@@ -261,6 +297,10 @@ export interface RoundOptions {
   unlocked?: ToolId[];
   /** Gương Thần Biến Hình available (free mode, or bought in career). */
   mirror?: boolean;
+  /** Restrict the toolbar to exactly these tools (daily challenge rules). */
+  onlyTools?: ToolId[];
+  /** Round length override (daily challenge). */
+  timeLimit?: number;
   ctx?: Partial<RoundContext>;
 }
 
@@ -271,13 +311,22 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
   const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };
   const rng = makeRng(seed);
   const wantPersona = customer.behaviors.includes('transform') ? (ctx.wantPersona ?? PERSONA_IDS[Math.floor(rng() * PERSONA_IDS.length) % PERSONA_IDS.length]) : null;
-  const request = customer.request.replace('{persona}', personaById(wantPersona)?.name ?? 'người khác');
+  const request = customer.stages?.length ? customer.stages[0].say : customer.request.replace('{persona}', personaById(wantPersona)?.name ?? 'người khác');
   return {
     customer,
     baseCustomer: customer,
     persona: null,
     wantPersona,
     mirrorReady: (opts.mirror ?? false) || ctx.items.includes('mirror'),
+    requestText: request,
+    shakeUntil: 0,
+    shakeAmp: 0,
+    slowUntil: 0,
+    praised: [],
+    textureSaid: false,
+    stage: 0,
+    replay: [],
+    nextReplayAt: 0,
     seed,
     rng,
     hair,
@@ -286,7 +335,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     metrics,
     phase: 'intro',
     time: 0,
-    tool: customer.startTool && [...BASIC_TOOLS, ...(opts.unlocked ?? [])].includes(customer.startTool) ? customer.startTool : 'scissors',
+    tool: opts.onlyTools ? (opts.onlyTools.includes('scissors') ? 'scissors' : opts.onlyTools[0]) : customer.startTool && [...BASIC_TOOLS, ...(opts.unlocked ?? [])].includes(customer.startTool) ? customer.startTool : 'scissors',
     pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0, magicUsed: false },
     headOffset: { x: 0, y: 0 },
     motion: null,
@@ -304,7 +353,10 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     toasts: [],
     toastSeq: 0,
     bubble: { text: request, until: 4, shout: false },
-    pending: [{ at: 1.6, text: customer.catch }],
+    pending: [
+      { at: 1.6, text: customer.catch },
+      ...(hair.texture === 'curly' || hair.texture === 'thin' ? [{ at: 4.2, text: TEXTURE_LINES[hair.texture] }] : []),
+    ],
     moodOverride: null,
     zoneStrokes: { left: 0, right: 0, top: 0, fringe: 0 },
     fixLoopZones: new Set(),
@@ -329,7 +381,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     result: null,
     flashUntil: 0,
     sfx: [],
-    unlocked: [...new Set([...BASIC_TOOLS, ...(opts.unlocked ?? [])])],
+    unlocked: opts.onlyTools ? [...new Set(opts.onlyTools)] : [...new Set([...BASIC_TOOLS, ...(opts.unlocked ?? [])])],
     gear: createGear(),
     magic: createMagic(),
     combos: {},
@@ -338,7 +390,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     toolsUsed: [],
     deniedAt: -99,
     toolReacted: {},
-    timeLimit: customer.timeLimit ?? TIME_LIMIT,
+    timeLimit: opts.timeLimit ?? customer.timeLimit ?? TIME_LIMIT,
     drowsy: 0,
     nextBehaviorAt: 6,
     viewers: 120,
@@ -368,6 +420,48 @@ export function consume(s: RoundState, id: string): boolean {
   return true;
 }
 
+export const TEXTURE_LINES = {
+  wiry: 'Tóc cứng như rễ tre đấy, cắt mấy lượt mới đứt!',
+  curly: 'Tóc xoăn đấy nhé, sấy là xù như tổ quạ!',
+  thin: 'Tóc mỏng lắm, cầm tông đơ nhẹ tay thôi…',
+};
+
+/** Multi-step request (weekly bosses): when the current step is met, the next one is revealed. */
+function advanceStage(s: RoundState) {
+  const st = s.customer.stages;
+  if (!st || s.stage >= st.length) return;
+  if (!st[s.stage].check(s.metrics, s)) return;
+  s.stage++;
+  s.sfx.push('good');
+  s.patience = clamp(s.patience + 8, 0, 100);
+  const h = s.hair.head;
+  s.fx.push({ id: s.fxSeq++, kind: 'praise', x: h.cx, y: h.cy - h.ry - 10, t0: s.time, dur: 1.4, text: `Xong bước ${s.stage}/${st.length}!` });
+  if (s.stage < st.length) sayLater(s, 0.9, st[s.stage].say, 'suspicious');
+  else sayLater(s, 0.6, 'Được rồi đấy! Soi gương thôi.', 'happy');
+}
+
+const GUARDS = new Set(['noBald', 'noNewBald', 'noBaldTeo', 'noDye', 'plain', 'keep', 'calm', 'fast']);
+
+/** A request line just turned green: a small "Chuẩn!" with a sparkle and a happy ding. */
+function praise(s: RoundState) {
+  const rows = checkSheet(requestSheet(s), s);
+  const h = s.hair.head;
+  let n = 0;
+  for (const r of rows) {
+    // Guard lines ("don't…") start out true: only achievements get a cheer.
+    if (r.ok !== true || s.praised.includes(r.id) || GUARDS.has(r.id) || r.id.startsWith('stage')) continue;
+    s.praised.push(r.id);
+    const at = r.id === 'left' ? { x: h.cx - h.rx * 0.8, y: h.cy - 10 } : r.id === 'right' ? { x: h.cx + h.rx * 0.8, y: h.cy - 10 } : r.id === 'fringe' ? { x: h.cx, y: h.cy - 40 } : { x: h.cx, y: h.cy - h.ry * 0.9 };
+    s.fx.push({ id: s.fxSeq++, kind: 'praise', x: at.x + s.headOffset.x, y: at.y + s.headOffset.y - n * 26, t0: s.time, dur: 1.2, text: r.id === 'sides' ? 'Hai bên chuẩn!' : 'Chuẩn!' });
+    s.fx.push({ id: s.fxSeq++, kind: 'sparkle', x: at.x + s.headOffset.x, y: at.y + s.headOffset.y, t0: s.time, dur: 0.6, color: '#7dffb0' });
+    n++;
+  }
+  if (n) {
+    s.sfx.push('good');
+    s.patience = clamp(s.patience + 2 * n, 0, 100);
+  }
+}
+
 /* ------------------------------------------------------------------ helpers */
 
 export function say(s: RoundState, text: string, mood?: Mood, opts: { dur?: number; shout?: boolean } = {}) {
@@ -393,6 +487,12 @@ export function has(s: RoundState, b: BehaviorId) {
   return s.customer.behaviors.includes(b);
 }
 
+/** Screen shake (drawn by the Stage; no effect on the simulation). */
+export function shake(s: RoundState, amp: number, dur: number) {
+  s.shakeAmp = Math.max(amp, s.time < s.shakeUntil ? s.shakeAmp : 0);
+  s.shakeUntil = Math.max(s.shakeUntil, s.time + dur);
+}
+
 /** Records an incident: adds to the event log, chaos, and shows a toast. */
 export function incident(s: RoundState, id: EventId, chaos: number, toast = true) {
   if (hasItem(s, 'plant')) chaos *= 0.85;
@@ -403,6 +503,7 @@ export function incident(s: RoundState, id: EventId, chaos: number, toast = true
   // Livestream: every incident is content. VIP: every incident is an insult.
   if (has(s, 'livestream')) s.viewers += 40 + chaos * 15 + (id.startsWith('combo') ? 400 : 0);
   if (has(s, 'vip')) s.patience = clamp(s.patience - chaos * 0.6, 0, 100);
+  if (chaos >= 10) shake(s, Math.min(9, 3 + chaos / 3), 0.35);
   if (toast) {
     s.toasts.push({ id: s.toastSeq++, title: EVENT_TITLES[id], until: s.time + 2.4 });
     if (s.toasts.length > 3) s.toasts.shift();
@@ -507,6 +608,11 @@ export function pointerMove(s: RoundState, p: Vec) {
   } else if (s.tool === 'scissors') {
     const r = scissorsSweep(s.hair, prev, local, ptr.stroke);
     if (r.cut.length) s.sfx.push('snip');
+    if (r.cut.length && s.hair.texture === 'wiry' && !s.textureSaid) {
+      s.textureSaid = true;
+      s.sfx.push('boing');
+      say(s, TEXTURE_LINES.wiry, 'suspicious');
+    }
     handleCut(s, r);
   } else if (s.tool === 'clipper') {
     handleCut(s, clipperSweep(s.hair, prev, local, ptr.stroke));
@@ -562,6 +668,10 @@ function onBald(s: RoundState) {
   }
   if (!s.events.baldPatch) {
     incident(s, 'baldPatch', 14);
+    // The disaster moment: slow motion + a big banner.
+    s.slowUntil = s.time + 0.2;
+    shake(s, 9, 0.5);
+    s.fx.push({ id: s.fxSeq++, kind: 'banner', x: 200, y: 330, t0: s.time, dur: 1.6, text: 'TOANG RỒI!' });
     s.sfx.push('bald');
     s.patience = clamp(s.patience - 12, 0, 100);
     // Comedic beat: a short silence before the customer notices.
@@ -632,6 +742,9 @@ function endStroke(s: RoundState) {
       }
     }
   }
+
+  praise(s);
+  advanceStage(s);
 
   // Phút chót toang: it was nearly done, then one more stroke.
   const sat = c.satisfaction(s.metrics);
@@ -748,6 +861,7 @@ export function finish(s: RoundState, reason: EndReason) {
       viewers: s.viewers,
       wantStyle: s.wantStyle,
       payBonus: s.ctx.payMultiplier ?? 1,
+      stagesDone: s.stage,
     },
     s.rng,
   );
@@ -1023,11 +1137,14 @@ export function tick(s: RoundState, dt: number) {
   flushPending(s);
   updateMotion(s, dt);
   strayCut(s);
+  recordReplay(s);
 
   const ptr = s.pointer;
   const local = ptr.stage ? toLocal(s, ptr.stage) : null;
   if (ptr.down && local && s.tool === 'clipper') {
-    handleCut(s, clipperDwell(s.hair, local, dt, ptr.stroke, hasItem(s, 'japanClipper') ? 0.85 : BALD_DWELL));
+    // Thin hair goes bald much faster under a resting clipper.
+    const thin = s.hair.texture === 'thin' ? 0.6 : 1;
+    handleCut(s, clipperDwell(s.hair, local, dt, ptr.stroke, (hasItem(s, 'japanClipper') ? 0.85 : BALD_DWELL) * thin));
   } else {
     decayDwell(s.hair, dt);
   }

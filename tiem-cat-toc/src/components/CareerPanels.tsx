@@ -4,6 +4,37 @@ import { customerById } from '../game/customers';
 import { CATEGORY_LABEL, MACHINES, SHOP, ShopCategory } from '../game/shop';
 import { TOOLS } from '../game/tools';
 import { ToolIcon } from './ToolIcons';
+import type { Quest } from '../game/quests';
+
+/** Today's goals with progress and rewards. */
+export function QuestList({ quests, compact = false }: { quests: Quest[]; compact?: boolean }) {
+  if (!quests.length) return null;
+  return (
+    <ul className={`quest-list ${compact ? 'compact' : ''}`} data-testid="quests">
+      {quests.map((q) => (
+        <li key={q.id} className={q.done ? 'done' : q.failed ? 'failed' : ''} data-quest={q.id}>
+          <span className="quest-mark">{q.done ? '✓' : q.failed ? '✗' : '○'}</span>
+          <span className="quest-label">
+            {q.label}
+            {!compact && q.goal > 1 && !q.done && !q.failed && q.id !== 'earn' && (
+              <small>
+                {' '}
+                ({q.progress}/{q.goal})
+              </small>
+            )}
+          </span>
+          {!compact && (
+            <span className="quest-reward">
+              +{vnd(q.reward.money)}
+              {q.reward.rep ? ` ⭐+${q.reward.rep}` : ''}
+              {q.reward.viral ? ` 🔥+${q.reward.viral}` : ''}
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** Day / money / reputation / viral chips under the sign. */
 export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSettings(): void; onShop(): void }) {
@@ -21,6 +52,11 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
       <span className="chip-stat viral" title="Viral: độ nổi tiếng trên mạng" data-testid="hud-viral" data-value={Math.round(c.viral)}>
         🔥 Viral <b>{Math.round(c.viral)}</b>
       </span>
+      {(c.today.quests?.length ?? 0) > 0 && (
+        <span className="chip-stat" title={(c.today.quests ?? []).map((q) => `${q.done ? '✓' : q.failed ? '✗' : '○'} ${q.label}`).join('\n')} data-testid="hud-quests">
+          🎯 <b>{c.today.quests!.filter((q) => q.done).length}</b>/{c.today.quests!.length}
+        </span>
+      )}
       <span className="chip-stat queue">
         Khách {Math.min(c.today.index + 1, c.today.queue.length)}/{c.today.queue.length}
       </span>
@@ -34,7 +70,7 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
   );
 }
 
-const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP' } as const;
+const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần' } as const;
 
 /** Morning: what happens today (with causes) and who is coming. */
 export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void }) {
@@ -57,6 +93,12 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
                 <div className="event-effect">→ {e.effect}</div>
               </div>
             ))}
+          </div>
+        )}
+        {(c.today.quests?.length ?? 0) > 0 && (
+          <div className="quest-box">
+            <div className="intro-label">Nhiệm vụ hôm nay</div>
+            <QuestList quests={c.today.quests!} />
           </div>
         )}
         <div className="queue-list" data-testid="queue">
@@ -111,6 +153,12 @@ export function SummaryPanel({ c, sum, onShop, onNext }: { c: CareerState; sum: 
             ))}
           </tbody>
         </table>
+        {sum.quests && sum.quests.length > 0 && (
+          <div className="quest-box">
+            <div className="intro-label">Nhiệm vụ</div>
+            <QuestList quests={sum.quests} />
+          </div>
+        )}
         <dl className="ledger" data-testid="ledger">
           <div>
             <dt>Tiền công</dt>
@@ -120,6 +168,12 @@ export function SummaryPanel({ c, sum, onShop, onNext }: { c: CareerState; sum: 
             <dt>Tiền boa</dt>
             <dd className="up">+{vnd(sum.tips)}</dd>
           </div>
+          {(sum.questMoney ?? 0) > 0 && (
+            <div>
+              <dt>Thưởng nhiệm vụ</dt>
+              <dd className="up">+{vnd(sum.questMoney!)}</dd>
+            </div>
+          )}
           {sum.costs.map((x) => (
             <div key={x.label}>
               <dt>{x.label}</dt>
@@ -248,6 +302,8 @@ export function ShopPanel({ c, onBuy, onRepair, onClose }: { c: CareerState; onB
 export interface AudioSettings {
   master: number;
   sfx: number;
+  /** Background music (older saves don't have it). */
+  music?: number;
   muted: boolean;
 }
 
@@ -268,12 +324,12 @@ export function SettingsPanel({
   onMode(m: 'career' | 'free'): void;
 }) {
   const [confirm, setConfirm] = useState(false);
-  const slider = (key: 'master' | 'sfx', label: string) => (
+  const slider = (key: 'master' | 'sfx' | 'music', label: string) => (
     <label className="slider">
       <span>
-        {label} <b>{Math.round(audio[key] * 100)}%</b>
+        {label} <b>{Math.round((audio[key] ?? 0.5) * 100)}%</b>
       </span>
-      <input type="range" min={0} max={1} step={0.05} value={audio[key]} onChange={(e) => onAudio({ ...audio, [key]: Number(e.target.value) })} data-testid={`vol-${key}`} />
+      <input type="range" min={0} max={1} step={0.05} value={audio[key] ?? 0.5} onChange={(e) => onAudio({ ...audio, [key]: Number(e.target.value) })} data-testid={`vol-${key}`} />
     </label>
   );
   return (
@@ -287,6 +343,7 @@ export function SettingsPanel({
         </div>
         {slider('master', 'Âm lượng tổng')}
         {slider('sfx', 'Hiệu ứng')}
+        {slider('music', 'Nhạc nền')}
         <label className="check">
           <input type="checkbox" checked={audio.muted} onChange={(e) => onAudio({ ...audio, muted: e.target.checked })} data-testid="mute" /> Tắt toàn bộ âm thanh
         </label>

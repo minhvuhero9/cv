@@ -105,7 +105,7 @@ export const COMBOS: ComboDef[] = [
   },
 ];
 
-export type FxKind = 'beam' | 'ring' | 'sparkle' | 'gust' | 'steam' | 'pot' | 'suck' | 'combo' | 'overheat';
+export type FxKind = 'beam' | 'ring' | 'sparkle' | 'gust' | 'steam' | 'pot' | 'suck' | 'combo' | 'overheat' | 'praise' | 'banner';
 export interface Fx {
   id: number;
   kind: FxKind;

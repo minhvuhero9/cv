@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { playSfx, setMuted, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
+import { playSfx, setMuted, setMusicState, setMusicVolume, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
 import { AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
 import { MirrorButton, MirrorPicker } from './components/MirrorPicker';
+import { Coach } from './components/Coach';
+import { AirCon, StageDecor, WallDecor } from './components/Decor';
+import { AlbumPanel } from './components/AlbumPanel';
+import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
+import { DailyChallenge, dailyFor, dailyOptions, dailyScore, loadBoard, recordDaily, streak, todayKey } from './game/daily';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
 import { ResultPanel } from './components/ResultPanel';
 import { Stage } from './components/Stage';
@@ -41,12 +46,15 @@ import { loadProgress, recordRound, saveProgress } from './game/progress';
 import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
 
 type Mode = 'career' | 'free';
-type Overlay = 'shop' | 'settings' | null;
+type Overlay = 'shop' | 'settings' | 'album' | null;
 
 const params = new URLSearchParams(location.search);
 /** `?unlock=all` opens the whole Bộ Đồ Nghề without earning it (for trying things out). */
 const unlockAll = params.get('unlock') === 'all';
 const seedParam = params.get('seed') ? Number(params.get('seed')) || undefined : undefined;
+/** `?daily=1` (today) or `?daily=YYYY-MM-DD` opens the daily challenge. */
+const dailyParam = params.get('daily');
+const dailyDate = () => (dailyParam && /^\d{4}-\d{2}-\d{2}$/.test(dailyParam) ? dailyParam : todayKey());
 
 function initialMode(): Mode {
   const m = params.get('mode');
@@ -67,7 +75,7 @@ function loadAudio(): AudioSettings {
   } catch {
     /* ignore */
   }
-  return { master: 1, sfx: 0.8, muted: false };
+  return { master: 1, sfx: 0.8, music: 0.5, muted: false };
 }
 
 function freeTools(p: Progress): ToolId[] {
@@ -86,6 +94,10 @@ function careerRound(c: CareerState): RoundState {
   return createRound(q?.customer ?? 'tuan', seedParam ?? (c.day * 1000 + c.today.index), { unlocked, mirror: unlockAll, ctx: roundContext(c) });
 }
 
+function dailyRound(d: DailyChallenge, p: Progress): RoundState {
+  return createRound(d.customer, d.seed, dailyOptions(d, freeTools(p)));
+}
+
 export default function App() {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [progress, setProgress] = useState<Progress>(loadProgress);
@@ -99,9 +111,35 @@ export default function App() {
   const [served, setServed] = useState<Served | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [mirrorOpen, setMirrorOpen] = useState(false);
+  const [newAlbum, setNewAlbum] = useState(false);
+  const [daily, setDaily] = useState<DailyChallenge | null>(() => (dailyParam && initialMode() === 'free' ? dailyFor(dailyDate()) : null));
+  const dailyRef = useRef(daily);
+  dailyRef.current = daily;
+  const [dailyResult, setDailyResult] = useState<{ score: number; rank: number | null; board: { score: number; sat: number; style: string }[]; streak: number } | null>(null);
+  const [ghostOn, setGhostOn] = useState(() => {
+    try {
+      return localStorage.getItem('tctbo-ghost') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const toggleGhost = () =>
+    setGhostOn((g) => {
+      try {
+        localStorage.setItem('tctbo-ghost', g ? '0' : '1');
+      } catch {
+        /* ignore */
+      }
+      return !g;
+    });
   const [audio, setAudio] = useState<AudioSettings>(loadAudio);
   const [roundRef] = useState<{ current: RoundState }>(() => ({
-    current: mode === 'career' ? careerRound(careerRef.current) : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
+    current:
+      mode === 'career'
+        ? careerRound(careerRef.current)
+        : dailyParam
+          ? dailyRound(dailyFor(dailyDate()), progressRef.current)
+          : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
   }));
   const [, setFrame] = useState(0);
   const [now, setNow] = useState(0);
@@ -131,6 +169,7 @@ export default function App() {
   // Audio settings apply to the sound effects, and persist.
   useEffect(() => {
     setSfxVolume(audio.master, audio.sfx);
+    setMusicVolume(audio.master, audio.music ?? 0.5);
     setMuted(audio.muted);
     try {
       localStorage.setItem('tctbo-audio', JSON.stringify(audio));
@@ -145,13 +184,16 @@ export default function App() {
     let last = performance.now();
     const loop = (t: number) => {
       const st = roundRef.current;
-      tick(st, (t - last) / 1000);
+      const dt = Math.min(0.1, (t - last) / 1000);
+      // Slow motion for the disaster moment (presentation only: the simulation just gets a smaller dt).
+      tick(st, st.time < st.slowUntil ? dt * 0.25 : dt);
       last = t;
       if (st.sfx.length) {
         for (const fx of st.sfx) playSfx(fx);
         st.sfx.length = 0;
       }
       setToolLoop(st.phase === 'cutting' && st.pointer.down ? st.tool : null);
+      setMusicState(st.chaos, st.phase === 'cutting');
       setNow(t);
       setFrame((f) => (f + 1) % 1_000_000);
       raf = requestAnimationFrame(loop);
@@ -167,6 +209,9 @@ export default function App() {
     const before = unlockedTools(progressRef.current);
     const next = recordRound(progressRef.current, s.result.style.id, Object.keys(s.events));
     saveProgress(next);
+    const album = loadAlbum();
+    if (recordAlbum(album, s)) setNewAlbum(true);
+    saveAlbum(album);
     progressRef.current = next;
     setProgress(next);
     if (mode === 'career') {
@@ -176,11 +221,19 @@ export default function App() {
       playSfx('cash');
     } else {
       setNewTools(unlockedTools(next).filter((t) => !before.includes(t)));
+      const d = dailyRef.current;
+      if (d && s.customer.id === d.customer && s.seed === d.seed) {
+        const board = loadBoard();
+        const score = dailyScore(d, s);
+        const rank = recordDaily(board, d.date, { score, sat: s.result.sat, style: s.result.style.name, at: Date.now() });
+        setDailyResult({ score, rank, board: board.days[d.date] ?? [], streak: streak(board, d.date) });
+      }
     }
   });
 
   const replaceRound = useCallback((r: RoundState, start = false) => {
     setToolLoop(null);
+    setDailyResult(null);
     if (start) startCutting(r);
     roundRef.current = r;
     setMirrorOpen(false);
@@ -189,8 +242,15 @@ export default function App() {
     rerender();
   }, []);
 
-  const newFreeRound = (id: CustomerId, start = false) =>
-    replaceRound(createRound(id, seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }), start);
+  const startDaily = (start = false) => {
+    const d = dailyFor(dailyDate());
+    setDaily(d);
+    replaceRound(dailyRound(d, progressRef.current), start);
+  };
+  const newFreeRound = (id: CustomerId, start = false) => {
+    setDaily(null);
+    return replaceRound(createRound(id, seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }), start);
+  };
 
   const onTool = useCallback((t: Tool) => setTool(roundRef.current, t), []);
   const onFinish = useCallback(() => finish(roundRef.current, 'done'), []);
@@ -259,6 +319,9 @@ export default function App() {
             </button>
           </div>
         )}
+        <button className={`album-btn ${newAlbum ? 'has-new' : ''}`} onClick={() => { setNewAlbum(false); setOverlay(overlay === 'album' ? null : 'album'); }} data-testid="open-album" aria-label="Album Gương Thần" title="Album Gương Thần">
+          📖
+        </button>
         <button
           className="mute-btn"
           onClick={() => (career ? setOverlay('settings') : setAudio({ ...audio, muted: !audio.muted }))}
@@ -271,14 +334,17 @@ export default function App() {
 
       <main className="shop">
         <aside className="side side-left">
-          <RequestCard s={s} />
+          <RequestCard s={s} ghost={ghostOn} onGhost={toggleGhost} />
           <IncidentLog s={s} />
         </aside>
 
         <section className="stage-box">
           <div className="mirror-frame">
+            {career && <StageDecor owned={c.owned} />}
             <Stage
               s={s}
+              chair={career && c.owned.includes('chair') ? 'massage' : 'basic'}
+              ghostOn={ghostOn}
               narrow={narrow}
               now={now}
               onDown={(p) => {
@@ -337,6 +403,10 @@ export default function App() {
             <div className="price-strike">Cắt giống ảnh .. ??k</div>
             <div className="price-note">Cắt hỏng không hoàn tiền!!</div>
           </div>
+          {career && <WallDecor owned={c.owned} />}
+          {career && c.owned.includes('aircon') ? (
+            <AirCon />
+          ) : (
           <div className="fan">
             <svg viewBox="0 0 100 120">
               <circle cx={50} cy={45} r={38} fill="none" stroke="#4a5568" strokeWidth={4} />
@@ -350,10 +420,12 @@ export default function App() {
               <path d="M50,83 L50,108 M30,112 L70,112" stroke="#4a5568" strokeWidth={6} strokeLinecap="round" />
             </svg>
           </div>
+          )}
         </aside>
       </main>
 
       <Toolbar s={s} onTool={onTool} onFinish={onFinish} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
+      {!overlay && !mirrorOpen && <Coach s={s} />}
       {mirrorOpen && s.phase === 'cutting' && !s.persona && (
         <MirrorPicker
           s={s}
@@ -375,6 +447,8 @@ export default function App() {
             if (career && c.today.phase === 'morning') c.today.phase = 'open';
           }}
           onPick={career ? undefined : (o) => newFreeRound(o.id)}
+          daily={career ? undefined : daily}
+          onDaily={career ? undefined : () => startDaily()}
         />
       )}
       {s.phase === 'result' && s.result && !showSummary && !overlay && (
@@ -382,7 +456,8 @@ export default function App() {
           s={s}
           unlocked={career ? c.styles : progress.styles}
           newTools={newTools}
-          onReplay={() => newFreeRound(s.customer.id, true)}
+          onReplay={() => (daily ? startDaily(true) : newFreeRound(s.customer.id, true))}
+          daily={daily && dailyResult ? { ...dailyResult, date: daily.date } : null}
           onNext={career ? nextCareer : nextFree}
           career={career && served ? { served, nextLabel: c.today.phase === 'closed' ? 'Đóng cửa, tổng kết ngày →' : `Khách tiếp theo (${c.today.index + 1}/${c.today.queue.length}) →` } : null}
         />
@@ -439,6 +514,7 @@ export default function App() {
           onClose={() => setOverlay(null)}
         />
       )}
+      {overlay === 'album' && <AlbumPanel album={loadAlbum()} onClose={() => setOverlay(null)} />}
       {overlay === 'settings' && (
         <SettingsPanel
           audio={audio}

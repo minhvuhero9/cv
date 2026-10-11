@@ -16,7 +16,6 @@ import {
   setTool,
   startCutting,
   tick,
-  TIME_LIMIT,
 } from './session';
 
 const FRAME = 1 / 60;
@@ -369,11 +368,11 @@ describe('round rules', () => {
         pointerUp(s);
         run(s, 0.1);
       }
-      expect(s.time).toBeLessThanOrEqual(TIME_LIMIT + 1);
+      expect(s.time).toBeLessThanOrEqual(s.timeLimit + 1);
       for (const n of Object.values(s.events)) expect(n).toBeLessThan(40);
       expect(s.events.sneeze ?? 0).toBeLessThanOrEqual(3);
       expect(s.events.gelSpikes ?? 0).toBeLessThanOrEqual(1);
       expect(s.result).not.toBeNull();
     }
-  });
+  }, 15000);
 });

@@ -55,6 +55,8 @@ export interface SatisfactionCtx {
   styleId: string;
   /** Style this customer wants to copy (copycat), if any. */
   wantStyle: string | null;
+  /** Steps of a multi-step request already met. */
+  stagesDone?: number;
 }
 
 /** Data description of what a customer wants; turned into a satisfaction function by fromWants(). */
@@ -128,6 +130,18 @@ export interface CustomerDef {
   timeLimit?: number;
   /** Which lines to use for events this customer doesn't override (default 'neutral'). */
   fallback?: 'personality' | 'neutral' | 'dog';
+  /** Weekly boss: never a walk-in, scheduled by the career every seventh day. */
+  boss?: boolean;
+  /** Multi-step request: each step is revealed when the previous one is met. */
+  stages?: Stage[];
+}
+
+export interface Stage {
+  /** What they say when this step starts. */
+  say: string;
+  /** Short line for the request sheet. */
+  label: string;
+  check(m: HairMetrics, s: { clippings: number; log: { id: string }[]; mess: number }): boolean;
 }
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -179,7 +193,7 @@ export const CUSTOMERS: CustomerDef[] = [
       face: { eyes: 'bean', brows: 'normal', nose: 'hook', jaw: 'oval', rest: 'smile', cheeks: 'dimples' },
       body: { collar: 'shirt', idle: 'breathe' },
     },
-    hair: { head: { rx: 86, ry: 100, cy: 250 }, length: 50, fringeLength: 40, gel: { top: 0.35, fringe: 0.2 } },
+    hair: { cut: 'sidePart', head: { rx: 86, ry: 100, cy: 250 }, length: 50, fringeLength: 40, gel: { top: 0.35, fringe: 0.2 } },
     patience: 100,
     patienceDecay: 0.45,
     target: { left: 0.2, right: 0.2, top: 0.72, fringe: 0.55 },
@@ -283,7 +297,7 @@ export const CUSTOMERS: CustomerDef[] = [
       face: { eyes: 'droopy', brows: 'thin', nose: 'long', jaw: 'pointed', rest: 'pout', eyeBags: true, cheeks: 'hollow', eyeGap: 28 },
       body: { collar: 'hoodie', shoulders: 0.88, neck: 0.78, shoulderY: -6, idle: 'jitter' },
     },
-    hair: { head: { rx: 74, ry: 106, cy: 242 }, length: 72, fringeLength: 56, gel: { left: 0.9, right: 0.9, top: 1, fringe: 1 }, messiness: 0.3 },
+    hair: { cut: 'sidePart', head: { rx: 74, ry: 106, cy: 242 }, length: 72, fringeLength: 56, gel: { left: 0.9, right: 0.9, top: 1, fringe: 1 }, messiness: 0.3 },
     patience: 90,
     patienceDecay: 0.55,
     target: null,
@@ -327,7 +341,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#f3cdb0', skinShade: '#d6a585', hairColor: '#3a2416', hairShade: '#1c1009', shirt: '#2b3a67', trim: '#ffffff', earring: true, badge: true, pen: true, prop: 'briefcase',
       face: { eyes: 'lashes', brows: 'arched', nose: 'button', jaw: 'heart', rest: 'tight', lips: '#c4344f', shadow: '#b9a3e3', eyeGap: 30 },
       body: { collar: 'blouse', shoulders: 0.92, neck: 0.85, idle: 'tap' } },
-    hair: { head: { rx: 80, ry: 96, cy: 248 }, length: 76, fringeLength: 40, gel: {}, zoneLength: { left: 1.2, right: 1.2 }, messiness: 0.05 },
+    hair: { cut: 'sidePart', head: { rx: 80, ry: 96, cy: 248 }, length: 76, fringeLength: 40, gel: {}, zoneLength: { left: 1.2, right: 1.2 }, messiness: 0.05 },
     patience: 85,
     patienceDecay: 0.8,
     target: { left: 0.6, right: 0.6, top: 0.75, fringe: 0.5 },
@@ -382,7 +396,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#e2b08a', skinShade: '#b9845f', hairColor: '#e6e3dc', hairShade: '#9c968b', shirt: '#6f7d4c', trim: '#e9e2cc', glasses: 'round', wrinkles: true, prop: 'cane',
       face: { eyes: 'dot', brows: 'bushy', browColor: '#f2f0ea', nose: 'wide', jaw: 'round', rest: 'flat', beard: 'long', mustache: 'long', facialHair: '#f2f0ea', ears: 1.35, eyeGap: 30 },
       body: { collar: 'cardigan', shoulders: 0.9, neck: 0.7, shoulderY: 12, idle: 'nod' } },
-    hair: { head: { rx: 88, ry: 90, cy: 266 }, length: 38, fringeLength: 26, gel: {}, messiness: 0.25, preBald: { x: 200, y: 168, r: 30 } },
+    hair: { texture: 'thin', head: { rx: 88, ry: 90, cy: 266 }, length: 38, fringeLength: 26, gel: {}, messiness: 0.25, preBald: { x: 200, y: 168, r: 30 } },
     patience: 95,
     patienceDecay: 0.3,
     target: { left: 0.3, right: 0.3, top: 0.35, fringe: 0.3 },
@@ -433,7 +447,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#e8b48c', skinShade: '#c58f68', hairColor: '#1d1712', hairShade: '#000', shirt: '#e5322d', chain: true, earring: 'both',
       face: { eyes: 'beady', brows: 'angled', nose: 'snub', jaw: 'long', rest: 'grin', teeth: 'gap', eyeGap: 30 },
       body: { collar: 'tank', shoulders: 1.0, neck: 0.9, idle: 'bounce' } },
-    hair: { head: { rx: 82, ry: 92, cy: 246 }, length: 52, fringeLength: 34, gel: { top: 1, fringe: 0.7 }, zoneLength: { left: 0.6, right: 0.6 } },
+    hair: { texture: 'wiry', head: { rx: 82, ry: 92, cy: 246 }, length: 52, fringeLength: 34, gel: { top: 1, fringe: 0.7 }, zoneLength: { left: 0.6, right: 0.6 } },
     patience: 90,
     patienceDecay: 0.5,
     target: { left: 0.15, right: 0.15, top: 1, fringe: 0.6 },
@@ -484,7 +498,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#f6d2b8', skinShade: '#dcab8c', hairColor: '#e98fc0', hairShade: '#a24d7e', shirt: '#ffd23f', earring: 'hoop', hat: 'bow', prop: 'phoneStick',
       face: { eyes: 'big', brows: 'thin', nose: 'button', jaw: 'round', rest: 'open', lips: '#ff6f9f', cheeks: 'blush', sticker: 'heart', shadow: '#ff9fd0', eyeGap: 36, eyeY: 4 },
       body: { collar: 'tee', shoulders: 0.86, neck: 0.75, idle: 'sway' } },
-    hair: { head: { rx: 94, ry: 98, cy: 244 }, length: 80, fringeLength: 46, gel: { top: 0.3 } },
+    hair: { texture: 'curly', head: { rx: 94, ry: 98, cy: 244 }, length: 80, fringeLength: 46, gel: { top: 0.3 } },
     patience: 85,
     patienceDecay: 0.5,
     target: null,
@@ -533,7 +547,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#d9a07a', skinShade: '#b27b56', hairColor: '#231a14', hairShade: '#0c0806', shirt: '#2fa84f', trim: '#e8ff6a', bluetooth: true, prop: 'helmet',
       face: { eyes: 'dot', brows: 'thick', nose: 'hook', jaw: 'wide', rest: 'flat', beard: 'stubble', eyeBags: true },
       body: { collar: 'jacket', shoulders: 1.15, neck: 1.3, idle: 'jitter' } },
-    hair: { head: { rx: 90, ry: 90, cy: 258 }, length: 36, fringeLength: 24, gel: {}, zoneLength: { top: 0.75 }, messiness: 0.32 },
+    hair: { cut: 'mullet', head: { rx: 90, ry: 90, cy: 258 }, length: 36, fringeLength: 24, gel: {}, zoneLength: { top: 0.75 }, messiness: 0.32 },
     patience: 70,
     patienceDecay: 1.1,
     target: null,
@@ -583,7 +597,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#d8a27b', skinShade: '#b07a54', hairColor: '#151515', hairShade: '#000', shirt: '#f2f2f2', trim: '#1d1d1d', headband: '#d6332f',
       face: { eyes: 'narrow', brows: 'thick', nose: 'pointy', jaw: 'square', chin: 1.06, rest: 'tight', mustache: 'long', beard: 'goatee', facialHair: '#151515', scar: true, eyeGap: 30 },
       body: { collar: 'gi', shoulders: 1.32, neck: 1.6, idle: 'breathe' } },
-    hair: { head: { rx: 80, ry: 96, cy: 252 }, length: 30, fringeLength: 18, gel: { top: 0.6 }, zoneLength: { top: 1.3 }, messiness: 0.04 },
+    hair: { texture: 'wiry', head: { rx: 80, ry: 96, cy: 252 }, length: 30, fringeLength: 18, gel: { top: 0.6 }, zoneLength: { top: 1.3 }, messiness: 0.04 },
     patience: 90,
     patienceDecay: 0.4,
     target: { left: 0.25, right: 0.25, top: 0.3, fringe: 0.25 },
@@ -632,7 +646,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#eec3a0', skinShade: '#cf9b77', hairColor: '#3b2a1e', hairShade: '#1a120b', shirt: '#7aa5d6', trim: '#ffffff', tie: '#7a1f1f', glasses: 'thick',
       face: { eyes: 'dot', brows: 'thin', nose: 'pointy', jaw: 'oval', chin: 0.9, rest: 'tight', sweat: true, foreheadLines: true, eyeY: 6 },
       body: { collar: 'shirt', shoulders: 0.96, belly: 0.35, idle: 'breathe' } },
-    hair: { head: { rx: 84, ry: 112, cy: 238 }, length: 52, fringeLength: 34, gel: {}, preBald: { x: 200, y: 160, r: 34 } },
+    hair: { texture: 'thin', head: { rx: 84, ry: 112, cy: 238 }, length: 52, fringeLength: 34, gel: {}, preBald: { x: 200, y: 160, r: 34 } },
     patience: 90,
     patienceDecay: 0.45,
     target: null,
@@ -683,7 +697,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#f4d1b5', skinShade: '#d8a98a', hairColor: '#2d1b10', hairShade: '#120a05', shirt: '#7b3fa0', trim: '#f2c230', sunglasses: 'onHead', necklace: true, earring: 'hoop', prop: 'fan',
       face: { eyes: 'lashes', brows: 'arched', browColor: '#3a1d10', nose: 'pointy', jaw: 'wide', rest: 'smirk', lips: '#c0143c', mole: true, cheeks: 'chubby', shadow: '#9b59b6', eyeGap: 34 },
       body: { collar: 'aodai', shoulders: 1.1, belly: 0.5, idle: 'still' } },
-    hair: { head: { rx: 92, ry: 98, cy: 248 }, length: 68, fringeLength: 44, gel: {} },
+    hair: { texture: 'curly', head: { rx: 92, ry: 98, cy: 248 }, length: 68, fringeLength: 44, gel: {} },
     patience: 75,
     patienceDecay: 0.7,
     target: { left: 0.75, right: 0.75, top: 0.8, fringe: 0.6 },
@@ -777,7 +791,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#f0c19a', skinShade: '#d39c74', hairColor: '#20160f', hairShade: '#0a0604', shirt: '#ffffff', redScarf: true, freckles: true, prop: 'schoolBag',
       face: { eyes: 'big', brows: 'thin', nose: 'snub', jaw: 'oval', chin: 0.92, rest: 'grin', teeth: 'buck', ears: 1.15, earShape: 'jug', bandaid: true, eyeGap: 28 },
       body: { collar: 'uniform', shoulders: 0.74, neck: 0.72, shoulderY: 8, idle: 'bounce' } },
-    hair: { head: { rx: 78, ry: 86, cy: 266 }, length: 44, fringeLength: 54, gel: {}, zoneLength: { left: 1.1, right: 1.1 }, messiness: 0.04 },
+    hair: { cut: 'bowl', head: { rx: 78, ry: 86, cy: 266 }, length: 44, fringeLength: 54, gel: {}, zoneLength: { left: 1.1, right: 1.1 }, messiness: 0.04 },
     patience: 80,
     patienceDecay: 0.6,
     target: null,
@@ -868,6 +882,106 @@ export const CUSTOMERS: CustomerDef[] = [
     startTool: 'scissors',
   },
   {
+    id: 'chure',
+    boss: true,
+    name: 'Anh Cường Chú Rể',
+    title: 'Khách Trùm: Mai Cưới Rồi!',
+    personality: 'dramatic',
+    trait: 'Mai là đám cưới. Cả họ nhà gái, mẹ vợ, thợ ảnh… ai cũng gửi yêu cầu qua điện thoại. Mỗi lần xong một việc lại có việc mới.',
+    request: 'Em ơi, hai bên cắt gọn cho anh trước nhé!',
+    catch: 'Mà khoan… điện thoại lại rung. Chắc còn nữa đấy.',
+    hint: 'Yêu cầu nhiều bước: làm xong bước này mới hiện bước sau. Đừng để trọc chỗ nào!',
+    look: { skin: '#f0c4a0', skinShade: '#d39c78', hairColor: '#1f1611', hairShade: '#0a0705', shirt: '#1d1d1d', trim: '#2b2b33', bowTie: '#d6332f', prop: 'phone',
+      face: { eyes: 'bean', brows: 'thick', nose: 'hook', jaw: 'square', chin: 1.02, rest: 'grin', cheeks: 'blush', sweat: true, eyeGap: 33 },
+      body: { collar: 'suit', shoulders: 1.08, neck: 1.05, idle: 'jitter' } },
+    hair: { head: { rx: 86, ry: 102, cy: 248 }, length: 58, fringeLength: 46, gel: { top: 0.7, fringe: 0.5 }, cut: 'sidePart' },
+    patience: 100,
+    patienceDecay: 0.28,
+    target: null,
+    satisfaction: (m, ctx) => clamp(15 + (ctx?.stagesDone ?? 0) * 21 - m.baldFrac * 300 - m.choppiness * 30, 0, 100),
+    special: (_m, sat) => sat >= 90,
+    specialLine: { line: 'Mẹ vợ duyệt! Thợ ảnh duyệt! Mai anh là chú rể đẹp nhất phường!', mood: 'ecstatic' },
+    likes: ['Keo vuốt tóc', 'Máy sấy', 'Được khen đẹp trai'],
+    dislikes: ['Bị trọc trước ngày cưới', 'Tóc nhuộm màu'],
+    behaviors: [],
+    stages: [
+      { say: 'Em ơi, hai bên cắt gọn cho anh trước nhé!', label: 'Hai bên gọn', check: (m) => m.zone.left <= 0.62 && m.zone.right <= 0.62 },
+      { say: 'Mẹ vợ vừa nhắn: “Mái phải ngắn, lộ trán cho sáng sủa!”', label: 'Mái ngắn, lộ trán', check: (m) => m.zone.fringe <= 0.55 },
+      { say: 'Thợ ảnh bảo: “Vuốt keo dựng lên cho có khí chất!” Sấy giúp anh!', label: 'Phía trên dựng lên (sấy tóc có keo)', check: (m) => m.spikedFrac >= 0.12 },
+      { say: 'Cuối cùng… đừng để trọc chỗ nào nhé, mai cưới rồi!', label: 'Không trọc chỗ nào', check: (m) => m.baldFrac < 0.02 },
+    ],
+    toolReactions: {
+      ray: { kind: 'hate', patience: -10, chaos: 8, lines: ['Nhuộm màu?! Mẹ vợ anh mà thấy là hủy cưới!'] },
+    },
+    lines: {
+      bald: ['Thôi xong… mai anh đội mũ bảo hiểm đi cưới à?!'],
+      walkoutWarn: ['Anh đi tiệm khác đây, không kịp giờ rước dâu!'],
+    },
+    mirror: {
+      love: ['Đẹp trai thế này cô dâu nhìn chắc ngất!'],
+      ok: ['Ổn rồi, chắc mẹ vợ không chê.'],
+      meh: ['Còn thiếu gì đó… mẹ vợ sẽ nói cho mà xem.'],
+      bad: ['Mai anh phải đội mũ cưới mất!'],
+      disaster: ['Hủy cưới! À không… hoãn cưới!'],
+    },
+    pay: { base: 300000, tip: 200000 },
+    repWeight: 1.5,
+    viralWeight: 1.5,
+    appear: { minDay: 99, weight: 0 },
+    returns: NO_RETURN,
+    timeLimit: 100,
+  },
+  {
+    id: 'thanhtra',
+    boss: true,
+    name: 'Bà Thanh Tra Phường',
+    title: 'Khách Trùm: Kiểm Tra Đột Xuất',
+    personality: 'picky',
+    trait: 'Vừa cắt tóc vừa kiểm tra tiệm. Cầm bìa kẹp hồ sơ, cái gì không đạt là ghi biên bản.',
+    request: 'Tôi cắt tóc, tiện thể kiểm tra luôn. Trước hết: hai bên phải đều nhau.',
+    catch: 'Mỗi lỗi một dòng biên bản đấy nhé.',
+    hint: 'Yêu cầu nhiều bước, bước sau khó hơn bước trước. Ít sự cố, ít tóc bay là được điểm.',
+    look: { skin: '#e8b892', skinShade: '#c48d68', hairColor: '#2e2420', hairShade: '#120d0b', shirt: '#cdbb84', trim: '#8a7440', glasses: 'thick', badge: true, prop: 'clipboard',
+      face: { eyes: 'narrow', brows: 'angled', nose: 'long', jaw: 'long', rest: 'tight', lips: '#a8324a', mole: true, eyeGap: 30 },
+      body: { collar: 'uniform', shoulders: 0.98, neck: 0.9, idle: 'tap' } },
+    hair: { head: { rx: 80, ry: 104, cy: 246 }, length: 60, fringeLength: 44, gel: {}, messiness: 0.22 },
+    patience: 90,
+    patienceDecay: 0.4,
+    target: null,
+    satisfaction: (m, ctx) => clamp(20 + (ctx?.stagesDone ?? 0) * 26 - m.baldFrac * 250 - m.tintedFrac * 60, 0, 100),
+    special: (_m, sat) => sat >= 92,
+    specialLine: { line: 'Biên bản: “Tiệm đạt chuẩn văn minh.” Tôi ký luôn!', mood: 'happy' },
+    likes: ['Gọn gàng', 'Sạch sẽ', 'Đúng quy định'],
+    dislikes: ['Tóc bay tứ tung', 'Sự cố', 'Màu mè'],
+    behaviors: [],
+    stages: [
+      { say: 'Trước hết: hai bên phải đều nhau và gọn.', label: 'Hai bên đều và gọn', check: (m) => m.unevenLR <= 0.1 && m.zone.left <= 0.8 && m.zone.right <= 0.8 },
+      { say: 'Tiếp theo: mái phải thẳng như thước kẻ.', label: 'Mái thẳng một đường', check: (m) => m.fringeTipSpread <= 9 && m.zone.fringe <= 0.85 },
+      { say: 'Cuối cùng: tiệm phải sạch. Không sự cố, không để tóc bay tứ tung!', label: 'Tối đa 1 sự cố, ít tóc rơi', check: (_m, s) => s.log.length <= 1 && s.mess < 4 },
+    ],
+    toolReactions: {
+      ray: { kind: 'hate', patience: -14, chaos: 10, lines: ['Ghi biên bản: sử dụng thiết bị không rõ nguồn gốc!'] },
+      vacuum: { kind: 'love', patience: 8, chaos: 0, lines: ['Có máy hút. Tốt. Cộng điểm vệ sinh.'] },
+    },
+    lines: {
+      bald: ['Ghi biên bản: gây thương tích… cho mái tóc công dân!'],
+      walkoutWarn: ['Tôi lập biên bản rồi đi đây!'],
+    },
+    mirror: {
+      love: ['Đạt chuẩn. Tôi sẽ treo bằng khen cho tiệm.'],
+      ok: ['Tạm đạt. Lần sau phải tốt hơn.'],
+      meh: ['Nhắc nhở lần một.'],
+      bad: ['Lập biên bản. Ký vào đây.'],
+      disaster: ['Đình chỉ! …Đùa thôi. Nhưng phạt thì thật.'],
+    },
+    pay: { base: 260000, tip: 160000 },
+    repWeight: 1.8,
+    viralWeight: 0.6,
+    appear: { minDay: 99, weight: 0 },
+    returns: NO_RETURN,
+    timeLimit: 95,
+  },
+  {
     id: 'copycat',
     name: 'Bạn Fan Cuồng Trend',
     title: 'Khách Muốn Bắt Chước Kiểu Tóc Viral',
@@ -879,7 +993,7 @@ export const CUSTOMERS: CustomerDef[] = [
     look: { skin: '#f1c7a3', skinShade: '#d3a07c', hairColor: '#2c1f17', hairShade: '#100a06', shirt: '#14b8a6', earring: true, hat: 'headphones', prop: 'phone',
       face: { eyes: 'bean', brows: 'uni', nose: 'button', jaw: 'heart', rest: 'open', teeth: 'braces', cheeks: 'dimples', chinMask: '#d7ecf7' },
       body: { collar: 'tee', shoulders: 0.9, idle: 'bounce' } },
-    hair: { head: { rx: 84, ry: 100, cy: 248 }, length: 54, fringeLength: 40, gel: { top: 0.5 } },
+    hair: { cut: 'mullet', head: { rx: 84, ry: 100, cy: 248 }, length: 54, fringeLength: 40, gel: { top: 0.5 } },
     patience: 90,
     patienceDecay: 0.45,
     target: null,

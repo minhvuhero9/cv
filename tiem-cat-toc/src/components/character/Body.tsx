@@ -334,6 +334,16 @@ function Props({ g, look, t }: { g: G; look: CustomerLook; t: number }) {
         </g>
       );
     }
+    case 'clipboard':
+      return (
+        <g transform={`translate(${cx - 132},${S + 52}) rotate(-8)`}>
+          <rect x={-30} y={-40} width={60} height={80} rx={5} fill="#b8864b" stroke="#6b4a22" strokeWidth={3} />
+          <rect x={-24} y={-30} width={48} height={64} fill="#fffdf4" />
+          <rect x={-12} y={-46} width={24} height={12} rx={3} fill="#9aa3ad" stroke="#4a4f57" strokeWidth={2} />
+          <path d="M-18,-18 h36 M-18,-8 h36 M-18,2 h26 M-18,12 h30" stroke="#9aa3ad" strokeWidth={2.5} />
+          <path d="M-18,24 l6,6 l12,-14" stroke="#d6332f" strokeWidth={3} fill="none" />
+        </g>
+      );
     case 'phone':
       return (
         <g transform={`translate(${cx + 120},${S + 30}) rotate(10)`}>

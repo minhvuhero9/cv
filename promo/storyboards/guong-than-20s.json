@@ -1,0 +1,118 @@
+{
+  "slug": "guong-than-20s",
+  "title": "Tiệm Cắt Tóc Bất Ổn — Gương Thần Biến Hình (20s)",
+  "seed": 4,
+  "customer": "teo",
+  "persona": "tocdung",
+  "capture": {
+    "strip": 70,
+    "speed": 40
+  },
+  "formats": [
+    {
+      "name": "9x16",
+      "w": 1080,
+      "h": 1920,
+      "viewport": [
+        432,
+        768,
+        2.5
+      ]
+    },
+    {
+      "name": "16x9",
+      "w": 1920,
+      "h": 1080,
+      "viewport": [
+        1280,
+        720,
+        1.5
+      ]
+    }
+  ],
+  "music": "synth-jingle",
+  "voiceover": false,
+  "xfade": 0.25,
+  "shots": [
+    {
+      "id": "hook",
+      "type": "card",
+      "card": "hook",
+      "dur": 3.0,
+      "text": "Tiệm Cắt Tóc|Bất Ổn",
+      "sub": "Cắt hỏng không hoàn tiền!",
+      "hero": {
+        "mark": "bald",
+        "offset": 0.4
+      },
+      "badge": "Ôi… trọc!"
+    },
+    {
+      "id": "cut",
+      "type": "gameplay",
+      "from": "cutting",
+      "offset": 0.1,
+      "dur": 5.5,
+      "actions": [
+        "pick:teo",
+        "start",
+        "tool:clipper",
+        "slowdrag:scalp-strip"
+      ],
+      "caption": "Lỡ tay một đường… TRỌC!",
+      "pos": "low",
+      "to": "picker",
+      "to_offset": -0.05
+    },
+    {
+      "id": "mirror",
+      "type": "gameplay",
+      "from": "picker",
+      "offset": -0.1,
+      "dur": 4.0,
+      "actions": [
+        "guong-than",
+        "persona:tocdung"
+      ],
+      "caption": "Gương Thần Biến Hình!",
+      "pos": "low"
+    },
+    {
+      "id": "reveal",
+      "type": "gameplay",
+      "from": "mirror",
+      "offset": 0.1,
+      "dur": 2.0,
+      "actions": [
+        "finish"
+      ],
+      "caption": "Soi gương phán xét…",
+      "pos": "low"
+    },
+    {
+      "id": "result",
+      "type": "gameplay",
+      "from": "result",
+      "offset": 0.2,
+      "dur": 3.0,
+      "actions": [
+        "mirror"
+      ],
+      "caption": "Tên kiểu tóc cũng bất ổn!",
+      "pos": "top"
+    },
+    {
+      "id": "cta",
+      "type": "card",
+      "card": "cta",
+      "dur": 2.5,
+      "text": "Chơi miễn phí|ngay!",
+      "sub": "minhvuhero9.github.io/cv/game",
+      "badge": "Bạn dám ngồi ghế?",
+      "hero": {
+        "mark": "transform",
+        "offset": 1.6
+      }
+    }
+  ]
+}
