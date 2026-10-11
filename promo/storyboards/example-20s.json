@@ -1,0 +1,14 @@
+{
+  "title": "Tiệm Cắt Tóc Bất Ổn — 20s",
+  "formats": [[1080, 1920], [1920, 1080]],
+  "seed": 4,
+  "music": "synth-jingle",
+  "voiceover": false,
+  "shots": [
+    { "id": "hook",   "type": "card",     "dur": 2.5, "text": "Bạn có dám ngồi ghế này?" },
+    { "id": "pick",   "type": "gameplay", "dur": 3,   "actions": ["pick:<customerId>", "start"] },
+    { "id": "cut",    "type": "gameplay", "dur": 6,   "actions": ["tool:clipper", "drag:highway"], "caption": "Lỡ tay một đường..." },
+    { "id": "mirror", "type": "gameplay", "dur": 4,   "actions": ["finish", "mirror"], "caption": "Khách nổi giận!" },
+    { "id": "cta",    "type": "card",     "dur": 4.5, "text": "Chơi miễn phí trên trình duyệt", "sub": "minhvuhero9.github.io/cv/game" }
+  ]
+}

@@ -18,7 +18,7 @@ function characterSvg(s: RoundState, which: 'before' | 'after'): string {
       'svg',
       { xmlns: 'http://www.w3.org/2000/svg', viewBox: '30 45 340 425', width: 640, height: 800 },
       createElement(Character, {
-        look: s.customer.look,
+        look: which === 'before' ? s.baseCustomer.look : s.customer.look,
         hair,
         metrics: which === 'before' ? s.beforeMetrics : measureHair(hair),
         mood: which === 'before' ? 'neutral' : result.mood,

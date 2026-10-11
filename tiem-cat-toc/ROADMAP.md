@@ -16,7 +16,7 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 ## 2. Khách hàng dữ liệu và Cậu Vàng
 - [x] Mở rộng `CustomerDef`: mô tả, sở thích, phản ứng theo dụng cụ, câu thoại riêng, phản ứng soi gương, giá, tip, trọng số uy tín, điều kiện xuất hiện và quay lại, giọng đọc
 - [x] Tính mức hài lòng tổng quát từ dữ liệu `wants` (3 khách cũ giữ hàm riêng)
-- [x] Module hành vi tái sử dụng (`behaviors.ts`): deadline, sleepy, flex, livestream, rush, reflex, fearBald, vip, alien, duck, dog
+- [x] Module hành vi tái sử dụng (`behaviors.ts`): deadline, sleepy, flex, livestream, rush, reflex, fearBald, vip, duck, dog, transform (khách ngoài hành tinh đã bỏ)
 - [x] 12 khách mới (tổng 15, gồm khách bắt chước sinh động)
 - [x] Cậu Vàng: hình con chó, sợ tông đơ, thích máy sấy, rũ lông làm bừa tiệm, ngửi mùi đồ ăn, kiểu lông riêng, sủa (63 test logic, 62 kiểm tra trình duyệt)
 
@@ -44,6 +44,11 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 ## 9–10. Giao diện, cân bằng, kiểm thử toàn luồng
 - [x] Shop, tổng kết ngày, HUD tiền/uy tín/viral, cài đặt âm lượng
 - [x] E2E: chơi 3 ngày, lưu/tải lại, mua đồ, Cậu Vàng, cài đặt âm thanh (`tests/e2e-career.mjs`)
+
+## 11. Khách khác biệt + Gương Thần (đã xong)
+- [x] Hộp sọ riêng cho từng khách, tóc mọc theo hộp sọ; renderer mặt/thân dữ liệu hóa (`look.face`, `look.body`)
+- [x] Bỏ Khách X-79; save cũ được làm sạch khi tải
+- [x] Gương Thần Biến Hình: 6 phong cách hư cấu, Bé Ba Hóa Thân thay chỗ khách cũ, mua trong shop
 
 ## Việc tiếp theo nếu làm tiếp
 - [ ] Cân bằng kinh tế bằng người chơi thật (hiện mới cân chỉnh bằng mô phỏng)

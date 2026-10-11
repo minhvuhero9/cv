@@ -1,12 +1,18 @@
-import type { CustomerLook } from '../game/customers';
+import type { CustomerLook } from '../game/look';
 import type { Mood } from '../game/evaluate';
-import { HEAD, Vec } from '../game/geometry';
-import { HairState, Tuft, Zone, hairlineY, tuftPoints } from '../game/hair';
+import type { Vec } from '../game/geometry';
+import { HairState, Tuft, Zone, tuftPoints } from '../game/hair';
 import type { HairMetrics } from '../game/metrics';
+import { Body, BehindBody, idleOffset } from './character/Body';
+import { DogFace, Face } from './character/Face';
+import { Ears, HeadWear } from './character/Head';
+import { capPath, f1, geo, lookPhase, skullPath } from './character/geo';
 
 /**
  * Pure SVG drawing of a customer. Uses presentation attributes only (no CSS classes),
  * so the same markup can be serialised into the shareable PNG.
+ * The skull comes from the hair (hair.head), the face and body from look.face / look.body,
+ * so customers differ in build and features, not just colours.
  */
 export interface CharacterProps {
   look: CustomerLook;
@@ -21,9 +27,9 @@ export interface CharacterProps {
   pulse?: number;
   idPrefix: string;
   showDanger?: boolean;
+  /** Seconds, for idle animation and blinking. Omit for a still picture (share card). */
+  t?: number;
 }
-
-const { cx, cy, rx, ry } = HEAD;
 
 function bezier(p: Vec[], t: number): Vec {
   const u = 1 - t;
@@ -78,27 +84,6 @@ function bezierTrim(p: Vec[]): Vec {
   return bezier(p, 0.82);
 }
 
-function capPath(): string {
-  const pts: string[] = [];
-  const steps = 40;
-  // Upper outline of the head, slightly larger than the skull.
-  const phiMax = 186;
-  const phiMin = -6;
-  for (let i = 0; i <= steps; i++) {
-    const phi = ((phiMin + (i / steps) * (phiMax - phiMin)) * Math.PI) / 180;
-    pts.push(`${(cx + rx * 1.01 * Math.cos(phi)).toFixed(1)},${(cy - ry * 1.01 * Math.sin(phi)).toFixed(1)}`);
-  }
-  // Back along the hairline.
-  const left = cx + rx * 1.01 * Math.cos((phiMax * Math.PI) / 180);
-  const right = cx + rx * 1.01 * Math.cos((phiMin * Math.PI) / 180);
-  for (let i = 0; i <= 20; i++) {
-    const x = left + (i / 20) * (right - left);
-    const y = Math.min(hairlineY(x), cy + 14);
-    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-  }
-  return `M${pts.join('L')}Z`;
-}
-const CAP = capPath();
 
 function ghostPath(hair: HairState, ghost: Record<Zone, number>): string {
   const edge = hair.tufts.filter((t) => t.kind === 'edge').slice(0, 22);
@@ -111,481 +96,97 @@ function ghostPath(hair: HairState, ghost: Record<Zone, number>): string {
   return `M${a}M${b}`;
 }
 
-function Face({ mood, look }: { mood: Mood; look: CustomerLook }) {
-  const ink = '#2b1a12';
-  const ey = cy + 12;
-  const ex = 32;
-  const by = cy - 12;
-  const eyes = (() => {
-    switch (mood) {
-      case 'happy':
-        return (
-          <g fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round">
-            <path d={`M${cx - ex - 9},${ey + 3} Q${cx - ex},${ey - 8} ${cx - ex + 9},${ey + 3}`} />
-            <path d={`M${cx + ex - 9},${ey + 3} Q${cx + ex},${ey - 8} ${cx + ex + 9},${ey + 3}`} />
-          </g>
-        );
-      case 'ecstatic':
-        return (
-          <g fill="#ffd23f" stroke={ink} strokeWidth={2.5} strokeLinejoin="round">
-            {[-ex, ex].map((dx) => (
-              <path
-                key={dx}
-                d={`M${cx + dx},${ey - 14} L${cx + dx + 4},${ey - 4} L${cx + dx + 14},${ey - 2} L${cx + dx + 6},${ey + 5} L${cx + dx + 9},${ey + 15} L${cx + dx},${ey + 9} L${cx + dx - 9},${ey + 15} L${cx + dx - 6},${ey + 5} L${cx + dx - 14},${ey - 2} L${cx + dx - 4},${ey - 4}Z`}
-              />
-            ))}
-          </g>
-        );
-      case 'suspicious':
-        return (
-          <g>
-            <ellipse cx={cx - ex} cy={ey} rx={10} ry={4} fill="#fff" stroke={ink} strokeWidth={2.5} />
-            <ellipse cx={cx + ex} cy={ey} rx={10} ry={4} fill="#fff" stroke={ink} strokeWidth={2.5} />
-            <circle cx={cx - ex + 4} cy={ey} r={3} fill={ink} />
-            <circle cx={cx + ex + 4} cy={ey} r={3} fill={ink} />
-          </g>
-        );
-      case 'shocked':
-        return (
-          <g>
-            <circle cx={cx - ex} cy={ey} r={13} fill="#fff" stroke={ink} strokeWidth={3} />
-            <circle cx={cx + ex} cy={ey} r={13} fill="#fff" stroke={ink} strokeWidth={3} />
-            <circle cx={cx - ex} cy={ey} r={2.6} fill={ink} />
-            <circle cx={cx + ex} cy={ey} r={2.6} fill={ink} />
-          </g>
-        );
-      case 'crying':
-        return (
-          <g>
-            <g fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round">
-              <path d={`M${cx - ex - 10},${ey - 2} Q${cx - ex},${ey + 7} ${cx - ex + 10},${ey - 2}`} />
-              <path d={`M${cx + ex - 10},${ey - 2} Q${cx + ex},${ey + 7} ${cx + ex + 10},${ey - 2}`} />
-            </g>
-            <path d={`M${cx - ex - 4},${ey + 6} q-6,26 -2,60 l10,0 q2,-34 0,-60z`} fill="#6ec6ff" opacity={0.85} />
-            <path d={`M${cx + ex + 4},${ey + 6} q6,26 2,60 l-10,0 q-2,-34 0,-60z`} fill="#6ec6ff" opacity={0.85} />
-          </g>
-        );
-      case 'sleepy':
-        return (
-          <g>
-            <g fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round">
-              <path d={`M${cx - ex - 10},${ey + 2} Q${cx - ex},${ey + 6} ${cx - ex + 10},${ey + 2}`} />
-              <path d={`M${cx + ex - 10},${ey + 2} Q${cx + ex},${ey + 6} ${cx + ex + 10},${ey + 2}`} />
-            </g>
-            <text x={cx + rx - 4} y={cy - 60} fontSize={22} fontWeight={900} fill="#5a6bd6" stroke="#fff" strokeWidth={3} paintOrder="stroke">
-              Zzz
-            </text>
-          </g>
-        );
-      case 'flinch':
-      case 'sneeze':
-        return (
-          <g fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round">
-            <path d={`M${cx - ex - 10},${ey - 7} L${cx - ex + 7},${ey} L${cx - ex - 10},${ey + 7}`} />
-            <path d={`M${cx + ex + 10},${ey - 7} L${cx + ex - 7},${ey} L${cx + ex + 10},${ey + 7}`} />
-          </g>
-        );
-      case 'angry':
-        return (
-          <g>
-            <circle cx={cx - ex} cy={ey + 2} r={8} fill="#fff" stroke={ink} strokeWidth={2.5} />
-            <circle cx={cx + ex} cy={ey + 2} r={8} fill="#fff" stroke={ink} strokeWidth={2.5} />
-            <circle cx={cx - ex + 2} cy={ey + 3} r={3.6} fill={ink} />
-            <circle cx={cx + ex - 2} cy={ey + 3} r={3.6} fill={ink} />
-          </g>
-        );
-      case 'worried':
-        return (
-          <g>
-            <ellipse cx={cx - ex} cy={ey} rx={9} ry={10} fill="#fff" stroke={ink} strokeWidth={2.5} />
-            <ellipse cx={cx + ex} cy={ey} rx={9} ry={10} fill="#fff" stroke={ink} strokeWidth={2.5} />
-            <circle cx={cx - ex} cy={ey + 3} r={4} fill={ink} />
-            <circle cx={cx + ex} cy={ey + 3} r={4} fill={ink} />
-          </g>
-        );
-      default:
-        return (
-          <g fill={ink}>
-            <ellipse cx={cx - ex} cy={ey} rx={5.5} ry={7} />
-            <ellipse cx={cx + ex} cy={ey} rx={5.5} ry={7} />
-            <circle cx={cx - ex + 2} cy={ey - 3} r={1.8} fill="#fff" />
-            <circle cx={cx + ex + 2} cy={ey - 3} r={1.8} fill="#fff" />
-          </g>
-        );
-    }
-  })();
-
-  const brow = (() => {
-    const w = 15;
-    switch (mood) {
-      case 'angry':
-        return [`M${cx - ex - w},${by - 8} L${cx - ex + w},${by + 4}`, `M${cx + ex + w},${by - 8} L${cx + ex - w},${by + 4}`];
-      case 'worried':
-      case 'crying':
-        return [`M${cx - ex - w},${by + 2} L${cx - ex + w},${by - 8}`, `M${cx + ex + w},${by + 2} L${cx + ex - w},${by - 8}`];
-      case 'suspicious':
-        return [`M${cx - ex - w},${by - 10} Q${cx - ex},${by - 18} ${cx - ex + w},${by - 8}`, `M${cx + ex + w},${by + 2} L${cx + ex - w},${by + 2}`];
-      case 'shocked':
-      case 'ecstatic':
-        return [`M${cx - ex - w},${by - 10} Q${cx - ex},${by - 22} ${cx - ex + w},${by - 10}`, `M${cx + ex + w},${by - 10} Q${cx + ex},${by - 22} ${cx + ex - w},${by - 10}`];
-      case 'flinch':
-      case 'sneeze':
-        return [`M${cx - ex - w},${by - 2} L${cx - ex + w},${by + 2}`, `M${cx + ex + w},${by - 2} L${cx + ex - w},${by + 2}`];
-      default:
-        return [`M${cx - ex - w},${by - 2} Q${cx - ex},${by - 7} ${cx - ex + w},${by - 2}`, `M${cx + ex + w},${by - 2} Q${cx + ex},${by - 7} ${cx + ex - w},${by - 2}`];
-    }
-  })();
-
-  const my = cy + 56;
-  const mouth = (() => {
-    switch (mood) {
-      case 'happy':
-        return <path d={`M${cx - 22},${my - 4} Q${cx},${my + 18} ${cx + 22},${my - 4}`} fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round" />;
-      case 'ecstatic':
-        return (
-          <g>
-            <path d={`M${cx - 30},${my - 8} Q${cx},${my + 40} ${cx + 30},${my - 8} Z`} fill="#7a1f1f" stroke={ink} strokeWidth={3.5} strokeLinejoin="round" />
-            <path d={`M${cx - 14},${my + 16} Q${cx},${my + 6} ${cx + 14},${my + 16} Q${cx},${my + 26} ${cx - 14},${my + 16}`} fill="#ff7a8a" />
-          </g>
-        );
-      case 'suspicious':
-        return <path d={`M${cx - 16},${my + 4} L${cx + 18},${my - 2}`} fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round" />;
-      case 'shocked':
-        return <ellipse cx={cx} cy={my + 6} rx={13} ry={18} fill="#5a1414" stroke={ink} strokeWidth={3.5} />;
-      case 'crying':
-        return <path d={`M${cx - 24},${my + 12} Q${cx - 12},${my - 6} ${cx},${my + 4} Q${cx + 12},${my - 6} ${cx + 24},${my + 12} Q${cx},${my + 24} ${cx - 24},${my + 12}Z`} fill="#5a1414" stroke={ink} strokeWidth={3} />;
-      case 'angry':
-        return (
-          <g>
-            <rect x={cx - 24} y={my - 6} width={48} height={18} rx={5} fill="#fff" stroke={ink} strokeWidth={3.5} />
-            <path d={`M${cx - 24},${my + 3} H${cx + 24} M${cx - 12},${my - 6} V${my + 12} M${cx},${my - 6} V${my + 12} M${cx + 12},${my - 6} V${my + 12}`} stroke={ink} strokeWidth={2} />
-          </g>
-        );
-      case 'worried':
-        return <path d={`M${cx - 20},${my + 4} q5,-7 10,0 q5,7 10,0 q5,-7 10,0 q5,7 10,0`} fill="none" stroke={ink} strokeWidth={3.5} strokeLinecap="round" />;
-      case 'sleepy':
-        return <ellipse cx={cx} cy={my + 4} rx={7} ry={9} fill="#5a1414" stroke={ink} strokeWidth={3} />;
-      case 'flinch':
-        return <path d={`M${cx - 18},${my + 4} l6,-6 l6,6 l6,-6 l6,6 l6,-6`} fill="none" stroke={ink} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />;
-      case 'sneeze':
-        return <ellipse cx={cx} cy={my + 4} rx={20} ry={12} fill="#5a1414" stroke={ink} strokeWidth={3.5} />;
-      default:
-        return <path d={`M${cx - 14},${my + 2} Q${cx},${my + 6} ${cx + 14},${my + 2}`} fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round" />;
-    }
-  })();
-
-  return (
-    <g>
-      {(mood === 'happy' || mood === 'ecstatic' || mood === 'angry') && (
-        <g fill={mood === 'angry' ? '#ff5a4a' : '#ff8c8c'} opacity={0.45}>
-          <ellipse cx={cx - 52} cy={cy + 38} rx={14} ry={8} />
-          <ellipse cx={cx + 52} cy={cy + 38} rx={14} ry={8} />
-        </g>
-      )}
-      {eyes}
-      {look.glasses && (
-        <g fill="none" stroke="#1d1d1d" strokeWidth={3.5}>
-          <rect x={cx - ex - 19} y={ey - 15} width={38} height={30} rx={9} fill="#bfe3ff" fillOpacity={0.18} />
-          <rect x={cx + ex - 19} y={ey - 15} width={38} height={30} rx={9} fill="#bfe3ff" fillOpacity={0.18} />
-          <path d={`M${cx - ex + 19},${ey - 4} Q${cx},${ey - 10} ${cx + ex - 19},${ey - 4}`} />
-          <path d={`M${cx - ex - 19},${ey - 6} L${cx - rx + 2},${ey - 10} M${cx + ex + 19},${ey - 6} L${cx + rx - 2},${ey - 10}`} />
-        </g>
-      )}
-      {/* nose */}
-      <path d={`M${cx - 3},${cy + 20} Q${cx - 10},${cy + 38} ${cx - 2},${cy + 40} Q${cx + 8},${cy + 41} ${cx + 9},${cy + 36}`} fill="none" stroke={look.skinShade} strokeWidth={3.5} strokeLinecap="round" />
-      {look.wrinkles && (
-        <g fill="none" stroke={look.skinShade} strokeWidth={2} strokeLinecap="round" opacity={0.8}>
-          <path d={`M${cx - 30},${cy + 46} q-6,10 -2,18 M${cx + 30},${cy + 46} q6,10 2,18`} />
-          <path d={`M${cx - ex - 20},${ey + 2} l-6,-3 M${cx - ex - 20},${ey + 7} l-6,2 M${cx + ex + 20},${ey + 2} l6,-3 M${cx + ex + 20},${ey + 7} l6,2`} />
-        </g>
-      )}
-      {mouth}
-      {look.mustache && (
-        <path
-          d={`M${cx},${my - 10} q-14,-10 -30,-4 q-10,4 -12,14 q10,-6 22,-4 q12,2 20,-6 q8,8 20,6 q12,-2 22,4 q-2,-10 -12,-14 q-16,-6 -30,4z`}
-          fill="#d9d4cf"
-          stroke="#8f8a86"
-          strokeWidth={2}
-        />
-      )}
-      <g fill="none" stroke={ink} strokeWidth={5} strokeLinecap="round">
-        <path d={brow[0]} />
-        <path d={brow[1]} />
-      </g>
-      {mood === 'angry' && (
-        <g stroke="#e0201a" strokeWidth={4} strokeLinecap="round" fill="none" transform={`translate(${cx + 46},${cy - 38})`}>
-          <path d="M-8,-3 q5,0 5,-6 M3,-9 q0,5 6,5 M9,3 q-5,0 -5,6 M-3,9 q0,-5 -6,-5" />
-        </g>
-      )}
-      {(mood === 'worried' || mood === 'shocked' || mood === 'flinch') && (
-        <path d={`M${cx + rx - 10},${cy - 30} q-9,14 0,20 q9,-6 0,-20z`} fill="#8fd3ff" stroke="#3a8fd0" strokeWidth={2} />
-      )}
-    </g>
-  );
-}
-
-
-/** Things on the head that sit over the hair (drawn after the tufts). */
-function HeadExtras({ look }: { look: CustomerLook }) {
-  return (
-    <g>
-      {look.headband && (
-        <g>
-          <path d={`M${cx - rx + 4},${cy - 42} Q${cx},${cy - 66} ${cx + rx - 4},${cy - 42} L${cx + rx - 2},${cy - 30} Q${cx},${cy - 54} ${cx - rx + 2},${cy - 30}Z`} fill={look.headband} stroke="#7a1512" strokeWidth={2} />
-          <path d={`M${cx + rx - 6},${cy - 36} q24,6 30,26 M${cx + rx - 6},${cy - 34} q18,14 16,36`} fill="none" stroke={look.headband} strokeWidth={7} strokeLinecap="round" />
-        </g>
-      )}
-      {look.antennae && (
-        <g stroke="#2f6e1f" strokeWidth={6} fill="#c6ff7a">
-          <path d={`M${cx - 30},${cy - ry + 10} q-20,-70 -44,-96`} fill="none" strokeLinecap="round" />
-          <path d={`M${cx + 30},${cy - ry + 10} q20,-70 44,-96`} fill="none" strokeLinecap="round" />
-          <circle cx={cx - 76} cy={cy - ry - 88} r={13} strokeWidth={4} />
-          <circle cx={cx + 76} cy={cy - ry - 88} r={13} strokeWidth={4} />
-          <circle cx={cx - 80} cy={cy - ry - 92} r={4} fill="#fff" stroke="none" />
-          <circle cx={cx + 72} cy={cy - ry - 92} r={4} fill="#fff" stroke="none" />
-        </g>
-      )}
-    </g>
-  );
-}
-
-/** Things on the face drawn over the expression. */
-function FaceExtras({ look }: { look: CustomerLook }) {
-  const ey = cy + 12;
-  return (
-    <g>
-      {look.freckles && (
-        <g fill="#b9784f" opacity={0.7}>
-          {[-58, -50, -44, 44, 50, 58].map((dx, i) => (
-            <circle key={i} cx={cx + dx} cy={cy + 30 + (i % 2) * 6} r={2.2} />
-          ))}
-        </g>
-      )}
-      {look.beard && <path d={`M${cx - 52},${cy + 52} Q${cx - 40},${cy + ry + 26} ${cx},${cy + ry + 30} Q${cx + 40},${cy + ry + 26} ${cx + 52},${cy + 52} Q${cx},${cy + 92} ${cx - 52},${cy + 52}Z`} fill="#e6e3dc" stroke="#9c968b" strokeWidth={2} opacity={0.95} />}
-      {look.sunglasses && (
-        <g>
-          <rect x={cx - 32 - 22} y={ey - 14} width={44} height={26} rx={10} fill="#1b1b2a" stroke="#d4af37" strokeWidth={3} />
-          <rect x={cx + 32 - 22} y={ey - 14} width={44} height={26} rx={10} fill="#1b1b2a" stroke="#d4af37" strokeWidth={3} />
-          <path d={`M${cx - 10},${ey - 4} h20`} stroke="#d4af37" strokeWidth={3} />
-          <path d={`M${cx - 44},${ey - 8} l10,-4 M${cx + 20},${ey - 8} l10,-4`} stroke="#fff" strokeWidth={3} opacity={0.6} />
-        </g>
-      )}
-    </g>
-  );
-}
-
-/** Body extras: ties, pearls, props next to the chair. */
-function BodyExtras({ look }: { look: CustomerLook }) {
-  return (
-    <g>
-      {look.tie && <path d={`M${cx - 9},${cy + 124} h18 l-4,10 l6,26 l-11,10 l-11,-10 l6,-26z`} fill={look.tie} stroke="#0d2a66" strokeWidth={2} />}
-      {look.necklace && (
-        <g fill="#fffaf0" stroke="#c9c2b0" strokeWidth={1}>
-          {Array.from({ length: 9 }, (_, i) => {
-            const a = Math.PI * (0.15 + (0.7 * i) / 8);
-            return <circle key={i} cx={cx - Math.cos(a) * 36} cy={cy + 112 + Math.sin(a) * 24} r={4.5} />;
-          })}
-        </g>
-      )}
-      {look.prop === 'helmet' && (
-        <g transform={`translate(${cx + 128},${cy + 178})`}>
-          <path d="M-40,10 Q-40,-38 0,-40 Q40,-38 40,10Z" fill="#2fa84f" stroke="#145c2a" strokeWidth={4} />
-          <rect x={-44} y={6} width={88} height={12} rx={5} fill="#145c2a" />
-          <path d="M-18,-20 h36" stroke="#fff" strokeWidth={5} strokeLinecap="round" opacity={0.7} />
-        </g>
-      )}
-      {look.prop === 'phoneStick' && (
-        <g transform={`translate(${cx + 118},${cy - 60})`}>
-          <path d="M10,200 L-4,40" stroke="#555" strokeWidth={5} />
-          <rect x={-26} y={-10} width={46} height={78} rx={8} fill="#1d1f24" />
-          <rect x={-22} y={-4} width={38} height={64} rx={4} fill="#ff4fa0" />
-          <circle cx={-3} cy={28} r={11} fill="#fff" />
-          <text x={-3} y={33} textAnchor="middle" fontSize={12} fontWeight={900} fill="#ff4fa0">
-            LIVE
-          </text>
-        </g>
-      )}
-      {look.prop === 'schoolBag' && (
-        <g>
-          <path d={`M${cx - 70},${cy + 140} q-6,60 -4,110`} stroke="#1f4fb5" strokeWidth={12} fill="none" />
-          <path d={`M${cx + 70},${cy + 140} q6,60 4,110`} stroke="#1f4fb5" strokeWidth={12} fill="none" />
-        </g>
-      )}
-      {look.prop === 'briefcase' && (
-        <g transform={`translate(${cx - 140},${cy + 200})`}>
-          <rect x={-34} y={-24} width={68} height={48} rx={6} fill="#5a3a22" stroke="#2b1a0e" strokeWidth={3} />
-          <path d="M-12,-24 v-10 h24 v10" fill="none" stroke="#2b1a0e" strokeWidth={4} />
-        </g>
-      )}
-    </g>
-  );
-}
-
-/** Cậu Vàng's face: snout, nose, tongue, floppy ears are drawn separately. */
-function DogFace({ mood }: { mood: Mood }) {
-  const ink = '#2b1a12';
-  const ey = cy + 4;
-  const happy = mood === 'happy' || mood === 'ecstatic';
-  const scared = mood === 'worried' || mood === 'flinch' || mood === 'shocked' || mood === 'crying';
-  const eyeR = scared ? 11 : 9;
-  return (
-    <g>
-      {/* muzzle */}
-      <ellipse cx={cx} cy={cy + 48} rx={46} ry={36} fill="#f6e2b8" stroke="#c79c5c" strokeWidth={3} />
-      {/* eyes */}
-      {happy ? (
-        <g fill="none" stroke={ink} strokeWidth={4.5} strokeLinecap="round">
-          <path d={`M${cx - 42},${ey + 4} Q${cx - 32},${ey - 8} ${cx - 22},${ey + 4}`} />
-          <path d={`M${cx + 22},${ey + 4} Q${cx + 32},${ey - 8} ${cx + 42},${ey + 4}`} />
-        </g>
-      ) : mood === 'sleepy' ? (
-        <g stroke={ink} strokeWidth={4} strokeLinecap="round">
-          <path d={`M${cx - 42},${ey} h20 M${cx + 22},${ey} h20`} />
-        </g>
-      ) : (
-        <g>
-          <circle cx={cx - 32} cy={ey} r={eyeR} fill={ink} />
-          <circle cx={cx + 32} cy={ey} r={eyeR} fill={ink} />
-          <circle cx={cx - 29} cy={ey - 3} r={3} fill="#fff" />
-          <circle cx={cx + 35} cy={ey - 3} r={3} fill="#fff" />
-        </g>
-      )}
-      {scared && (
-        <g fill="none" stroke={ink} strokeWidth={4} strokeLinecap="round">
-          <path d={`M${cx - 46},${ey - 20} L${cx - 22},${ey - 14} M${cx + 46},${ey - 20} L${cx + 22},${ey - 14}`} />
-        </g>
-      )}
-      {mood === 'angry' && (
-        <g fill="none" stroke={ink} strokeWidth={4.5} strokeLinecap="round">
-          <path d={`M${cx - 46},${ey - 22} L${cx - 22},${ey - 12} M${cx + 46},${ey - 22} L${cx + 22},${ey - 12}`} />
-        </g>
-      )}
-      {/* nose */}
-      <path d={`M${cx - 15},${cy + 30} Q${cx},${cy + 22} ${cx + 15},${cy + 30} Q${cx + 12},${cy + 44} ${cx},${cy + 46} Q${cx - 12},${cy + 44} ${cx - 15},${cy + 30}Z`} fill={ink} />
-      <ellipse cx={cx - 5} cy={cy + 30} rx={4} ry={2.5} fill="#fff" opacity={0.6} />
-      {/* mouth */}
-      <path d={`M${cx},${cy + 46} v8 M${cx - 20},${cy + 58} Q${cx - 10},${cy + 66} ${cx},${cy + 54} Q${cx + 10},${cy + 66} ${cx + 20},${cy + 58}`} fill="none" stroke={ink} strokeWidth={3.5} strokeLinecap="round" />
-      {(happy || mood === 'neutral') && (
-        <path d={`M${cx - 9},${cy + 60} Q${cx - 10},${cy + 86} ${cx},${cy + 88} Q${cx + 10},${cy + 86} ${cx + 9},${cy + 60}Z`} fill="#ff7a8a" stroke="#c9485a" strokeWidth={2} />
-      )}
-      {mood === 'angry' && <path d={`M${cx - 18},${cy + 60} l5,7 l5,-7 l5,7 l5,-7 l5,7 l5,-7`} fill="#fff" stroke={ink} strokeWidth={1.5} />}
-      {mood === 'crying' && <path d={`M${cx - 34},${ey + 10} q-4,18 0,30 M${cx + 34},${ey + 10} q4,18 0,30`} stroke="#6ec6ff" strokeWidth={6} strokeLinecap="round" fill="none" />}
-    </g>
-  );
-}
-
-export function Character({ look, hair, metrics, mood, headOffset, ghost, highlightZone, pulse = 0, idPrefix, showDanger }: CharacterProps) {
+export function Character({ look, hair, metrics, mood, headOffset, ghost, highlightZone, pulse = 0, idPrefix, showDanger, t }: CharacterProps) {
   const off = headOffset ?? { x: 0, y: 0 };
+  const live = t !== undefined;
+  const time = t ?? 0;
+  const g = geo(hair.head, look);
+  const { cx, cy } = g;
   const tufts = hair.tufts;
   const order = (k: Tuft['kind']) => (k === 'crown' ? 0 : k === 'edge' ? 1 : 2);
   const sorted = [...tufts].sort((a, b) => order(a.kind) - order(b.kind));
-  const bald = tufts.filter((t) => t.bald);
+  const bald = tufts.filter((tf) => tf.bald);
   const clipId = `${idPrefix}-skull`;
   const tilt = off.x * 0.25;
   const dog = look.species === 'dog';
+  const phase = lookPhase(look);
+  const idle = live ? idleOffset(look.body?.idle, time, phase) : { x: 0, y: 0 };
+  const skull = skullPath(g, look.face?.jaw);
 
   return (
     <g>
-      {/* Body + cape (stays put while the head turns) */}
-      <path d={`M${cx - 34},${cy + 70} L${cx - 30},${cy + 140} L${cx + 30},${cy + 140} L${cx + 34},${cy + 70}Z`} fill={look.skinShade} />
-      <path d={`M${cx - 150},530 Q${cx - 140},${cy + 150} ${cx - 40},${cy + 128} L${cx + 40},${cy + 128} Q${cx + 140},${cy + 150} ${cx + 150},530Z`} fill={look.shirt} />
-      <path
-        d={`M${cx - 168},530 L${cx - 120},${cy + 160} Q${cx},${cy + 112} ${cx + 120},${cy + 160} L${cx + 168},530Z`}
-        fill="#e9f3f1"
-        stroke="#9fbcb7"
-        strokeWidth={3}
-      />
-      <g stroke="#7fc4ba" strokeWidth={6} opacity={0.6}>
-        <path d={`M${cx - 120},${cy + 205} L${cx - 140},520 M${cx - 60},${cy + 175} L${cx - 70},520 M${cx},${cy + 168} L${cx},520 M${cx + 60},${cy + 175} L${cx + 70},520 M${cx + 120},${cy + 205} L${cx + 140},520`} />
+      {/* Body (stays put while the head turns; idles on its own) */}
+      <g transform={idle.x || idle.y ? `translate(${f1(idle.x)},${f1(idle.y)})` : undefined}>
+        <BehindBody g={g} look={look} t={time} />
+        <Body g={g} look={look} t={time} />
       </g>
-      <path d={`M${cx - 44},${cy + 128} Q${cx},${cy + 152} ${cx + 44},${cy + 128} Q${cx},${cy + 142} ${cx - 44},${cy + 128}Z`} fill="#c9dcd8" />
-      {look.chain && (
-        <path d={`M${cx - 30},${cy + 112} Q${cx},${cy + 150} ${cx + 30},${cy + 112}`} fill="none" stroke="#f2c230" strokeWidth={5} strokeDasharray="5 3" />
-      )}
-      {dog && <path d={`M${cx - 40},${cy + 116} Q${cx},${cy + 134} ${cx + 40},${cy + 116} l0,12 Q${cx},${cy + 146} ${cx - 40},${cy + 128}Z`} fill={look.shirt} stroke="#7a1512" strokeWidth={2} />}
-      {dog && <circle cx={cx} cy={cy + 140} r={8} fill="#ffd23f" stroke="#a8740c" strokeWidth={2} />}
-      <BodyExtras look={look} />
 
-      <g transform={`translate(${off.x.toFixed(1)},${off.y.toFixed(1)}) rotate(${tilt.toFixed(1)} ${cx} ${cy + 80})`}>
+      <g transform={`translate(${off.x.toFixed(1)},${off.y.toFixed(1)}) rotate(${tilt.toFixed(1)} ${cx} ${f1(cy + 80)})`}>
         <defs>
           <clipPath id={clipId}>
-            <ellipse cx={cx} cy={cy} rx={rx + 1} ry={ry + 1} />
+            <path d={skull} />
           </clipPath>
         </defs>
-        {/* ears */}
-        {dog ? (
-          <g fill={look.hairShade} stroke="#6b4a12" strokeWidth={3}>
-            <path d={`M${cx - rx + 10},${cy - 70} Q${cx - rx - 46},${cy - 40} ${cx - rx - 30},${cy + 50} Q${cx - rx - 8},${cy + 60} ${cx - rx + 14},${cy - 10}Z`} />
-            <path d={`M${cx + rx - 10},${cy - 70} Q${cx + rx + 46},${cy - 40} ${cx + rx + 30},${cy + 50} Q${cx + rx + 8},${cy + 60} ${cx + rx - 14},${cy - 10}Z`} />
-          </g>
-        ) : (
-          <>
-            <ellipse cx={cx - rx + 2} cy={cy + 14} rx={15} ry={21} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
-            <ellipse cx={cx + rx - 2} cy={cy + 14} rx={15} ry={21} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
-          </>
-        )}
-        {look.earring && <circle cx={cx + rx + 2} cy={cy + 36} r={5} fill="none" stroke="#f2c230" strokeWidth={3} />}
-        {/* skull */}
-        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
-        <path d={`M${cx - rx + 10},${cy + 40} Q${cx},${cy + ry + 30} ${cx + rx - 10},${cy + 40}`} fill="none" stroke={look.skinShade} strokeWidth={2} opacity={0.4} />
+        <Ears g={g} look={look} />
+        {/* skull + jaw */}
+        <path d={skull} fill={look.skin} stroke={look.skinShade} strokeWidth={3} />
+        {!dog && <path d={`M${f1(cx - g.rx * 0.6)},${f1(g.chinY - 8)} Q${cx},${f1(g.chinY + 4)} ${f1(cx + g.rx * 0.6)},${f1(g.chinY - 8)}`} fill="none" stroke={look.skinShade} strokeWidth={2} opacity={0.3} />}
 
         {/* hair base */}
-        <path d={CAP} fill={look.hairColor} stroke={look.hairShade} strokeWidth={2} />
+        <path d={capPath(g)} fill={look.hairColor} stroke={look.hairShade} strokeWidth={2} />
         {/* bald patches on top of the base */}
         <g clipPath={`url(#${clipId})`}>
-          {bald.map((t) => (
-            <circle key={t.id} cx={t.root.x} cy={t.root.y} r={t.kind === 'crown' ? 14 : 13} fill={look.skin} />
+          {bald.map((tf) => (
+            <circle key={tf.id} cx={tf.root.x} cy={tf.root.y} r={tf.kind === 'crown' ? 14 : 13} fill={look.skin} />
           ))}
           {bald
             .filter((_, i) => i % 4 === 0)
-            .map((t) => (
-              <ellipse key={`s${t.id}`} cx={t.root.x - 4} cy={t.root.y - 5} rx={7} ry={3} fill="#fff" opacity={0.4} transform={`rotate(-25 ${t.root.x} ${t.root.y})`} />
+            .map((tf) => (
+              <ellipse key={`s${tf.id}`} cx={tf.root.x - 4} cy={tf.root.y - 5} rx={7} ry={3} fill="#fff" opacity={0.4} transform={`rotate(-25 ${tf.root.x} ${tf.root.y})`} />
             ))}
         </g>
         {metrics.highway && (
-          <g>
-            <line
-              x1={metrics.highway.a.x}
-              y1={metrics.highway.a.y}
-              x2={metrics.highway.b.x}
-              y2={metrics.highway.b.y}
-              stroke="#ffffff"
-              strokeWidth={3.5}
-              strokeDasharray="9 8"
-              strokeLinecap="round"
-            />
-          </g>
+          <line
+            x1={metrics.highway.a.x}
+            y1={metrics.highway.a.y}
+            x2={metrics.highway.b.x}
+            y2={metrics.highway.b.y}
+            stroke="#ffffff"
+            strokeWidth={3.5}
+            strokeDasharray="9 8"
+            strokeLinecap="round"
+          />
         )}
         {showDanger &&
           tufts
-            .filter((t) => t.dwell > 0.1 && !t.bald)
-            .map((t) => <circle key={`d${t.id}`} cx={t.root.x} cy={t.root.y} r={10} fill="#ff2a2a" opacity={Math.min(0.85, t.dwell * 1.6)} />)}
+            .filter((tf) => tf.dwell > 0.1 && !tf.bald)
+            .map((tf) => <circle key={`d${tf.id}`} cx={tf.root.x} cy={tf.root.y} r={10} fill="#ff2a2a" opacity={Math.min(0.85, tf.dwell * 1.6)} />)}
 
         {/* tufts: a soft mass for volume, then textured blades */}
         <g fill="none" stroke={look.hairColor} strokeLinecap="round">
-          {sorted.map((t) => {
-            const d = massPath(t);
+          {sorted.map((tf) => {
+            const d = massPath(tf);
             if (!d) return null;
             return (
               <path
-                key={`m${t.id}`}
+                key={`m${tf.id}`}
                 d={d}
-                stroke={t.tint ?? look.hairColor}
-                strokeWidth={(t.kind === 'fringe' ? 9 : t.kind === 'crown' ? 10 : 13) * (1 + t.fluff * 0.5) * t.thick}
+                stroke={tf.tint ?? look.hairColor}
+                strokeWidth={(tf.kind === 'fringe' ? 9 : tf.kind === 'crown' ? 10 : 13) * (1 + tf.fluff * 0.5) * tf.thick}
               />
             );
           })}
         </g>
         <g>
-          {sorted.map((t) => {
-            const d = bladePath(t);
+          {sorted.map((tf) => {
+            const d = bladePath(tf);
             if (!d) return null;
             return (
               <path
-                key={t.id}
+                key={tf.id}
                 d={d}
-                fill={t.tint ?? (t.spiked ? look.hairShade : look.hairColor)}
-                stroke={t.tint ? 'rgba(0,0,0,0.35)' : look.hairShade}
+                fill={tf.tint ?? (tf.spiked ? look.hairShade : look.hairColor)}
+                stroke={tf.tint ? 'rgba(0,0,0,0.35)' : look.hairShade}
                 strokeWidth={1.4}
                 strokeLinejoin="round"
               />
@@ -595,18 +196,15 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
         {highlightZone && (
           <g fill="none" stroke="#ffd400" strokeWidth={3} opacity={0.45 + pulse * 0.5}>
             {tufts
-              .filter((t) => t.zone === highlightZone && !t.bald && t.len > 2)
-              .map((t) => (
-                <path key={`h${t.id}`} d={bladePath(t)} />
+              .filter((tf) => tf.zone === highlightZone && !tf.bald && tf.len > 2)
+              .map((tf) => (
+                <path key={`h${tf.id}`} d={bladePath(tf)} />
               ))}
           </g>
         )}
-        {ghost && (
-          <path d={ghostPath(hair, ghost)} fill="none" stroke="#21d07a" strokeWidth={3.5} strokeDasharray="7 6" strokeLinecap="round" opacity={0.9} />
-        )}
-        <HeadExtras look={look} />
-        {dog ? <DogFace mood={mood} /> : <Face mood={mood} look={look} />}
-        {!dog && <FaceExtras look={look} />}
+        {ghost && <path d={ghostPath(hair, ghost)} fill="none" stroke="#21d07a" strokeWidth={3.5} strokeDasharray="7 6" strokeLinecap="round" opacity={0.9} />}
+        <HeadWear g={g} look={look} t={time} />
+        {dog ? <DogFace g={g} mood={mood} /> : <Face g={g} mood={mood} look={look} t={time} live={live} phase={phase} />}
       </g>
     </g>
   );

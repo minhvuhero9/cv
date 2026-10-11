@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CUSTOMERS, customerById } from './customers';
 import { Vec } from './geometry';
-import { measureHair } from './metrics';
 import { RoundState, Tool, createRound, finish, pointerDown, pointerMove, pointerUp, setTool, startCutting, tick } from './session';
 import { unlockedTools } from './tools';
 
@@ -112,12 +111,9 @@ describe('behaviours', () => {
     expect(g.result!.sat).toBeGreaterThan(50);
   });
 
-  it('alien: hair flies TOWARDS the dryer', () => {
-    const a = game('alien');
-    const h = game('tuan');
-    hold(a, 'dryer', { x: 90, y: 200 }, 1.5);
-    hold(h, 'dryer', { x: 90, y: 200 }, 1.5);
-    expect(Math.sign(measureHair(a.hair).leanAvg)).toBe(-Math.sign(measureHair(h.hair).leanAvg));
+  it('the alien customer is gone from the roster', () => {
+    expect(CUSTOMERS.some((c) => c.id === 'alien')).toBe(false);
+    expect(CUSTOMERS.some((c) => /X-79/.test(c.name))).toBe(false);
   });
 
   it('copycat: only the exact viral style fully satisfies', () => {
