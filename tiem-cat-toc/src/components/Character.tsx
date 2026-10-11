@@ -4,6 +4,7 @@ import type { Vec } from '../game/geometry';
 import { HairState, Tuft, Zone, tuftPoints } from '../game/hair';
 import type { HairMetrics } from '../game/metrics';
 import { Body, BehindBody, idleOffset } from './character/Body';
+import { carvingLines } from '../game/studio';
 import { DogFace, Face } from './character/Face';
 import { Ears, HeadWear } from './character/Head';
 import { capPath, f1, geo, lookPhase, skullPath } from './character/geo';
@@ -220,6 +221,41 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
               .map((tf) => (
                 <path key={`h${tf.id}`} d={bladePath(tf)} />
               ))}
+          </g>
+        )}
+        {hair.carvings && hair.carvings.length > 0 && (
+          <g clipPath={`url(#${clipId})`} data-carvings={hair.carvings.length}>
+            {hair.carvings.map((c, i) =>
+              c.kind === 'text' ? (
+                <text
+                  key={i}
+                  x={c.x}
+                  y={c.y + 9 * c.s}
+                  textAnchor="middle"
+                  fontSize={26 * c.s}
+                  fontWeight={900}
+                  fontFamily="Arial Black, Arial, sans-serif"
+                  fill={look.skin}
+                  stroke={look.skinShade}
+                  strokeWidth={1.5}
+                  transform={`rotate(${c.r.toFixed(1)} ${c.x} ${c.y})`}
+                >
+                  {c.text}
+                </text>
+              ) : (
+                <g key={i} fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  {carvingLines(c).map((l, k) => {
+                    const d = `M${l.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L')}`;
+                    return (
+                      <g key={k}>
+                        <path d={d} stroke={look.skin} strokeWidth={8 * c.s} />
+                        <path d={d} stroke={look.skinShade} strokeWidth={1.6} opacity={0.6} />
+                      </g>
+                    );
+                  })}
+                </g>
+              ),
+            )}
           </g>
         )}
         {ghost && <path d={ghostPath(hair, ghost)} fill="none" stroke="#21d07a" strokeWidth={3.5} strokeDasharray="7 6" strokeLinecap="round" opacity={0.9} />}

@@ -67,10 +67,10 @@ export function wandCurl(h: HairState, p: Vec): Tuft[] {
 export const RAY_COLORS = ['#ff3fa4', '#2ee86a', '#8a4dff', '#ffd400', '#18c8ff', '#ff6a00'];
 
 /** Súng Tóc 3000: dye, stand up and enlarge every tuft around the impact point. */
-export function rayBlast(h: HairState, p: Vec, color: string): Tuft[] {
+export function rayBlast(h: HairState, p: Vec, color: string | ((t: Tuft) => string)): Tuft[] {
   const hit = h.tufts.filter((t) => !t.bald && t.len > 2 && reach(t, p) < RAY_RADIUS);
   for (const t of hit) {
-    t.tint = color;
+    t.tint = typeof color === 'string' ? color : color(t);
     t.spiked = true;
     t.spike = 1;
     t.len = Math.min(t.len * 1.25, t.origLen * MAX_GROWTH);

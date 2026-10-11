@@ -4,6 +4,7 @@ import { Character } from '../components/Character';
 import { measureHair } from './metrics';
 import { REPLAY_FPS, replayShots, shotLook } from './replay';
 import type { RoundState } from './session';
+import type { Mood } from './evaluate';
 
 const W = 540;
 const H = 720;
@@ -39,8 +40,8 @@ function pickMime(): string {
 }
 
 /** Draws the replay into a canvas and records it with MediaRecorder (real time, ~5 s). */
-export async function renderReplayVideo(s: RoundState, onProgress?: (p: number) => void): Promise<{ blob: Blob; ext: string }> {
-  const shots = replayShots(s);
+export async function renderReplayVideo(s: RoundState, onProgress?: (p: number) => void, opts: { title?: string; finalMood?: Mood } = {}): Promise<{ blob: Blob; ext: string }> {
+  const shots = replayShots(s, opts.finalMood);
   const imgs: HTMLImageElement[] = [];
   for (let i = 0; i < shots.length; i++) {
     imgs.push(await load(frameSvg(s, i, shots)));
@@ -65,7 +66,7 @@ export async function renderReplayVideo(s: RoundState, onProgress?: (p: number) 
     ctx.fillRect(0, H - 70, W, 70);
     ctx.fillStyle = '#fff8e8';
     ctx.font = `800 24px ${FONT}`;
-    const label = f.final && s.result ? s.result.style.name : `${s.customer.name} · ${Math.round(f.at * s.time)}s`;
+    const label = f.final && (opts.title || s.result) ? (opts.title || s.result!.style.name) : `${s.customer.name} · ${Math.round(f.at * s.time)}s`;
     ctx.fillText(label.length > 38 ? `${label.slice(0, 36)}…` : label, W / 2, H - 28);
     // progress bar
     ctx.fillStyle = '#ffd23f';

@@ -78,7 +78,7 @@ function statusText(st: GearStatus): string {
 }
 
 /** Toolbar: basic tools, then the Bộ Đồ Nghề Bất Ổn (scrolls sideways on phones). */
-export function Toolbar({ s, onTool, onFinish, extra }: { s: RoundState; onTool(t: Tool): void; onFinish(): void; extra?: React.ReactNode }) {
+export function Toolbar({ s, onTool, onFinish, extra, finishLabel }: { s: RoundState; onTool(t: Tool): void; onFinish(): void; extra?: React.ReactNode; finishLabel?: [string, string] }) {
   const [inspect, setInspect] = useState<ToolId | null>(null);
   const active = s.phase === 'cutting' && !s.walkout;
   const shown = toolDef(inspect ?? s.tool);
@@ -165,8 +165,8 @@ export function Toolbar({ s, onTool, onFinish, extra }: { s: RoundState; onTool(
         </div>
         {extra}
         <button className="finish-btn" onClick={onFinish} disabled={!active} data-testid="finish">
-          <span className="finish-big">Xong!</span>
-          <span className="finish-small">Soi gương</span>
+          <span className="finish-big">{finishLabel?.[0] ?? 'Xong!'}</span>
+          <span className="finish-small">{finishLabel?.[1] ?? 'Soi gương'}</span>
         </button>
       </div>
     </nav>
@@ -180,6 +180,7 @@ export function IntroCard({
   note,
   daily,
   onDaily,
+  onStudio,
 }: {
   s: RoundState;
   onStart(): void;
@@ -187,6 +188,7 @@ export function IntroCard({
   note?: string;
   daily?: DailyChallenge | null;
   onDaily?(): void;
+  onStudio?(): void;
 }) {
   const c = s.customer;
   return (
@@ -222,6 +224,11 @@ export function IntroCard({
         <button className="primary-btn" onClick={onStart} data-testid="start" autoFocus>
           Mời ngồi — Bắt đầu cắt ✂
         </button>
+        {onStudio && (
+          <button className="daily-btn studio-btn" onClick={onStudio} data-testid="open-studio">
+            🎨 Xưởng Tạo Kiểu — tự do sáng tạo, không chấm điểm
+          </button>
+        )}
         {onDaily && !daily && (
           <button className="daily-btn" onClick={onDaily} data-testid="daily">
             🗓 Thử thách hôm nay — cùng khách, cùng luật với mọi người
