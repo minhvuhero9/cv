@@ -258,11 +258,14 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
     queue.push({ customer: 'copycat', reason: 'copycat', note: `Muốn y hệt kiểu “${c.viralStyle.name}” trên mạng`, wantStyle: c.viralStyle.id });
   }
 
-  // 2b) Cuốn mẫu: one customer a day orders a design — a built-in template the shop can
-  //     do at its level, or (every other day, once you have some) one of your own creations.
+  // 2b) Cuốn mẫu: only once the shop owns creative tools (Cọ Nhuộm / Khuôn Cạo Hình) do
+  //     customers come in with the catalog — the day after you buy them, since the day is
+  //     planned in the morning. They order a template your tools can do or, every other
+  //     day once you have some, a design you saved yourself.
+  const artShop = c.owned.includes('brush') || c.owned.includes('stencil');
   const ok = (d: CustomerDef) => !d.boss && d.look.species !== 'dog' && d.appear.weight > 0 && d.id !== 'copycat' && c.day >= d.appear.minDay && (!d.appear.needsItem || c.owned.includes(d.appear.needsItem)) && !queue.some((q) => q.customer === d.id);
-  const own = c.day >= 2 && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null;
-  const ready = TEMPLATES.filter((t) => templateReady(t, shopLevel(c).level, careerTools(c), c.owned));
+  const own = artShop && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null;
+  const ready = artShop ? TEMPLATES.filter((t) => templateReady(t, shopLevel(c).level, careerTools(c), c.owned)) : [];
   const tpl = !own && ready.length ? ready[(c.day * 7 + c.stats.served) % ready.length] : null;
   if (own || tpl) {
     const model = own ? CUSTOMERS.find((x) => x.id === own.customer) : null;

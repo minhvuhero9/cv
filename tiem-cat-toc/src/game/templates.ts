@@ -38,36 +38,6 @@ export interface Template {
 
 export const TEMPLATES: Template[] = [
   {
-    id: 'dinh',
-    name: 'Đầu Đinh Gọn Gàng',
-    level: 1,
-    stars: 1,
-    tools: [],
-    items: [],
-    zones: { left: 0.35, right: 0.35, top: 0.4, fringe: 0.3 },
-    steps: ['Tông đơ rê đều hai bên', 'Tỉa phía trên còn ngắn', 'Mái ngắn sát'],
-  },
-  {
-    id: 'hocsinh',
-    name: 'Học Sinh Ngoan',
-    level: 1,
-    stars: 1,
-    tools: [],
-    items: [],
-    zones: { left: 0.55, right: 0.55, top: 0.85, fringe: 0.75 },
-    steps: ['Kéo tỉa hai bên vừa phải', 'Giữ phía trên', 'Tỉa nhẹ mái'],
-  },
-  {
-    id: 'undercut',
-    name: 'Undercut Phố Cổ',
-    level: 1,
-    stars: 2,
-    tools: [],
-    items: [],
-    zones: { left: 0.25, right: 0.25, top: 0.95, fringe: 0.6 },
-    steps: ['Tông đơ cạo sát hai bên', 'Không đụng phía trên', 'Tỉa mái còn nửa'],
-  },
-  {
     id: 'highlight',
     name: 'Highlight Kẹo Hồng',
     level: 2,

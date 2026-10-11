@@ -57,9 +57,9 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] GĐ4: thử thách hằng ngày + bảng xếp hạng trên máy, xem lại 5 giây + tải video, đo và giảm tải hiệu năng
 
 ## 13. Sáng tạo của người chơi
-- [x] A. Xưởng Tạo Kiểu: chế độ tự do, cọ nhuộm + loang 2 màu, cạo hình theo khuôn/chữ, hoàn tác/làm lại, chụp ảnh (tên, chú thích, biểu cảm, phông, khung, sticker, PNG, video), sổ kiểu tóc
+- [x] ~~A. Xưởng Tạo Kiểu~~ (đã bỏ theo yêu cầu; cọ nhuộm, cạo hình, chụp ảnh, cuốn mẫu chuyển vào tiệm thật)
 - [x] Sáng tạo vào vòng chơi chính: Cọ Nhuộm / Khuôn Cạo bán trong shop (+ nâng cấp), khách chấm phần nghệ thuật, Xưởng sau giờ đóng cửa, cuốn mẫu (khách đặt theo mẫu của bạn), tường tác phẩm, chụp ảnh từ màn kết quả
-- [x] Cấp tiệm (5 cấp, mở đồ nghề/mẫu/khách/giá) và 12 mẫu có sẵn để vẽ theo (hướng dẫn trên đầu, % giống mẫu, luyện trong Xưởng)
+- [x] Cấp tiệm (5 cấp, mở đồ nghề/mẫu/khách/giá) và 9 mẫu có sẵn để vẽ theo (hướng dẫn trên đầu, % giống mẫu); khách chỉ đặt mẫu sau khi tiệm mua đồ nghề sáng tạo (từ hôm sau)
 - [ ] C. Thử thách do người chơi làm (link/QR, chấm theo vùng so với bản gốc)
 - [ ] D. Tiệm của riêng bạn (tên, màu, kéo thả đồ trang trí, tự tạo phong cách Gương Thần)
 

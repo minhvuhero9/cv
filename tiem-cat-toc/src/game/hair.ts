@@ -89,7 +89,7 @@ export interface HairState {
   tufts: Tuft[];
   head: HeadShape;
   texture: HairTexture;
-  /** Xưởng Tạo Kiểu: patterns shaved into the hair (drawn as scalp lines). */
+  /** Khuôn Cạo Hình: patterns shaved into the hair (drawn as scalp lines). */
   carvings?: Carving[];
 }
 

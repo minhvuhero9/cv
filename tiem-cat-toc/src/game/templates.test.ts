@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyRound, canBuy, careerTools, newCareer, planDay, shopLevel } from './career';
+import { applyRound, buy, canBuy, careerTools, newCareer, nextDay, shopLevel } from './career';
 import { designScore, templateOrder } from './design';
 import { LEVELS, levelFor, xpFor } from './level';
 import { measureHair } from './metrics';
-import { createRound, finish, startCutting, tick } from './session';
+import { createRound, finish, startCutting } from './session';
 import { shopItem } from './shop';
-import { setTrace, studioRound } from './studio';
 import { TEMPLATES, templateHair, templateReady } from './templates';
 
 describe('mẫu có sẵn', () => {
@@ -28,27 +27,17 @@ describe('mẫu có sẵn', () => {
   });
 
   it('templates climb with the shop level and need the right tools', () => {
-    expect(TEMPLATES.filter((t) => t.level === 1).every((t) => t.tools.length === 0)).toBe(true);
+    // Every template needs a creative tool: customers only order them once the shop bought one.
+    expect(TEMPLATES.every((t) => t.tools.length > 0)).toBe(true);
     const lv5 = TEMPLATES.find((t) => t.id === 'chuky')!;
     expect(templateReady(lv5, 5, ['brush', 'stencil'], ['paletteXL', 'stencilPro'])).toBe(true);
     expect(templateReady(lv5, 4, ['brush', 'stencil'], ['paletteXL', 'stencilPro'])).toBe(false);
     expect(templateReady(lv5, 5, ['brush'], ['paletteXL', 'stencilPro'])).toBe(false);
   });
 
-  it('vẽ theo mẫu in the Xưởng: guides, live score, celebration at 90 %', () => {
-    const s = studioRound('tuan');
-    setTrace(s, 'highlight');
-    expect(s.design?.template?.id).toBe('highlight');
-    s.hair = templateHair(s.design!.template!, 'tuan');
-    for (let t = 0; t < 0.5; t += 1 / 30) tick(s, 1 / 30);
-    expect(s.studio!.traceDone).toBe(true);
-    setTrace(s, null);
-    expect(s.design).toBeNull();
-  });
-
   it('a template order in a real round rewards copying it', () => {
-    const t = TEMPLATES.find((x) => x.id === 'undercut')!;
-    const s = createRound('khoa', 3, { ctx: { designTemplate: 'undercut' } });
+    const t = TEMPLATES.find((x) => x.id === 'setdanh')!;
+    const s = createRound('khoa', 3, { ctx: { designTemplate: 'setdanh' } });
     startCutting(s);
     expect(s.requestText).toContain(t.name);
     s.hair = templateHair(t, 'khoa');
@@ -93,12 +82,23 @@ describe('cấp tiệm', () => {
     expect(shopLevel(c).level).toBe(2);
   });
 
-  it('day 1 already has a template order the basic shop can do', () => {
+  it('no catalog orders until a creative tool is bought; the next day they start', () => {
     const c = newCareer();
+    expect(c.today.queue.some((x) => x.reason === 'design')).toBe(false);
+    for (let d = 0; d < 3; d++) {
+      nextDay(c);
+      expect(c.today.queue.some((x) => x.reason === 'design')).toBe(false);
+    }
+    // Reach level 2, buy the Cọ Nhuộm this evening…
+    c.xp = LEVELS[1].xp;
+    c.money = 1e6;
+    expect(buy(c, 'brush').ok).toBe(true);
+    expect(c.today.queue.some((x) => x.reason === 'design')).toBe(false);
+    // …and tomorrow a customer orders a colour template the brush can do.
+    nextDay(c);
     const q = c.today.queue.find((x) => x.reason === 'design');
     expect(q?.templateId).toBeTruthy();
-    expect(TEMPLATES.find((t) => t.id === q!.templateId)!.level).toBe(1);
-    planDay(c);
-    expect(c.today.queue.filter((x) => x.reason === 'design')).toHaveLength(1);
+    const t = TEMPLATES.find((x) => x.id === q!.templateId)!;
+    expect(t.tools).toEqual(['brush']);
   });
 });

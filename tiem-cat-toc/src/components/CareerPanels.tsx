@@ -132,9 +132,13 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
             <QuestList quests={c.today.quests!} />
           </div>
         )}
-        {c.day >= 2 && !c.today.queue.some((q) => q.reason === 'design') && (
+        {!c.owned.includes('brush') && !c.owned.includes('stencil') ? (
           <p className="panel-note" data-testid="catalog-tip">
-            💡 Chưa có khách đặt theo <b>cuốn mẫu</b>. Tối nay sau khi đóng cửa, bấm “🎨 Ra Xưởng tạo mẫu”, tạo kiểu rồi “Lưu vào sổ”: từ hôm sau sẽ có khách chọn mẫu của bạn.
+            💡 Chưa có khách đặt theo <b>cuốn mẫu</b>. Mua <b>Cọ Nhuộm</b> (từ cấp 2) hoặc <b>Khuôn Cạo Hình</b> (từ cấp 3) ở Cửa hàng: từ hôm sau khách sẽ cầm cuốn mẫu đến đặt kiểu.
+          </p>
+        ) : (
+          <p className="panel-note" data-testid="catalog-tip">
+            💡 Cắt xong một kiểu ưng ý, ở màn kết quả bấm “📷 Chụp ảnh &amp; lưu mẫu”: các ngày chẵn sẽ có khách chọn mẫu <b>của bạn</b>.
           </p>
         )}
         <div className="queue-list" data-testid="queue">
@@ -168,7 +172,7 @@ export function MorningPanel({ c, onOpen, onShop, onFree }: { c: CareerState; on
 }
 
 /** Evening: what came in, what went out, what tomorrow looks like. */
-export function SummaryPanel({ c, sum, onShop, onNext, onStudio }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onStudio?(): void }) {
+export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onBook?(): void }) {
   const totalCost = sum.costs.reduce((a, x) => a + x.amount, 0);
   return (
     <div className="overlay" data-testid="summary">
@@ -251,9 +255,9 @@ export function SummaryPanel({ c, sum, onShop, onNext, onStudio }: { c: CareerSt
           <button className="secondary-btn" onClick={onShop} data-testid="summary-shop">
             🛒 Cửa hàng
           </button>
-          {onStudio && (
-            <button className="secondary-btn studio-cta" onClick={onStudio} data-testid="summary-studio" title="Tạo mẫu tóc mới cho cuốn mẫu của tiệm">
-              🎨 Ra Xưởng tạo mẫu
+          {onBook && (
+            <button className="secondary-btn" onClick={onBook} data-testid="summary-book">
+              📒 Cuốn mẫu
             </button>
           )}
           <button className="primary-btn" onClick={onNext} data-testid="next-day" autoFocus>

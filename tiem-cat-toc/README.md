@@ -189,21 +189,19 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
   - Giá cắt cao hơn (đến +30%).
 - **Hiển thị:** buổi sáng có thẻ cấp tiệm cho biết cấp sau mở gì; thanh trạng thái có thanh tiến độ; màn kết quả báo +kinh nghiệm và chúc mừng khi lên cấp.
 
-**Mẫu có sẵn để vẽ theo:** 12 mẫu, 1–3 sao, chia theo cấp.
+**Mẫu có sẵn để vẽ theo:** 9 mẫu, 1–3 sao, chia theo cấp và theo đồ nghề đã mua.
 
 | Cấp | Mẫu |
 |---|---|
-| 1 (chỉ kéo, tông đơ) | Đầu Đinh Gọn Gàng, Học Sinh Ngoan, Undercut Phố Cổ |
 | 2 (nhuộm) | Highlight Kẹo Hồng, Mái Xanh Biển, Chanh Leo Tươi Mát |
 | 3 (cạo hình) | Tia Sét Đánh Ngang, Ngôi Sao Sân Cỏ, Sọc Ngựa Vằn |
 | 4 (loang) | Hoàng Hôn Phố Biển |
 | 5 (bậc thầy) | Trái Tim Tan Vỡ, Chữ Ký Bất Ổn |
 
-- Mỗi ngày có một khách đặt một mẫu tiệm làm được ở cấp hiện tại; ngày chẵn thay bằng mẫu bạn tự tạo.
+- **Mua đồ nghề thì mới có khách đặt mẫu:** khi chưa có Cọ Nhuộm hay Khuôn Cạo Hình, khách chỉ cắt theo yêu cầu riêng. Mua xong thì **từ hôm sau**, mỗi ngày có một khách cầm cuốn mẫu đến, chọn mẫu làm được bằng đồ tiệm đang có. Ngày chẵn khách chọn mẫu do bạn lưu.
 - Khi cắt theo mẫu:
   - Đầu khách có hướng dẫn: viền xanh cho độ dài, chấm màu ở chỗ còn phải nhuộm, nét tím đứt ở chỗ còn phải cạo.
   - Góc màn hình có ô **“📐 Giống mẫu X%”** cập nhật liên tục.
-- **Luyện trong Xưởng:** chọn “📐 Vẽ theo mẫu” để có hướng dẫn và các bước. Đạt 90% thì hiện “HOÀN THÀNH MẪU!” và mẫu được đánh dấu ✓.
 
 ## Sáng tạo là vòng chơi chính (Mở Tiệm)
 
@@ -215,28 +213,12 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
    - Mê: Tí Sún, Tèo, Khoa, Na Bông.
    - Ghét: Chú Bảy, Thầy Long, Chị Linh, Chú Rể, Bà Thanh Tra.
    - Có tên kiểu tóc mới: *Đầu Có Chữ Ký*, *Tranh Tường Di Động*, *Hoàng Hôn Trên Đỉnh Đầu*, *Một Nét Cá Tính*.
-3. **Sau giờ đóng cửa: “🎨 Ra Xưởng tạo mẫu”.**
-   - Tạo kiểu trên những khách đã từng ghé, chỉ bằng đồ nghề đã mua.
-   - Lưu vào Sổ kiểu tóc. Sổ này chính là **cuốn mẫu của tiệm**.
-4. **Từ ngày 2, mỗi ngày có một khách chọn mẫu trong cuốn mẫu.**
+3. **Lưu kiểu đẹp thành mẫu:** ở màn kết quả bấm “📷 Chụp ảnh & lưu mẫu”. Mẫu vào **cuốn mẫu của tiệm** (mở được từ bảng tổng kết cuối ngày).
+4. **Khách đặt theo cuốn mẫu (khi tiệm đã mua đồ nghề sáng tạo):**
    - Mẫu được dựng lại trên đầu người đặt: độ dài theo tỉ lệ, hình cạo co giãn theo đầu.
    - Phiếu yêu cầu hiện đúng tác phẩm của bạn và chấm độ dài từng vùng, màu, từng hình cạo.
    - Làm tốt thì được trả ×1,3, tiền boa ×1,5 và +2 Viral; sổ ghi “được đặt N lần”.
 5. **Tường tác phẩm:** 3 mẫu mới nhất treo trên tường tiệm.
-   - Màn kết quả có “📷 Chụp ảnh & lưu mẫu”, nên kiểu cắt đẹp cho khách thật cũng thành mẫu.
-
-## Xưởng Tạo Kiểu (sáng tạo tự do)
-
-Vào từ nút **🎨 Xưởng Tạo Kiểu** ở thẻ khách (chế độ tự do), link trên biển hiệu, hoặc `?mode=studio`.
-- **Không chấm điểm, không tính giờ:** người mẫu ngồi yên, không quay đầu, không bỏ về.
-- **Chọn người mẫu** là bất kỳ khách nào. Dùng được mọi dụng cụ và Gương Thần.
-- **Có sẵn mọi dụng cụ**, kể cả **Cọ Nhuộm** và **Khuôn Cạo Hình** với đủ 10 màu, màu tự chọn, loang 2 màu và mọi khuôn: tia sét, ngôi sao, trái tim, sọc, răng cưa, chữ tự gõ (tối đa 8 ký tự).
-- **Hoàn tác / Làm lại** (cả Ctrl+Z / Ctrl+Y), và nút "Tóc gốc" để làm lại từ đầu.
-- **📷 Chụp ảnh:**
-  - Tự đặt tên kiểu tóc và lời chú thích.
-  - Chọn biểu cảm, phông nền (Tiệm, Pastel, Phố đêm, Tết, Trơn), khung (Polaroid, Khung vàng, Phim) và dán sticker.
-  - Tải ảnh PNG 1080×1350, hoặc tải video quá trình tạo kiểu.
-- **📒 Sổ kiểu tóc:** lưu tối đa 40 tác phẩm trong trình duyệt, mở lại để sửa tiếp, xóa có hỏi lại.
 
 ## Cấu trúc code
 
@@ -262,13 +244,13 @@ src/game/quests.ts     nhiệm vụ trong ngày
 src/game/album.ts      Album Gương Thần
 src/game/daily.ts      thử thách hằng ngày + bảng xếp hạng trên máy
 src/game/art.ts        Cọ Nhuộm, Khuôn Cạo Hình, bộ đồ nghề theo đồ đã mua
-src/game/studio.ts     Xưởng Tạo Kiểu: hoàn tác, sổ kiểu tóc; creation.ts lưu tác phẩm; photoExport.ts xuất ảnh
+src/game/creation.ts   cuốn mẫu: lưu tác phẩm, dựng lại trên đầu khách khác; photoExport.ts xuất ảnh
 src/game/design.ts     cuốn mẫu: khách đặt theo mẫu, chấm độ giống mẫu
-src/game/templates.ts  12 mẫu có sẵn (công thức dựng trên đầu bất kỳ khách nào)
+src/game/templates.ts  9 mẫu có sẵn (công thức dựng trên đầu bất kỳ khách nào)
 src/game/level.ts      cấp tiệm, kinh nghiệm, mở khóa
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
-                       MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, StudioPanels, PhotoComposition
+                       MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, PhotoBook, PhotoComposition, ArtBar
 src/audio/sfx.ts       âm thanh và nhạc nền WebAudio
 ```
 
@@ -282,4 +264,4 @@ npm run e2e                   # chơi thử tự động bằng Playwright/Chrom
 BASE_URL=http://localhost:4173/ npm run e2e   # chạy với bản build (npm run preview)
 ```
 
-Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900. Phần đồ nghề: dụng cụ bị khóa với người chơi mới, mở khóa sau một lượt, từng dụng cụ phép thuật, cả ba combo, đổi dụng cụ giữa chừng, chơi lại để reset, và thanh công cụ trên điện thoại (102 kiểm tra, gồm Xưởng Tạo Kiểu, Gương Thần, phiếu yêu cầu, hiệu ứng, hướng dẫn, chất tóc, khách trùm, album, thử thách hằng ngày và tải video xem lại).
+Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900. Phần đồ nghề: dụng cụ bị khóa với người chơi mới, mở khóa sau một lượt, từng dụng cụ phép thuật, cả ba combo, đổi dụng cụ giữa chừng, chơi lại để reset, và thanh công cụ trên điện thoại (95 kiểm tra, gồm đồ nghề sáng tạo, chụp ảnh & lưu mẫu, Gương Thần, phiếu yêu cầu, hiệu ứng, hướng dẫn, chất tóc, khách trùm, album, thử thách hằng ngày và tải video xem lại).

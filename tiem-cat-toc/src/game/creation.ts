@@ -113,3 +113,31 @@ export function creationHairOn(c: Creation, customerId: string): HairState {
   h.carvings = (src.carvings ?? []).map((cv) => ({ ...cv, x: h.head.cx + (cv.x - src.head.cx) * kx, y: h.head.cy + (cv.y - src.head.cy) * ky, s: cv.s * Math.sqrt(kx * ky) }));
   return h;
 }
+
+export function loadBook(store: Storage | undefined = globalThis.localStorage): Creation[] {
+  try {
+    const v = JSON.parse(store?.getItem(BOOK_KEY) ?? '[]');
+    return Array.isArray(v) ? v.filter((c) => c && Array.isArray(c.tufts)) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Saves (or replaces by id); keeps the newest BOOK_MAX. Returns false when storage is full. */
+export function saveToBook(c: Creation, store: Storage | undefined = globalThis.localStorage): boolean {
+  const book = [c, ...loadBook(store).filter((x) => x.id !== c.id)].slice(0, BOOK_MAX);
+  try {
+    store?.setItem(BOOK_KEY, JSON.stringify(book));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function deleteFromBook(id: string, store: Storage | undefined = globalThis.localStorage) {
+  try {
+    store?.setItem(BOOK_KEY, JSON.stringify(loadBook(store).filter((x) => x.id !== id)));
+  } catch {
+    /* ignore */
+  }
+}

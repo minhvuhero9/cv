@@ -6,10 +6,9 @@ import { Coach } from './components/Coach';
 import { AirCon, StageDecor, WallDecor } from './components/Decor';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
-import { Creation, StudioOptions, addMastered, loadMastered, setTrace, deleteFromBook, loadBook, openCreation, pushUndo, redo, resetHair, saveToBook, studioRound, undo } from './game/studio';
-import { BookPanel, PhotoPanel, STUDIO_MODELS, StudioPanel } from './components/StudioPanels';
+import { deleteFromBook, loadBook, saveToBook } from './game/creation';
+import { BookPanel, PhotoPanel } from './components/PhotoBook';
 import { careerKit, fullKit } from './game/art';
-import { TEMPLATES, templateReady } from './game/templates';
 import { designScore } from './game/design';
 import { DailyChallenge, dailyFor, dailyOptions, dailyScore, loadBoard, recordDaily, streak, todayKey } from './game/daily';
 import { IncidentLog, IntroCard, RequestCard, Toolbar, Clock } from './components/Panels';
@@ -29,7 +28,6 @@ import {
   resetCareer,
   roundContext,
   saveCareer,
-  shopLevel,
 } from './game/career';
 import { CUSTOMERS, CustomerId } from './game/customers';
 import {
@@ -51,7 +49,7 @@ import {
 import { loadProgress, recordRound, saveProgress } from './game/progress';
 import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
 
-type Mode = 'career' | 'free' | 'studio';
+type Mode = 'career' | 'free';
 type Overlay = 'shop' | 'settings' | 'album' | 'photo' | 'book' | null;
 
 const params = new URLSearchParams(location.search);
@@ -64,10 +62,10 @@ const dailyDate = () => (dailyParam && /^\d{4}-\d{2}-\d{2}$/.test(dailyParam) ? 
 
 function initialMode(): Mode {
   const m = params.get('mode');
-  if (m === 'free' || m === 'career' || m === 'studio') return m;
+  if (m === 'free' || m === 'career') return m;
   try {
     const saved = localStorage.getItem('tctbo-mode');
-    if (saved === 'free' || saved === 'career' || saved === 'studio') return saved;
+    if (saved === 'free' || saved === 'career') return saved;
   } catch {
     /* ignore */
   }
@@ -157,8 +155,6 @@ export default function App() {
     current:
       mode === 'career'
         ? careerRound(careerRef.current)
-        : mode === 'studio'
-          ? studioRound('tuan')
         : dailyParam
           ? dailyRound(dailyFor(dailyDate()), progressRef.current)
           : createRound('tuan', seedParam, { unlocked: freeTools(progressRef.current), mirror: true, ctx: { stock: unlockAll ? { potion: 99, gel: 99 } : {} } }),
@@ -223,15 +219,6 @@ export default function App() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
-
-  // Vẽ theo mẫu: remember templates mastered in the Xưởng.
-  useEffect(() => {
-    const id = s.design?.template?.id;
-    if (s.studio?.traceDone && id && !mastered.includes(id)) {
-      addMastered(id);
-      setMastered(loadMastered());
-    }
-  });
 
   // A round just ended: record it once (collection, unlocks; in career also money/rep/viral).
   useEffect(() => {
@@ -317,45 +304,9 @@ export default function App() {
     }
     setOverlay(null);
     if (m === 'career') replaceRound(careerRound(c));
-    else if (m === 'studio') {
-      setEditing(null);
-      replaceRound(studioRound('tuan'));
-    } else newFreeRound('tuan');
+    else newFreeRound('tuan');
   };
 
-  /** Career: after closing, the Xưởng with what the shop owns, on customers already met. */
-  const careerStudioOpts = (): StudioOptions => ({
-    tools: unlockAll ? undefined : careerTools(c),
-    kit: unlockAll ? fullKit() : careerKit(c.owned),
-    from: 'career',
-    mirror: unlockAll || c.owned.includes('mirror'),
-  });
-  const careerModels = () => {
-    const met = STUDIO_MODELS.filter((d) => c.history[d.id] && d.look.species !== 'dog');
-    return met.length ? met : STUDIO_MODELS.filter((d) => d.id === 'tuan');
-  };
-  const openCareerStudio = () => {
-    setMode('studio');
-    setOverlay(null);
-    setEditing(null);
-    replaceRound(studioRound(careerModels()[0].id, 7, careerStudioOpts()));
-  };
-  const studioOpts = (): StudioOptions => (s.studio?.from === 'career' ? careerStudioOpts() : {});
-
-  /* Xưởng Tạo Kiểu */
-  const [editing, setEditing] = useState<Creation | null>(null);
-  const [traceId, setTraceId] = useState<string | null>(null);
-  const [mastered, setMastered] = useState<string[]>(() => loadMastered());
-  const studioTemplates = () =>
-    TEMPLATES.map((t) => ({
-      t,
-      ready: s.studio?.from !== 'career' || unlockAll || templateReady(t, shopLevel(c).level, careerTools(c), c.owned),
-    }));
-  const withTrace = (r: RoundState) => {
-    if (traceId) setTrace(r, traceId);
-    return r;
-  };
-  const studio = mode === 'studio' && !!s.studio;
 
 
   useEffect(() => {
@@ -363,12 +314,6 @@ export default function App() {
       const st = roundRef.current;
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
-      if (st.studio && (e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y' || e.key === 'Z')) {
-        e.preventDefault();
-        if (e.key === 'y' || (e.key === 'Z' && e.shiftKey)) redo(st);
-        else undo(st);
-        return;
-      }
       if (st.phase !== 'cutting') return;
       const t = TOOLS.find((d) => d.hotkey === e.key);
       if (t) setTool(st, t.id);
@@ -394,20 +339,9 @@ export default function App() {
         </div>
         {career ? (
           <CareerHud c={c} onSettings={() => setOverlay('settings')} onShop={() => setOverlay('shop')} />
-        ) : mode === 'studio' ? (
-          <div className="sign-sub">
-            Xưởng Tạo Kiểu ·{' '}
-            <button className="link-btn light" onClick={() => switchMode(s.studio?.from === 'career' ? 'career' : 'free')} data-testid="studio-exit">
-              {s.studio?.from === 'career' ? '← Về tiệm' : 'Về cắt tự do'}
-            </button>
-          </div>
         ) : (
           <div className="sign-sub">
             Chế độ cắt tự do ·{' '}
-            <button className="link-btn light" onClick={() => switchMode('studio')} data-testid="to-studio">
-              🎨 Xưởng Tạo Kiểu
-            </button>{' '}
-            ·{' '}
             <button className="link-btn light" onClick={() => switchMode('career')} data-testid="to-career">
               Mở tiệm thật
             </button>
@@ -428,32 +362,8 @@ export default function App() {
 
       <main className="shop">
         <aside className="side side-left">
-          {studio ? (
-            <StudioPanel
-              s={s}
-              models={s.studio?.from === 'career' ? careerModels() : STUDIO_MODELS}
-              templates={studioTemplates()}
-              mastered={mastered}
-              onTrace={(id) => {
-                setTraceId(id);
-                setTrace(roundRef.current, id);
-              }}
-              onModel={(id) => {
-                setEditing(null);
-                replaceRound(withTrace(studioRound(id, 7, studioOpts())));
-              }}
-              onUndo={() => undo(roundRef.current)}
-              onRedo={() => redo(roundRef.current)}
-              onReset={() => resetHair(roundRef.current)}
-              onPhoto={() => setOverlay('photo')}
-              onBook={() => setOverlay('book')}
-            />
-          ) : (
-            <>
-              <RequestCard s={s} ghost={ghostOn} onGhost={toggleGhost} />
-              <IncidentLog s={s} />
-            </>
-          )}
+          <RequestCard s={s} ghost={ghostOn} onGhost={toggleGhost} />
+          <IncidentLog s={s} />
         </aside>
 
         <section className="stage-box">
@@ -467,7 +377,6 @@ export default function App() {
               now={now}
               onDown={(p) => {
                 unlockAudio();
-                if (roundRef.current.studio) pushUndo(roundRef.current);
                 pointerDown(roundRef.current, p);
               }}
               onMove={(p) => pointerMove(roundRef.current, p)}
@@ -487,14 +396,14 @@ export default function App() {
               </div>
             ))}
           </div>
-          {s.phase === 'cutting' && !studio && <Clock s={s} />}
+          {s.phase === 'cutting' && <Clock s={s} />}
           {s.phase === 'cutting' && s.design && (
             <div className="design-score" data-testid="design-score" data-value={Math.round(designScore(s.design, s.hair))}>
               📐 Giống mẫu <b>{Math.round(designScore(s.design, s.hair))}%</b>
               <small>{s.design.name}</small>
             </div>
           )}
-          {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && !studio && (
+          {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && (
             <div className="viewers" data-testid="viewers">
               🔴 LIVE · {Math.round(s.viewers).toLocaleString('vi-VN')} người xem
             </div>
@@ -549,19 +458,15 @@ export default function App() {
         </aside>
       </main>
 
-      <Toolbar s={s} onTool={onTool} onFinish={studio ? () => setOverlay('photo') : onFinish} finishLabel={studio ? ['Chụp!', 'Ảnh & lưu'] : undefined} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
-      {!overlay && !mirrorOpen && !studio && <Coach s={s} />}
-      {overlay === 'photo' && (studio || s.result) && (
+      <Toolbar s={s} onTool={onTool} onFinish={onFinish} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
+      {!overlay && !mirrorOpen && <Coach s={s} />}
+      {overlay === 'photo' && s.result && (
         <PhotoPanel
           s={s}
-          editing={editing}
           onClose={() => setOverlay(null)}
           onSaved={(cr) => {
             const ok = saveToBook(cr);
-            if (ok) {
-              setEditing(cr);
-              setBookVer((v) => v + 1);
-            }
+            if (ok) setBookVer((v) => v + 1);
             return ok;
           }}
         />
@@ -570,22 +475,8 @@ export default function App() {
         <BookPanel
           book={bookList}
           onClose={() => setOverlay(null)}
-          onOpen={(cr) => {
-            if (mode !== 'studio') {
-              setMode('studio');
-              try {
-                localStorage.setItem('tctbo-mode', 'studio');
-              } catch {
-                /* ignore */
-              }
-            }
-            setEditing(cr);
-            replaceRound(openCreation(cr, studioOpts()));
-            setOverlay(null);
-          }}
           onDelete={(id) => {
             deleteFromBook(id);
-            if (editing?.id === id) setEditing(null);
             setBookVer((v) => v + 1);
           }}
         />
@@ -613,7 +504,6 @@ export default function App() {
           onPick={career ? undefined : (o) => newFreeRound(o.id)}
           daily={career ? undefined : daily}
           onDaily={career ? undefined : () => startDaily()}
-          onStudio={career ? undefined : () => switchMode('studio')}
         />
       )}
       {s.phase === 'result' && s.result && !showSummary && !overlay && (
@@ -646,7 +536,7 @@ export default function App() {
           c={c}
           sum={c.lastSummary}
           onShop={() => setOverlay('shop')}
-          onStudio={openCareerStudio}
+          onBook={() => setOverlay('book')}
           onNext={() => {
             nextDay(c, catalog());
             saveCareer(c);

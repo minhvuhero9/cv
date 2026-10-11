@@ -23,9 +23,8 @@ import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown,
 import { ToolId } from './tools';
 import { checkSheet, requestSheet } from './request';
 import type { Creation } from './creation';
-import { DesignOrder, designCustomer, designOrder, designScore, templateOrder } from './design';
+import { DesignOrder, designCustomer, designOrder, templateOrder } from './design';
 import { templateById } from './templates';
-import type { StudioState } from './studio';
 import { ArtKit, ArtSettings, brushHair, carveHair, fullKit, newArt } from './art';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
 
@@ -149,8 +148,6 @@ export interface RoundState {
   textureSaid: boolean;
   /** Multi-step request: steps already met. */
   stage: number;
-  /** Xưởng Tạo Kiểu (sandbox): undo/redo; no clock and no judging. */
-  studio?: StudioState;
   /** Cuốn mẫu: the design this customer ordered. */
   design: DesignOrder | null;
   /** Đồ nghề sáng tạo: current colours / stencil, and what the barber owns. */
@@ -1198,36 +1195,12 @@ export function tick(s: RoundState, dt: number) {
   }
   if (ptr.down && local && s.tool === 'dryer') blow(s, local, dt);
   gearTick(s, dt, ptr.down && local ? local : null);
-  if (!s.studio) behaviorTick(s, dt, ptr.down && local ? local : null);
+  behaviorTick(s, dt, ptr.down && local ? local : null);
   if (ptr.down && local) {
     s.usage[s.tool] = (s.usage[s.tool] ?? 0) + dt;
     malfunction(s, local, dt);
   }
 
-  // Xưởng Tạo Kiểu: the model sits still and never runs out of patience; no events, no clock.
-  if (s.studio) {
-    s.patience = 100;
-    s.nerves = 0;
-    s.motion = null;
-    s.demand = null;
-    s.walkout = null;
-    if (s.time - s.lastIncidentAt > 5) s.incident = clamp(s.incident - 0.8 * dt, 0, 100);
-    s.ruleTimer += dt;
-    if (s.ruleTimer >= 0.25) {
-      s.ruleTimer = 0;
-      refreshMetrics(s);
-      // Vẽ theo mẫu: celebrate the first time the copy reaches 90 %.
-      if (s.design && !s.studio.traceDone && designScore(s.design, s.hair) >= 90) {
-        s.studio.traceDone = true;
-        s.sfx.push('good');
-        s.flashUntil = s.time + 0.2;
-        const h = s.hair.head;
-        s.fx.push({ id: s.fxSeq++, kind: 'banner', x: 200, y: 330, t0: s.time, dur: 1.8, text: 'HOÀN THÀNH MẪU!' });
-        s.fx.push({ id: s.fxSeq++, kind: 'sparkle', x: h.cx, y: h.cy - h.ry, t0: s.time, dur: 0.8, color: '#ffd23f' });
-      }
-    }
-    return;
-  }
   const comfort = (hasItem(s, 'chair') ? 0.8 : 1) * (hasItem(s, 'aircon') ? 0.75 : 1);
   s.patience = clamp(s.patience - s.customer.patienceDecay * comfort * dt * (1 + chaosTier(s.chaos) * 0.35), 0, 100);
   s.nerves = clamp(s.nerves - 9 * dt, 0, 100);
