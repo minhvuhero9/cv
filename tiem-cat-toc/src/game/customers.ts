@@ -75,7 +75,7 @@ export const CUSTOMERS: CustomerDef[] = [
           0.7 * Math.abs(m.zone.fringe - t.fringe)) /
         4;
       const tooShort = m.zone.top < 0.45 ? 22 : 0;
-      return clamp(100 - err * 185 - m.baldFrac * 320 - tooShort - m.spikedFrac * 70 - Math.abs(m.leanAvg) * 60, 0, 100);
+      return clamp(100 - err * 185 - m.baldFrac * 320 - tooShort - m.spikedFrac * 70 - Math.abs(m.leanAvg) * 60 - m.tintedFrac * 80 - m.sculptedFrac * 80 - m.steamedFrac * 30 - m.curlAvg * 40, 0, 100);
     },
     special(m, sat) {
       return sat >= 88 || m.baldFrac > 0.25;
@@ -107,7 +107,8 @@ export const CUSTOMERS: CustomerDef[] = [
       const z = m.zone;
       const err = sum([z.left, z.right, z.top, z.fringe].map((r) => Math.abs(r - 0.82))) / 4;
       return clamp(
-        100 - err * 210 - m.unevenLR * 170 - m.baldFrac * 420 - m.spikedFrac * 130 - m.fluffAvg * 25 - Math.abs(m.leanAvg) * 80,
+        100 - err * 210 - m.unevenLR * 170 - m.baldFrac * 420 - m.spikedFrac * 130 - m.fluffAvg * 25 - Math.abs(m.leanAvg) * 80 -
+          m.tintedFrac * 150 - m.sculptedFrac * 150 - m.steamedFrac * 40 - Math.abs(m.thickAvg - 1) * 40 - m.curlAvg * 60,
         0,
         100,
       );
@@ -139,7 +140,11 @@ export const CUSTOMERS: CustomerDef[] = [
     patienceDecay: 0.55,
     target: null,
     satisfaction(m) {
-      const drama = clamp(m.spikedFrac * 1.7 + m.fluffAvg * 0.45 + Math.abs(m.leanAvg) * 0.8, 0, 1);
+      const drama = clamp(
+        m.spikedFrac * 1.7 + m.fluffAvg * 0.45 + Math.abs(m.leanAvg) * 0.8 + m.tintedFrac * 0.9 + m.longFrac * 0.6 + m.sculptedFrac * 1.2 + m.curlAvg * 0.4,
+        0,
+        1,
+      );
       const kept = clamp((m.avg - 0.35) / 0.5, 0, 1);
       return clamp(drama * 70 + kept * 30 - m.baldFrac * 260, 0, 100);
     },

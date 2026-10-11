@@ -117,6 +117,32 @@ export function playSfx(s: Sfx) {
     case 'pop':
       tone(500, 0.08, 'sine', 0.2, 1200);
       break;
+    case 'zap':
+      tone(1800, 0.18, 'square', 0.12, 220);
+      tone(900, 0.12, 'sawtooth', 0.08, 2400, 0.03);
+      break;
+    case 'sparkle':
+      [1568, 2093, 2637].forEach((f, i) => tone(f, 0.12, 'sine', 0.1, undefined, i * 0.05));
+      break;
+    case 'whoosh':
+      noise(0.7, 600, 0.45, 0.4);
+      break;
+    case 'gulp':
+      tone(400, 0.35, 'sine', 0.35, 60);
+      noise(0.3, 300, 0.3, 0.7);
+      break;
+    case 'steam':
+      noise(1.2, 3500, 0.15, 0.3);
+      break;
+    case 'deny':
+      tone(160, 0.15, 'square', 0.12);
+      break;
+    case 'overheat':
+      tone(700, 0.4, 'sawtooth', 0.12, 120);
+      break;
+    case 'combo':
+      [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, 'triangle', 0.25, undefined, i * 0.09));
+      break;
   }
 }
 
@@ -124,12 +150,13 @@ export function playSfx(s: Sfx) {
 export function setToolLoop(tool: Tool | null) {
   if (loop && loop.tool === tool) return;
   stopLoop();
-  if (!tool || tool === 'scissors' || muted) return;
+  // Only motor tools hum: clipper, dryer and the space vacuum.
+  if (!tool || !['clipper', 'dryer', 'vacuum'].includes(tool) || muted) return;
   const c = ac();
   if (!c || !master) return;
   const g = c.createGain();
   g.gain.value = 0;
-  g.gain.linearRampToValueAtTime(tool === 'clipper' ? 0.09 : 0.16, c.currentTime + 0.05);
+  g.gain.linearRampToValueAtTime(tool === 'clipper' ? 0.09 : tool === 'vacuum' ? 0.12 : 0.16, c.currentTime + 0.05);
   g.connect(master);
   const nodes: AudioScheduledSourceNode[] = [];
   if (tool === 'clipper') {
@@ -149,7 +176,18 @@ export function setToolLoop(tool: Tool | null) {
     src.loop = true;
     const f = c.createBiquadFilter();
     f.type = 'lowpass';
-    f.frequency.value = 1400;
+    f.frequency.value = tool === 'vacuum' ? 500 : 1400;
+    if (tool === 'vacuum') {
+      // A rising whine: the longer you hold, the hungrier it sounds.
+      const o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(220, c.currentTime);
+      o.frequency.linearRampToValueAtTime(880, c.currentTime + 2.2);
+      const og = c.createGain();
+      og.gain.value = 0.25;
+      o.connect(og).connect(g);
+      nodes.push(o);
+    }
     src.connect(f).connect(g);
     nodes.push(src);
   }

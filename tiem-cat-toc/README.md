@@ -59,6 +59,34 @@ Các sự kiện đều có điều kiện kích hoạt cụ thể (`src/game/se
 
 **Tên kiểu tóc** (`STYLE_RULES` trong `src/game/evaluate.ts`, có 23 kiểu) được suy ra từ số đo của mái tóc cuối cùng: Đường Cao Tốc Trên Đầu, Siêu Saiyan Bình Dân, Nửa Nạc Nửa Mỡ, Úp Bát Thành Công, Chó Gặm Nghệ Thuật, Mái Tóc Chạy Trốn… Bộ sưu tập các kiểu đã mở khóa được lưu trong trình duyệt để bạn có lý do cắt lại.
 
+## Bộ Đồ Nghề Bất Ổn (dụng cụ phép thuật)
+
+Toàn bộ là đồ nghề phép thuật hư cấu, chỉ tồn tại trong game. Dữ liệu cấu hình nằm ở `src/game/tools.ts` (tên, mô tả, độ hiếm, kiểu thao tác, hiệu ứng, điều kiện mở khóa, năng lượng/hồi chiêu). Thay đổi lên tóc nằm ở `src/game/magic.ts`, phần thao tác, năng lượng, hiệu ứng và combo nằm ở `src/game/gear.ts`.
+
+| Dụng cụ | Thao tác | Tác động lên tóc | Giới hạn | Mở khóa |
+|---|---|---|---|---|
+| **Gậy Như Ý** (Sử thi) | Bấm giữ trên tóc rồi kéo: lên = dài, xuống = ngắn, ngang = to/nhỏ. Chạm nhẹ = uốn xoăn | Chiều dài tối đa gấp 3, độ dày, độ xoăn. Chỗ trọc mọc lại (xoăn) | Hết phép sau khoảng 2 giây giữ, nạp lại 4 giây | Cắt xong 1 lượt |
+| **Súng Tóc 3000** (Hiếm) | Chạm để bắn | Nhuộm màu (mỗi phát một màu), dựng đứng, phóng to | 6 phát mỗi băng, cách nhau 0,35 giây, nạp băng 4 giây | Cắt xong 2 lượt |
+| **Máy Sấy Bão** (Sử thi) | Kéo để ngắm, thả tay để thổi | Một cơn gió quét cả đầu theo hướng ngắm, tóc càng dài càng bay | Thổi 1 lần rồi hồi 3,5 giây | Gây ra sự cố "Gió Đổi Chiều" |
+| **Máy Hút Tóc Vũ Trụ** (Huyền thoại) | Giữ để hút | Kéo tóc về phía vòi và rút ngắn. Giữ quá 2,2 giây thì nuốt cả một mảng (vòng xanh chuyển cam rồi đỏ để cảnh báo) | Khoảng 3 giây hút, nạp lại 5 giây | Mở khóa 4 kiểu tóc |
+| **Lược Rồng** (Hiếm) | Chải | Tóc nằm theo hướng chải. Chải ngược lên làm phồng, chải vòng làm xoăn | Khoảng 4 giây chải, nạp lại 3 giây | Cắt xong 3 lượt |
+| **Nồi Cơm Điện Tạo Kiểu** (Sử thi) | Chạm lên đầu | Úp nồi 1,5 giây (không cắt được trong lúc nấu), mở ra tóc phồng tròn như bánh bao | 2 lần, nạp lại 8 giây | Cắt xong 4 lượt |
+| Con Dấu Phán Quyết, Pháo Hoa Tạo Kiểu | — | Chưa triển khai, hiện là "Sắp có" và không chọn được | — | — |
+
+Muốn thử ngay mọi dụng cụ thì thêm `?unlock=all` vào địa chỉ, ví dụ `https://minhvuhero9.github.io/cv/game/?unlock=all`. Tiến trình mở khóa lưu trong trình duyệt.
+
+### Combo
+
+Mỗi combo có điều kiện cụ thể, giới hạn số lần mỗi lượt và thời gian hồi:
+
+| Combo | Điều kiện | Hậu quả | Chống lặp |
+|---|---|---|---|
+| **Bão Tóc Dài** (Gậy Như Ý + Máy Sấy Bão) | Gió thổi trúng ≥ 8 lọn dài ≥ 1,8 lần (do Gậy kéo dài) | Tóc dài bị quật tung về một phía, xù và rối, một số lọn đứt bay theo gió | Tối đa 2 lần, cách nhau 10 giây |
+| **Kỳ Lân Bảy Sắc** (Súng Tóc + Lược Rồng) | Một đường chải đi qua ≥ 6 lọn đã bị súng nhuộm và dựng | Các lọn đó dồn lại thành một cái sừng bảy màu | Tối đa 2 lần, cách nhau 8 giây |
+| **Hút Nhầm Cả Nồi** (Nồi Cơm Điện + Máy Hút) | Hút trong vòng 10 giây sau khi hấp, trúng ≥ 5 lọn tóc hấp | Cả "bánh bao" bị hút: phần lớn bị rút ngắn, phần giữa trọc | 1 lần mỗi lượt |
+
+Mỗi combo đều có pháo chữ "COMBO", âm thanh riêng, câu thoại theo tính cách khách, sự kiện trong nhật ký, chú thích trên thẻ kết quả và kiểu tóc riêng (Bão Cấp 12 Vừa Đi Qua, Kỳ Lân Bảy Sắc, Lỗ Đen Vũ Trụ).
+
 ## Cấu trúc code
 
 ```
@@ -69,6 +97,10 @@ src/game/session.ts    trạng thái lượt chơi, game loop, bộ luật sự 
 src/game/evaluate.ts   đặt tên kiểu tóc, phản ứng cuối, chú thích, điểm
 src/game/dialogue.ts   câu thoại theo tính cách × tình huống
 src/game/card.ts       vẽ thẻ kết quả PNG (Canvas, tải theo nhu cầu)
+src/game/tools.ts      cấu hình Bộ Đồ Nghề (dữ liệu dụng cụ, mở khóa)
+src/game/magic.ts      tác động của dụng cụ phép thuật lên tóc
+src/game/gear.ts       năng lượng, thao tác, hiệu ứng và combo của dụng cụ phép thuật
+src/game/progress.ts   tiến trình người chơi (lưu trong trình duyệt)
 src/components/        Character (SVG nhân vật), Stage, Panels, ResultPanel
 src/audio/sfx.ts       âm thanh WebAudio
 ```
@@ -76,10 +108,10 @@ src/audio/sfx.ts       âm thanh WebAudio
 ## Kiểm thử
 
 ```bash
-npm test                      # 26 bài kiểm thử logic (Vitest)
+npm test                      # 48 bài kiểm thử logic (Vitest), gồm từng dụng cụ, combo và stress test
 npm run dev &                 # rồi:
 npm run e2e                   # chơi thử tự động bằng Playwright/Chromium, chụp màn hình vào test-results/
 BASE_URL=http://localhost:4173/ npm run e2e   # chạy với bản build (npm run preview)
 ```
 
-Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900.
+Bài chơi thử tự động đi qua các kịch bản: A cắt đúng yêu cầu, B cạo quá sâu, C sửa đi sửa lại, D máy sấy + keo, E chơi lại / khách tiếp theo, khách quay đầu, tải ảnh PNG, và giao diện ở 390×844 (chạm thật), 768×1024, 1440×900. Phần đồ nghề: dụng cụ bị khóa với người chơi mới, mở khóa sau một lượt, từng dụng cụ phép thuật, cả ba combo, đổi dụng cụ giữa chừng, chơi lại để reset, và thanh công cụ trên điện thoại (62 kiểm tra).

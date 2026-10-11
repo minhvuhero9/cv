@@ -24,6 +24,21 @@ export interface HairMetrics {
   maxTouches: number;
   /** How jagged the cut is: spread of lengths inside each zone (0 = neat). */
   choppiness: number;
+  /* magic tools */
+  /** Share of tufts dyed by Súng Tóc 3000. */
+  tintedFrac: number;
+  /** Distinct dye colours on the head. */
+  colorCount: number;
+  /** Share of tufts at least 1.6× their original length (Gậy Như Ý). */
+  longFrac: number;
+  /** Share of tufts sculpted into a point (combo Súng + Lược). */
+  sculptedFrac: number;
+  /** Share of tufts still puffed by the rice cooker. */
+  steamedFrac: number;
+  /** Average width multiplier of live tufts. */
+  thickAvg: number;
+  /** Average |curl| of live tufts. */
+  curlAvg: number;
 }
 
 /** Sideways push of one tuft's tip vs. its natural fall, per unit length. */
@@ -107,6 +122,13 @@ export function measureHair(h: HairState): HairMetrics {
     unevenLR: Math.abs(zone.left - zone.right),
     fringeTipSpread: spread,
     maxTouches: Math.max(0, ...tufts.map((t) => t.touches)),
+    tintedFrac: tufts.filter((t) => !t.bald && t.tint).length / tufts.length,
+    colorCount: new Set(tufts.filter((t) => !t.bald && t.tint).map((t) => t.tint)).size,
+    longFrac: tufts.filter((t) => !t.bald && t.len >= t.origLen * 1.6).length / tufts.length,
+    sculptedFrac: tufts.filter((t) => !t.bald && t.sculpt).length / tufts.length,
+    steamedFrac: tufts.filter((t) => !t.bald && t.steamed > 0.3).length / tufts.length,
+    thickAvg: live.length ? mean(live.map((t) => t.thick)) : 1,
+    curlAvg: mean(live.map((t) => Math.abs(t.curl))),
     choppiness: mean(
       ZONES.map((z) => {
         const r = tufts.filter((t) => t.zone === z && !t.bald).map(tuftRatio);

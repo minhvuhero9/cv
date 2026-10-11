@@ -17,10 +17,31 @@ import {
 } from './hair';
 import { HairMetrics, LEAN_RUNAWAY, localLean, measureHair } from './metrics';
 import { Rng, between, makeRng } from './rng';
+import { GearRuntime, MagicState, createGear, createMagic, gearCancel, gearDown, gearMove, gearTick, gearUp, isMagic, Fx, ComboState } from './gear';
+import { ToolId } from './tools';
 
-export type Tool = 'clipper' | 'scissors' | 'dryer';
+export type Tool = ToolId;
+export const BASIC_TOOLS: ToolId[] = ['clipper', 'scissors', 'dryer'];
 export type Phase = 'intro' | 'cutting' | 'mirror' | 'result';
-export type Sfx = 'snip' | 'bald' | 'boing' | 'gasp' | 'sneeze' | 'ding' | 'fail' | 'warn' | 'flash' | 'pop';
+export type Sfx =
+  | 'snip'
+  | 'bald'
+  | 'boing'
+  | 'gasp'
+  | 'sneeze'
+  | 'ding'
+  | 'fail'
+  | 'warn'
+  | 'flash'
+  | 'pop'
+  | 'zap'
+  | 'sparkle'
+  | 'whoosh'
+  | 'gulp'
+  | 'steam'
+  | 'deny'
+  | 'overheat'
+  | 'combo';
 export type EndReason = 'done' | 'timeout' | 'walkout';
 
 export const TIME_LIMIT = 75;
@@ -93,6 +114,8 @@ export interface RoundState {
     dryerUsed: boolean;
     /** Distance the tool travelled during this stroke (head-local px). */
     travel: number;
+    /** A magic tool changed the hair during this stroke. */
+    magicUsed: boolean;
   };
   headOffset: Vec;
   motion: Motion | null;
@@ -135,9 +158,26 @@ export interface RoundState {
   result: RoundResult | null;
   flashUntil: number;
   sfx: Sfx[];
+  /** Tools the player may use this round (basic tools are always included). */
+  unlocked: ToolId[];
+  /** Energy / cooldown per magic tool. */
+  gear: Record<ToolId, GearRuntime>;
+  /** In-progress gestures of the magic tools. */
+  magic: MagicState;
+  combos: ComboState;
+  fx: Fx[];
+  fxSeq: number;
+  /** Magic tools already tried on this customer (first use gets a reaction). */
+  toolsUsed: ToolId[];
+  /** When a tool use was refused (cooldown/locked), for UI feedback. */
+  deniedAt: number;
 }
 
-export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff): RoundState {
+export interface RoundOptions {
+  unlocked?: ToolId[];
+}
+
+export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, opts: RoundOptions = {}): RoundState {
   const customer = customerById(customerId);
   const hair = createHair(customer.hair);
   const metrics = measureHair(hair);
@@ -152,7 +192,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff):
     phase: 'intro',
     time: 0,
     tool: customer.id === 'khoa' ? 'dryer' : customer.id === 'bay' ? 'scissors' : 'clipper',
-    pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0 },
+    pointer: { down: false, stage: null, lastLocal: null, stroke: 0, zones: new Set(), removed: 0, dryerUsed: false, travel: 0, magicUsed: false },
     headOffset: { x: 0, y: 0 },
     motion: null,
     nextTurnCheck: 4,
@@ -194,18 +234,26 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff):
     result: null,
     flashUntil: 0,
     sfx: [],
+    unlocked: [...new Set([...BASIC_TOOLS, ...(opts.unlocked ?? [])])],
+    gear: createGear(),
+    magic: createMagic(),
+    combos: {},
+    fx: [],
+    fxSeq: 0,
+    toolsUsed: [],
+    deniedAt: -99,
   };
 }
 
 /* ------------------------------------------------------------------ helpers */
 
-function say(s: RoundState, text: string, mood?: Mood, opts: { dur?: number; shout?: boolean } = {}) {
+export function say(s: RoundState, text: string, mood?: Mood, opts: { dur?: number; shout?: boolean } = {}) {
   const dur = opts.dur ?? Math.max(2.2, text.length * 0.065);
   s.bubble = { text, until: s.time + dur, shout: opts.shout ?? false };
   if (mood) s.moodOverride = { mood, until: s.time + dur };
 }
 
-function sayLater(s: RoundState, delay: number, text: PendingLine['text'], mood?: Mood, shout?: boolean) {
+export function sayLater(s: RoundState, delay: number, text: PendingLine['text'], mood?: Mood, shout?: boolean) {
   s.pending.push({ at: s.time + delay, text, mood, shout });
 }
 
@@ -214,7 +262,7 @@ function line(s: RoundState, key: EventLineKey) {
 }
 
 /** Records an incident: adds to the event log, chaos, and shows a toast. */
-function incident(s: RoundState, id: EventId, chaos: number, toast = true) {
+export function incident(s: RoundState, id: EventId, chaos: number, toast = true) {
   s.events[id] = (s.events[id] ?? 0) + 1;
   if (toast) s.log.push({ id, t: s.time });
   s.incident = clamp(s.incident + chaos, 0, 100);
@@ -242,13 +290,13 @@ export function damageChaos(m: HairMetrics, dramatic: boolean): number {
       m.unevenLR * 50 +
       Math.max(0, Math.abs(m.leanAvg) - 0.15) * 40 +
       Math.max(0, 0.45 - m.avg) * 60 +
-      (dramatic ? 0 : m.spikedFrac * 40),
+      (dramatic ? 0 : m.spikedFrac * 40 + m.tintedFrac * 30 + m.longFrac * 35 + m.sculptedFrac * 40),
     0,
     65,
   );
 }
 
-function refreshMetrics(s: RoundState) {
+export function refreshMetrics(s: RoundState) {
   s.metrics = measureHair(s.hair);
   s.chaos = clamp(damageChaos(s.metrics, s.customer.personality === 'dramatic') + s.incident, 0, 100);
 }
@@ -260,13 +308,22 @@ export function startCutting(s: RoundState) {
   s.phase = 'cutting';
 }
 
-export function setTool(s: RoundState, tool: Tool) {
-  if (s.pointer.down) endStroke(s);
+/** Switches tool; locked tools are refused. Finishes (or cancels) any gesture in progress. */
+export function setTool(s: RoundState, tool: Tool): boolean {
+  if (!s.unlocked.includes(tool)) {
+    s.deniedAt = s.time;
+    return false;
+  }
+  if (s.pointer.down) {
+    gearCancel(s);
+    endStroke(s);
+  }
   s.tool = tool;
+  return true;
 }
 
-function canCut(s: RoundState) {
-  return s.phase === 'cutting' && !s.walkout;
+export function canCut(s: RoundState) {
+  return s.phase === 'cutting' && !s.walkout && s.time >= s.magic.potUntil;
 }
 
 export function pointerDown(s: RoundState, p: Vec) {
@@ -278,9 +335,14 @@ export function pointerDown(s: RoundState, p: Vec) {
   ptr.zones = new Set();
   ptr.removed = 0;
   ptr.dryerUsed = false;
+  ptr.magicUsed = false;
   const local = toLocal(s, p);
   ptr.lastLocal = local;
   ptr.travel = 0;
+  if (isMagic(s.tool)) {
+    if (!gearDown(s, local)) ptr.down = false;
+    return;
+  }
   if (s.tool === 'clipper') {
     handleCut(s, clipperSweep(s.hair, local, local, ptr.stroke));
   }
@@ -293,7 +355,9 @@ export function pointerMove(s: RoundState, p: Vec) {
   const local = toLocal(s, p);
   const prev = ptr.lastLocal ?? local;
   ptr.travel += dist(prev, local);
-  if (s.tool === 'scissors') {
+  if (isMagic(s.tool)) {
+    gearMove(s, prev, local);
+  } else if (s.tool === 'scissors') {
     const r = scissorsSweep(s.hair, prev, local, ptr.stroke);
     if (r.cut.length) s.sfx.push('snip');
     handleCut(s, r);
@@ -311,6 +375,7 @@ export function pointerUp(s: RoundState) {
     handleCut(s, scissorsSnip(s.hair, ptr.lastLocal, ptr.stroke));
     s.sfx.push('snip');
   }
+  if (isMagic(s.tool) && canCut(s)) gearUp(s);
   endStroke(s);
 }
 
@@ -319,7 +384,7 @@ export function pointerLeave(s: RoundState) {
   pointerUp(s);
 }
 
-function handleCut(s: RoundState, r: CutResult) {
+export function handleCut(s: RoundState, r: CutResult) {
   if (!r.cut.length && !r.newlyBald.length) return;
   s.hasCut = true;
   const ptr = s.pointer;
@@ -374,7 +439,7 @@ function endStroke(s: RoundState) {
   ptr.down = false;
   ptr.lastLocal = null;
   const cutSomething = ptr.removed > 0.5;
-  if (!cutSomething && !ptr.dryerUsed) return;
+  if (!cutSomething && !ptr.dryerUsed && !ptr.magicUsed) return;
   refreshMetrics(s);
   const c = s.customer;
   const zones = [...ptr.zones];
@@ -442,6 +507,7 @@ export function beg(s: RoundState) {
 
 export function finish(s: RoundState, reason: EndReason) {
   if (s.phase !== 'cutting') return;
+  gearCancel(s);
   if (s.pointer.down) endStroke(s);
   s.pointer.down = false;
   s.motion = null;
@@ -710,6 +776,7 @@ export function tick(s: RoundState, dt: number) {
   dt = Math.min(dt, 0.05);
   s.time += dt;
   updateParticles(s, dt);
+  if (s.fx.length) s.fx = s.fx.filter((f) => f.t0 + f.dur > s.time);
   if (s.bubble && s.time > s.bubble.until && s.phase !== 'result') s.bubble = null;
   if (s.moodOverride && s.time > s.moodOverride.until) s.moodOverride = null;
   s.toasts = s.toasts.filter((t) => t.until > s.time);
@@ -738,6 +805,7 @@ export function tick(s: RoundState, dt: number) {
     decayDwell(s.hair, dt);
   }
   if (ptr.down && local && s.tool === 'dryer') blow(s, local, dt);
+  gearTick(s, dt, ptr.down && local ? local : null);
 
   s.patience = clamp(s.patience - s.customer.patienceDecay * dt * (1 + chaosTier(s.chaos) * 0.35), 0, 100);
   s.nerves = clamp(s.nerves - 9 * dt, 0, 100);

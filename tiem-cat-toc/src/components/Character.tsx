@@ -40,12 +40,12 @@ function bladePath(t: Tuft): string {
   if (t.spiked) {
     const [r, , , tip] = pts;
     const ang = Math.atan2(tip.y - r.y, tip.x - r.x) + Math.PI / 2;
-    const w = 7.5;
+    const w = 7.5 * t.thick;
     const ox = Math.cos(ang) * w;
     const oy = Math.sin(ang) * w;
     return `M${(r.x + ox).toFixed(1)},${(r.y + oy).toFixed(1)}L${tip.x.toFixed(1)},${tip.y.toFixed(1)}L${(r.x - ox).toFixed(1)},${(r.y - oy).toFixed(1)}Z`;
   }
-  const baseW = (t.kind === 'fringe' ? 5.6 : t.kind === 'crown' ? 6.5 : 7.5) * (1 + t.fluff * 0.8);
+  const baseW = (t.kind === 'fringe' ? 5.6 : t.kind === 'crown' ? 6.5 : 7.5) * (1 + t.fluff * 0.8) * t.thick;
   const N = 7;
   const left: string[] = [];
   const right: string[] = [];
@@ -389,7 +389,14 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
           {sorted.map((t) => {
             const d = massPath(t);
             if (!d) return null;
-            return <path key={`m${t.id}`} d={d} strokeWidth={(t.kind === 'fringe' ? 9 : t.kind === 'crown' ? 10 : 13) * (1 + t.fluff * 0.5)} />;
+            return (
+              <path
+                key={`m${t.id}`}
+                d={d}
+                stroke={t.tint ?? look.hairColor}
+                strokeWidth={(t.kind === 'fringe' ? 9 : t.kind === 'crown' ? 10 : 13) * (1 + t.fluff * 0.5) * t.thick}
+              />
+            );
           })}
         </g>
         <g>
@@ -400,8 +407,8 @@ export function Character({ look, hair, metrics, mood, headOffset, ghost, highli
               <path
                 key={t.id}
                 d={d}
-                fill={t.spiked ? look.hairShade : look.hairColor}
-                stroke={look.hairShade}
+                fill={t.tint ?? (t.spiked ? look.hairShade : look.hairColor)}
+                stroke={t.tint ? 'rgba(0,0,0,0.35)' : look.hairShade}
                 strokeWidth={1.4}
                 strokeLinejoin="round"
               />
