@@ -7,7 +7,10 @@ import { AccessoryButton, AccessoryPicker } from './components/AccessoryPicker';
 import { Coach } from './components/Coach';
 import { AirCon, Chandelier, LevelPlaque, RoomStrip, StageDecor, WallDecor } from './components/Decor';
 import { ShopLookPanel } from './components/ShopLookPanel';
-import { DEFAULT_NAME, SIGNS, WALLS, arrange, decorIds, defaultLook, unpackChallenge } from './game/shopStyle';
+import { DEFAULT_NAME, SIGNS, WALLS, arrange, decorIds, defaultLook, packReply, recordBest, replyUrl, unpackChallenge, unpackReply } from './game/shopStyle';
+import { ReplyPanel } from './components/SharePanels';
+import { renderMagazinePng } from './components/Magazine';
+import { downloadBlob } from './game/share';
 import { AlbumPanel } from './components/AlbumPanel';
 import { loadAlbum, recordAlbum, saveAlbum } from './game/album';
 import { Creation, deleteFromBook, loadBook, saveToBook, snapCreation } from './game/creation';
@@ -72,7 +75,10 @@ const seedParam = params.get('seed') ? Number(params.get('seed')) || undefined :
 /** Each new shop meets its own customers; a fixed ?seed keeps tests reproducible. */
 const newShopSeed = () => (seedParam !== undefined ? 0 : 1 + Math.floor(Math.random() * 1e6));
 /** `?challenge=<code>`: a friend's design to copy (thách bạn bè). */
-const challenge = params.get('challenge') ? unpackChallenge(params.get('challenge')!) : null;
+const challengeCode = params.get('challenge');
+const challenge = challengeCode ? unpackChallenge(challengeCode) : null;
+/** `?reply=<code>`: a friend answered your challenge (their attempt + score). */
+const reply = params.get('reply') ? unpackReply(params.get('reply')!) : null;
 /** `?daily=1` (today) or `?daily=YYYY-MM-DD` opens the daily challenge. */
 const dailyParam = params.get('daily');
 const dailyDate = () => (dailyParam && /^\d{4}-\d{2}-\d{2}$/.test(dailyParam) ? dailyParam : todayKey());
@@ -148,6 +154,11 @@ export default function App() {
   const [served, setServed] = useState<Served | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [mirrorOpen, setMirrorOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(!!reply);
+  /** Thách đấu: previous personal best on this challenge, the nickname, and the link back. */
+  const [chBest, setChBest] = useState<number | null>(null);
+  const [nick, setNick] = useState('');
+  const [backLink, setBackLink] = useState<string | null>(null);
   const [accOpen, setAccOpen] = useState(false);
   const [newAlbum, setNewAlbum] = useState(false);
   /** Bumped whenever the Sổ kiểu tóc changes (it lives in localStorage). */
@@ -280,6 +291,10 @@ export default function App() {
       playSfx('cash');
     } else {
       setNewTools(unlockedTools(next).filter((t) => !before.includes(t)));
+      if (challenge && s.design?.id === challenge.id && !s.result.walkedOut) {
+        setChBest(recordBest(challenge.id, challenge.name, s.result.sat));
+        setBackLink(null);
+      }
       const d = dailyRef.current;
       if (d && s.customer.id === d.customer && s.seed === d.seed) {
         const board = loadBoard();
@@ -361,6 +376,45 @@ export default function App() {
   const bubble = s.bubble;
   const career = mode === 'career';
   const showMorning = career && c.today.phase === 'morning' && !overlay;
+  // Thách đấu: shown on the result panel (score, personal best, send the result back).
+  const challengeBox =
+    challenge && s.design?.id === challenge.id && s.result ? (
+      <div className="quest-done challenge-result" data-testid="challenge-result">
+        🔗 Thử thách “{challenge.name}”:{' '}
+        {!s.result.walkedOut && (
+          <b data-testid="challenge-score">
+            Bạn đạt {s.result.sat}% {s.result.sat >= 90 ? '🏆' : s.result.sat >= 70 ? '👍' : '😅'}
+          </b>
+        )}
+        {chBest !== null && <small data-testid="challenge-best"> · kỷ lục trước: {chBest}%</small>}
+        {!s.result.walkedOut && challengeCode && (
+          <div className="challenge-reply">
+            {backLink ? (
+              <input readOnly value={backLink} onFocus={(e) => e.target.select()} data-testid="challenge-back-link" aria-label="Link kết quả gửi lại" />
+            ) : (
+              <>
+                <input value={nick} maxLength={24} onChange={(e) => setNick(e.target.value)} placeholder="Tên bạn (để người thách biết)" data-testid="challenge-nick" />
+                <button
+                  className="secondary-btn"
+                  onClick={() => {
+                    const attempt = snapCreation(s, `Bài của ${nick.trim() || 'bạn'}`, '', { mood: 'happy', bg: 'salon', frame: 'none', stickers: [] });
+                    const url = replyUrl(packReply(challengeCode, attempt, s.result!.sat, nick.trim() || 'Bạn ẩn danh'));
+                    setBackLink(url);
+                    navigator.clipboard?.writeText(url).catch(() => undefined);
+                  }}
+                  data-testid="challenge-send"
+                >
+                  📤 Gửi kết quả cho người thách
+                </button>
+              </>
+            )}
+            <button className="link-btn" onClick={() => replaceRound(challengeRound(challenge))} data-testid="challenge-again">
+              Thử lại thử thách
+            </button>
+          </div>
+        )}
+      </div>
+    ) : null;
   const shopLook = c.look ?? defaultLook();
   const wallIds = decorIds(c.owned, wallWorks.length, c.trophies?.length ?? 0);
   const wallOrder = arrange(wallIds, shopLook);
@@ -462,17 +516,6 @@ export default function App() {
           {challenge && s.design?.id === challenge.id && (
             <div className="challenge-banner" data-testid="challenge-banner">
               🔗 Thử thách từ bạn bè: cắt y như mẫu “{challenge.name}”
-              {s.result && !s.result.walkedOut && (
-                <b data-testid="challenge-score">
-                  {' '}
-                  · Bạn đạt {s.result.sat}% {s.result.sat >= 90 ? '🏆' : s.result.sat >= 70 ? '👍' : '😅'}
-                </b>
-              )}
-              {s.result && (
-                <button className="link-btn light" onClick={() => replaceRound(challengeRound(challenge))} data-testid="challenge-again">
-                  Thử lại
-                </button>
-              )}
             </div>
           )}
           {s.customer.behaviors.includes('livestream') && s.phase === 'cutting' && (
@@ -620,6 +663,7 @@ export default function App() {
           newTools={newTools}
           onReplay={() => (daily ? startDaily(true) : newFreeRound(s.customer.id, true))}
           onPhoto={() => setOverlay('photo')}
+          extra={challengeBox}
           daily={daily && dailyResult ? { ...dailyResult, date: daily.date } : null}
           onNext={career ? nextCareer : nextFree}
           career={career && served ? { served, nextLabel: c.today.phase === 'closed' ? 'Đóng cửa, tổng kết ngày →' : `Khách tiếp theo (${c.today.index + 1}/${c.today.queue.length}) →` } : null}
@@ -652,10 +696,24 @@ export default function App() {
           sum={c.lastSummary}
           onShop={() => setOverlay('shop')}
           onBook={() => setOverlay('book')}
+          onMagazine={async () => {
+            const shots = c.weekShots?.length ? c.weekShots : (c.lastWeekShots ?? []);
+            const blob = await renderMagazinePng(shots, shopLook.name, Math.ceil(c.day / 7));
+            downloadBlob(blob, `tap-chi-toc-tuan-${Math.ceil(c.day / 7)}.png`);
+          }}
           onNext={() => {
             nextDay(c, catalog());
             saveCareer(c);
             replaceRound(careerRound(c));
+          }}
+        />
+      )}
+      {reply && replyOpen && !overlay && (
+        <ReplyPanel
+          r={reply}
+          onClose={() => setReplyOpen(false)}
+          onTry={() => {
+            location.href = `${location.pathname}?challenge=${reply.code}`;
           }}
         />
       )}

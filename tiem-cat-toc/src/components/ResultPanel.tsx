@@ -61,11 +61,13 @@ interface Props {
   career?: { served: Served; nextLabel: string } | null;
   /** Daily challenge: this run's score and today's local leaderboard. */
   daily?: { date: string; score: number; rank: number | null; board: { score: number; sat: number; style: string }[]; streak: number } | null;
+  /** Extra block (thách đấu: score, personal best, send the result back). */
+  extra?: React.ReactNode;
 }
 
 const TIER_LABEL = { love: 'Mê tít', ok: 'Tạm hài lòng', meh: 'Lấn cấn', bad: 'Bực mình', disaster: 'Thảm họa' } as const;
 
-export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, daily, onPhoto }: Props) {
+export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, daily, onPhoto, extra }: Props) {
   const r = s.result!;
   const [card, setCard] = useState<{ url: string; blob: Blob } | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
@@ -156,6 +158,7 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, d
               +{career.served.xp} kinh nghiệm cho tiệm
             </div>
           )}
+          {extra}
           {career?.served.byAssistant && (
             <div className="quest-done assistant-result" data-testid="assistant-result">
               🧑‍🔧 Thợ phụ Bé Tư cắt khách này (kinh nghiệm cho tiệm chỉ được một nửa).

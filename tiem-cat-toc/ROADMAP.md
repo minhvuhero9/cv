@@ -69,6 +69,12 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] GĐ3: Tiệm của riêng bạn, tiệm lớn dần theo cấp, kệ cúp, link thách bạn bè
 - [x] GĐ4: Ngày 1–2 dễ thở + mẹo buổi sáng, báo cáo tuần, cân bằng kinh tế bằng mô phỏng 14 ngày
 
+## 15. Bản cập nhật 4 giai đoạn thứ ba (đã xong)
+- [x] GĐ1: Phòng mở rộng (gội, nhuộm, check-in, VIP), thợ phụ Bé Tư học nghề dần, 16 thành tựu + danh hiệu treo dưới biển hiệu
+- [x] GĐ2: Gương Thần ở tiệm soi ngẫu nhiên (khách mê hoặc ghét; Bé Ba được soi 3 lần), hộp phụ kiện tóc, mẫu theo mùa (Tết, Hè, Trung Thu, Halloween, Noel)
+- [x] GĐ3: Thời tiết (mưa, nắng nóng), tiệm đối thủ từ ngày 9, khuyến mãi buổi sáng, Lễ hội Phố Tóc hai tuần một lần
+- [x] GĐ4: Thách đấu hai chiều (link gửi lại kết quả), tạp chí tiệm PNG hằng tuần, mã lưu tiệm để chuyển máy
+
 ## Việc tiếp theo nếu làm tiếp
 - [ ] Cân bằng kinh tế bằng người chơi thật (hiện mới cân chỉnh bằng mô phỏng)
 - [ ] Con Dấu Phán Quyết, Pháo Hoa Tạo Kiểu

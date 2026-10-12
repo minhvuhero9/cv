@@ -2894,3 +2894,50 @@ button {
 .event-card[data-event='rival'] {
   background: #f1ecff;
 }
+
+/* ---------------- Mã lưu, thách đấu hai chiều, tạp chí ---------------- */
+.save-code {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 8px;
+  border: 2px dashed #a99c85;
+  border-radius: 12px;
+}
+.save-code textarea,
+.challenge-reply input {
+  width: 100%;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #a99c85;
+  border-radius: 6px;
+}
+.reply-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.reply-pic {
+  margin: 0;
+  text-align: center;
+  font-weight: 800;
+  background: #fffdf6;
+  border: 2px solid #2b1a12;
+  border-radius: 12px;
+  padding: 4px;
+}
+.challenge-reply {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  pointer-events: auto;
+}
+.challenge-reply input {
+  color: var(--ink);
+}
+.challenge-result {
+  background: #fff1d6;
+  border-color: #d4a53a;
+}

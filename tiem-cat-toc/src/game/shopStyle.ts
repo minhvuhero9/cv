@@ -142,3 +142,59 @@ export function unpackChallenge(code: string): Creation | null {
 export function challengeUrl(c: Creation, base = `${location.origin}${location.pathname}`): string {
   return `${base}?challenge=${packChallenge(c)}`;
 }
+
+/* ------------------------------------------------------------------ thách đấu hai chiều */
+
+/** A friend's answer to a challenge: the original design, their attempt, their score. */
+export interface Reply {
+  original: Creation;
+  attempt: Creation;
+  code: string;
+  score: number;
+  by: string;
+}
+
+export function packReply(originalCode: string, attempt: Creation, score: number, by: string): string {
+  return b64url(JSON.stringify({ v: 1, o: originalCode, a: packChallenge(attempt), s: Math.round(score), by: by.slice(0, 24) }));
+}
+
+export function unpackReply(code: string): Reply | null {
+  try {
+    const p = JSON.parse(unb64url(code)) as { v: number; o: string; a: string; s: number; by: string };
+    if (p.v !== 1) return null;
+    const original = unpackChallenge(p.o);
+    const attempt = unpackChallenge(p.a);
+    if (!original || !attempt) return null;
+    return { original, attempt, code: p.o, score: Math.max(0, Math.min(100, Number(p.s) || 0)), by: String(p.by || 'Bạn ẩn danh').slice(0, 24) };
+  } catch {
+    return null;
+  }
+}
+
+export function replyUrl(r: string, base = `${location.origin}${location.pathname}`): string {
+  return `${base}?reply=${r}`;
+}
+
+/** Personal bests on challenges, kept in this browser. */
+const BEST_KEY = 'tctbo-challenges';
+
+export function loadBests(store: Storage | undefined = globalThis.localStorage): Record<string, { name: string; best: number }> {
+  try {
+    return JSON.parse(store?.getItem(BEST_KEY) ?? '{}') ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** Records a score; returns the previous best (or null). */
+export function recordBest(id: string, name: string, score: number, store: Storage | undefined = globalThis.localStorage): number | null {
+  const all = loadBests(store);
+  const prev = all[id]?.best ?? null;
+  if (prev === null || score > prev) all[id] = { name, best: score };
+  try {
+    store?.setItem(BEST_KEY, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+  return prev;
+}

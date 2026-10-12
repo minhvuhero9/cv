@@ -109,6 +109,10 @@ async function playDay(page) {
     };
     localStorage.setItem('tctbo-studio-book', JSON.stringify([c]));
   });
+  {
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }).catch(() => null), page.click('[data-testid=summary-magazine]')]);
+    check('Tạp chí tiệm: the evening offers the week\'s magazine as a PNG', !!dl && /tap-chi-toc-tuan-1\.png$/.test(dl.suggestedFilename()), dl?.suggestedFilename());
+  }
   check('Xưởng Tạo Kiểu đã bỏ: no studio button after closing', (await page.locator('[data-testid=summary-studio]').count()) === 0);
   // Reach shop level 2 and buy the Cọ Nhuộm this evening: customers start ordering tomorrow.
   await page.evaluate(() => {
@@ -284,6 +288,18 @@ async function playDay(page) {
   await page.click('[data-testid=mirror]');
   await page.waitForSelector('[data-testid=challenge-score]');
   check('Thách bạn bè: the result shows how close you got', /Bạn đạt \d+%/.test(await page.textContent('[data-testid=challenge-score]')));
+  // Hai chiều: send the result back; the link shows both heads and the score.
+  await page.fill('[data-testid=challenge-nick]', 'Lan');
+  await page.click('[data-testid=challenge-send]');
+  const back = await page.inputValue('[data-testid=challenge-back-link]');
+  check('Thách hai chiều: the result becomes a link back', /\?reply=[A-Za-z0-9_-]+$/.test(back));
+  await page.goto(back);
+  await page.waitForSelector('[data-testid=reply-panel]');
+  check('Thách hai chiều: the challenger sees who, how much, and both heads', /Lan đạt \d+%/.test(await page.textContent('[data-testid=reply-panel] h2')) && (await page.locator('[data-testid=reply-panel] figure').count()) === 2);
+  await page.screenshot({ path: `${OUT}/K10-reply.png` });
+  await page.click('[data-testid=reply-try]');
+  await page.waitForSelector('[data-testid=start]');
+  check('Thách hai chiều: “Tự cắt mẫu này” opens the challenge', /\?challenge=/.test(page.url()));
   check('Trang trí & thách: no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
@@ -377,6 +393,35 @@ async function playDay(page) {
   await page.screenshot({ path: `${OUT}/K9-mirror-acc.png` });
   check('Gương Thần & phụ kiện: no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
+}
+
+/* ---------------- Mã lưu tiệm: move a shop between browsers ---------------- */
+{
+  const a = await open(`${BASE}?fresh=1&seed=4`);
+  await a.page.evaluate(() => {
+    localStorage.setItem('tctbo-coach', '4');
+    const c = window.__tctbo.career();
+    c.money = 777000;
+  });
+  await a.page.click('[data-testid=open-day]');
+  await serveOne(a.page);
+  await a.page.click('[data-testid=open-settings]');
+  await a.page.click('[data-testid=save-code-make]');
+  const code = await a.page.inputValue('[data-testid=save-code-out]');
+  const before = await career(a.page);
+  check('Mã lưu: the settings make a backup code', code.startsWith('TCTBO1:') && code.length > 200);
+  await a.ctx.close();
+  const b = await open(`${BASE}?fresh=1&seed=4`);
+  await b.page.click('[data-testid=open-settings]');
+  await b.page.fill('[data-testid=save-code-in]', code);
+  await b.page.click('[data-testid=save-code-load]');
+  await b.page.waitForTimeout(1500);
+  await b.page.goto(`${BASE}?seed=4`);
+  await b.page.waitForSelector('[data-testid=summary], [data-testid=morning], [data-testid=start], [data-testid=next]');
+  const after = await career(b.page);
+  check('Mã lưu: another browser continues the same shop', after.money === before.money && after.today.served.length === before.today.served.length, `${after.money} vs ${before.money}`);
+  check('Mã lưu: no console errors', a.errors.length === 0 && b.errors.length === 0, [...a.errors, ...b.errors].join(' | '));
+  await b.ctx.close();
 }
 
 /* ---------------- Sound settings: volume and mute persist ---------------- */

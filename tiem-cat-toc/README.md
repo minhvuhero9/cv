@@ -307,6 +307,18 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
 - **🏮 Lễ hội Phố Tóc** (ngày 12–13, 26–27, …; mang tên mùa thật, ví dụ “mùa Halloween”): thêm 2 khách, giá ×1,25, hai khách tùy thợ.
 - Sửa lỗi: Anh Tuấn (khách dùng `this.target`) bị lỗi điểm khi cắt trong ngày nắng, đeo phụ kiện hoặc soi Gương Thần; nay các lớp bọc gọi đúng.
 
+## Khoe và chơi cùng bạn bè
+
+- **Thách đấu hai chiều:**
+  - Bạn bè mở link thách, cắt xong thì màn kết quả hiện “Bạn đạt N%” và kỷ lục trước đó (lưu trong máy).
+  - Họ nhập tên rồi bấm “📤 Gửi kết quả cho người thách” để có link `?reply=…` (mẫu gốc, bài cắt và điểm đều nén trong link).
+  - Người thách mở link đó sẽ thấy hai cái đầu cạnh nhau, tên và điểm, rồi bấm “Tự cắt mẫu này” để thử lại.
+- **📰 Tạp chí tiệm:** tiệm giữ 4 cái đầu đẹp nhất trong tuần (kể cả phong cách Gương Thần và phụ kiện). Bảng tổng kết cuối ngày có nút tải ảnh bìa tạp chí PNG 1080×1350 với tên tiệm và số tuần.
+- **💾 Mã lưu tiệm** (trong Cài đặt):
+  - “Tạo mã sao lưu” gói cả tiệm, cuốn mẫu, bộ sưu tập, album, điểm thử thách thành một đoạn mã `TCTBO1:…`.
+  - Dán mã ở trình duyệt khác rồi bấm “Nhập mã” để chơi tiếp.
+  - Mã hỏng hoặc bị sửa thì không ghi gì cả.
+
 ## Cảm giác chơi và cân bằng
 
 - **Ngày đầu dễ thở:** ngày 1 khách kiên nhẫn lâu hơn (mất kiên nhẫn chậm hơn 45%), có thêm 15 giây và ít quay đầu hẳn; ngày 2 dễ bằng một nửa; từ ngày 3 là thật.
@@ -355,10 +367,11 @@ src/game/freestyle.ts  khách tùy thợ (9 gu) và đề Cuộc thi tóc của 
 src/game/stories.ts    khách có câu chuyện nhiều ngày
 src/game/shopStyle.ts  tiệm của riêng bạn (tên, màu, sắp xếp tường) và link thách bạn bè
 src/game/assistant.ts  thợ phụ Bé Tư; achievements.ts thành tựu & danh hiệu; accessories.ts phụ kiện tóc
+src/game/world.ts      thời tiết, tiệm đối thủ, lễ hội; saveCode.ts mã lưu tiệm
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
                        MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, PhotoBook, PhotoComposition, ArtBar,
-                       ShopLookPanel
+                       ShopLookPanel, AccessoryPicker, SharePanels (mã lưu, kết quả thách), Magazine
 src/audio/sfx.ts       âm thanh và nhạc nền WebAudio
 ```
 

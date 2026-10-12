@@ -1,4 +1,5 @@
 import { DEFAULT_NAME } from '../game/shopStyle';
+import { SaveCodeBox } from './SharePanels';
 import { useState } from 'react';
 import { ACHIEVEMENTS, CareerState, DaySummary, WeekReport, achievementStats, canBuy, repairCost, shopLevel, vnd } from '../game/career';
 import { customerById } from '../game/customers';
@@ -302,7 +303,7 @@ function WeekBox({ w }: { w: WeekReport }) {
 }
 
 /** Evening: what came in, what went out, what tomorrow looks like. */
-export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onBook?(): void }) {
+export function SummaryPanel({ c, sum, onShop, onNext, onBook, onMagazine }: { c: CareerState; sum: DaySummary; onShop(): void; onNext(): void; onBook?(): void; onMagazine?(): void }) {
   const totalCost = sum.costs.reduce((a, x) => a + x.amount, 0);
   return (
     <div className="overlay" data-testid="summary">
@@ -413,6 +414,11 @@ export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerStat
           <button className="secondary-btn" onClick={onShop} data-testid="summary-shop">
             🛒 Cửa hàng
           </button>
+          {onMagazine && ((c.weekShots?.length ?? 0) > 0 || (c.lastWeekShots?.length ?? 0) > 0) && (
+            <button className="secondary-btn" onClick={onMagazine} data-testid="summary-magazine">
+              📰 Tải tạp chí tuần
+            </button>
+          )}
           {onBook && (
             <button className="secondary-btn" onClick={onBook} data-testid="summary-book">
               📒 Cuốn mẫu
@@ -559,6 +565,7 @@ export function SettingsPanel({
             Cắt tự do
           </button>
         </div>
+        <SaveCodeBox />
         <div className="danger-zone">
           {!confirm ? (
             <button className="secondary-btn" onClick={() => setConfirm(true)} data-testid="reset">

@@ -121,6 +121,17 @@ export interface DaySummary {
   rival?: string;
 }
 
+export interface WeekShot {
+  customer: string;
+  name: string;
+  styleName: string;
+  sat: number;
+  day: number;
+  hair: HairSnap;
+  persona: string | null;
+  accessory: string | null;
+}
+
 export interface WeekReport {
   from: number;
   to: number;
@@ -217,6 +228,9 @@ export interface CareerState {
   trophies?: { day: number; theme: string; rank: number; label: string }[];
   /** Tiệm đối thủ across the street (from day 9). */
   rival?: Rival;
+  /** Tạp chí tiệm: the four best heads of this week (and of last week, after the report). */
+  weekShots?: WeekShot[];
+  lastWeekShots?: WeekShot[];
   today: {
     /** Today's weather, and whether a promotion (khuyến mãi) is running. */
     weather?: Weather;
@@ -641,6 +655,11 @@ export function applyRound(c: CareerState, s: RoundState): Served {
   // Returns: a disaster comes back tomorrow to get it fixed, a fan comes back in two days.
   c.history[d.id] = { day: c.day, styleId: r.style.id, sat: r.sat, tier: r.tier };
   if (rivalOpen(c.rival, c.day)) c.rival!.sats.push(r.walkedOut ? 0 : r.sat);
+  // Tạp chí tiệm: keep the week's four best heads (customers, not the dog).
+  if (!r.walkedOut && d.look.species !== 'dog') {
+    const shot: WeekShot = { customer: s.baseCustomer.id, name: d.name, styleName: r.style.name, sat: r.sat, day: c.day, hair: snapHair(s.hair), persona: s.persona, accessory: s.accessory };
+    c.weekShots = [...(c.weekShots ?? []), shot].sort((a, b) => b.sat - a.sat).slice(0, 4);
+  }
   const already = c.pending.some((p) => p.customer === d.id);
   // Someone who already came back to get it fixed and is still unhappy gives up on the shop.
   // Story visits come back through their story, not as returns or regulars.
@@ -820,6 +839,8 @@ export function endDay(c: CareerState): DaySummary {
   if (c.day % 7 === 0) {
     summary.week = weekReport(c.weekDays);
     c.weekDays = [];
+    c.lastWeekShots = c.weekShots ?? [];
+    c.weekShots = [];
   }
   c.stats.days++;
   const ach = checkAchievements(c);
