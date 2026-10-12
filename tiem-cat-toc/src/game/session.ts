@@ -24,6 +24,8 @@ import { ToolId } from './tools';
 import { checkSheet, requestSheet } from './request';
 import type { Creation } from './creation';
 import { DesignOrder, designCustomer, designOrder, templateOrder } from './design';
+import { Taste, tasteById, tasteCustomer } from './freestyle';
+import { storyById, storyCustomer } from './stories';
 import { templateById } from './templates';
 import { ArtKit, ArtSettings, brushHair, carveHair, fullKit, newArt } from './art';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
@@ -150,6 +152,12 @@ export interface RoundState {
   stage: number;
   /** Cuốn mẫu: the design this customer ordered. */
   design: DesignOrder | null;
+  /** Khách tùy thợ: no picture, just a taste. */
+  taste: Taste | null;
+  /** 0..1: first-days easing (see RoundContext.ease). */
+  ease: number;
+  /** Khách có câu chuyện: which story and chapter. */
+  story: { id: string; step: number; title: string; chapters: number } | null;
   /** Đồ nghề sáng tạo: current colours / stencil, and what the barber owns. */
   art: ArtSettings;
   kit: ArtKit;
@@ -306,6 +314,12 @@ export interface RoundContext {
   design?: Creation | null;
   /** …or a built-in template (mẫu có sẵn). */
   designTemplate?: string | null;
+  /** …or no picture at all: "làm gì cũng được, miễn hợp gu" (freestyle.ts). */
+  taste?: string | null;
+  /** A chapter of a customer's story (stories.ts). */
+  story?: { id: string; step: number } | null;
+  /** 0..1: the shop's first days are gentler (more patience, more time, fewer head turns). */
+  ease?: number;
 }
 
 export interface RoundOptions {
@@ -325,7 +339,13 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
   const baseDef = customerById(customerId);
   const tpl = templateById(opts.ctx?.designTemplate);
   const design = opts.ctx?.design ? designOrder(opts.ctx.design, baseDef.id) : tpl ? templateOrder(tpl, baseDef.id) : null;
-  const customer = design ? designCustomer(baseDef, design) : baseDef;
+  const story = design ? null : storyById(opts.ctx?.story?.id);
+  const step = Math.min(opts.ctx?.story?.step ?? 0, (story?.chapters.length ?? 1) - 1);
+  const taste = design ? null : story ? tasteById(story.chapters[step].taste) : tasteById(opts.ctx?.taste);
+  const picked = design ? designCustomer(baseDef, design) : story ? storyCustomer(baseDef, story, step) : taste ? tasteCustomer(baseDef, taste) : baseDef;
+  const ease = clamp(opts.ctx?.ease ?? 0, 0, 1);
+  // First days: the same customer, just a little more patient.
+  const customer = ease > 0 ? { ...picked, patienceDecay: picked.patienceDecay * (1 - 0.45 * ease) } : picked;
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
   const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };
@@ -336,6 +356,9 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     customer,
     baseCustomer: customer,
     design,
+    taste,
+    ease,
+    story: story ? { id: story.id, step, title: story.title, chapters: story.chapters.length } : null,
     persona: null,
     wantPersona,
     mirrorReady: (opts.mirror ?? false) || ctx.items.includes('mirror'),
@@ -413,7 +436,7 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     toolsUsed: [],
     deniedAt: -99,
     toolReacted: {},
-    timeLimit: opts.timeLimit ?? customer.timeLimit ?? TIME_LIMIT,
+    timeLimit: (opts.timeLimit ?? customer.timeLimit ?? TIME_LIMIT) + Math.round(15 * ease),
     drowsy: 0,
     nextBehaviorAt: 6,
     viewers: 120,
@@ -1112,7 +1135,7 @@ const RULES: Rule[] = [
     id: 'headTurn',
     check: (s) => {
       if (s.motion || s.time < s.nextTurnCheck) return false;
-      s.nextTurnCheck = s.time + between(s.rng, 3, 5.5);
+      s.nextTurnCheck = s.time + between(s.rng, 3, 5.5) * (1 + s.ease);
       const restless = s.patience < 40 || s.chaos >= 50;
       // The massage chair keeps half of them seated.
       if (restless && hasItem(s, 'chair') && s.rng() < 0.5) return false;

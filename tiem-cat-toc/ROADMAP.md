@@ -60,8 +60,14 @@ File này ghi trạng thái triển khai để có thể tiếp tục đúng ch�
 - [x] ~~A. Xưởng Tạo Kiểu~~ (đã bỏ theo yêu cầu; cọ nhuộm, cạo hình, chụp ảnh, cuốn mẫu chuyển vào tiệm thật)
 - [x] Sáng tạo vào vòng chơi chính: Cọ Nhuộm / Khuôn Cạo bán trong shop (+ nâng cấp), khách chấm phần nghệ thuật, Xưởng sau giờ đóng cửa, cuốn mẫu (khách đặt theo mẫu của bạn), tường tác phẩm, chụp ảnh từ màn kết quả
 - [x] Cấp tiệm (5 cấp, mở đồ nghề/mẫu/khách/giá) và 9 mẫu có sẵn để vẽ theo (hướng dẫn trên đầu, % giống mẫu); khách chỉ đặt mẫu sau khi tiệm mua đồ nghề sáng tạo (từ hôm sau)
-- [ ] C. Thử thách do người chơi làm (link/QR, chấm theo vùng so với bản gốc)
-- [ ] D. Tiệm của riêng bạn (tên, màu, kéo thả đồ trang trí, tự tạo phong cách Gương Thần)
+- [x] C. Thách bạn bè bằng link (mẫu nén vào link, chấm % giống mẫu)
+- [x] D. Tiệm của riêng bạn (tên, màu tường, biển hiệu, kéo thả đồ trang trí, tiệm lớn dần theo cấp). Chưa làm: tự tạo phong cách Gương Thần.
+
+## 14. Bản cập nhật 4 giai đoạn thứ hai (đã xong)
+- [x] GĐ1: Khách tùy thợ (9 gu, chấm theo Thích/Ghét); kiểu hợp gu tự vào cuốn mẫu, hôm sau có khách đặt lại
+- [x] GĐ2: 6 khách mới mở theo cấp; 3 câu chuyện nhiều ngày; Cuộc thi tóc của phường hằng tuần (cúp)
+- [x] GĐ3: Tiệm của riêng bạn, tiệm lớn dần theo cấp, kệ cúp, link thách bạn bè
+- [x] GĐ4: Ngày 1–2 dễ thở + mẹo buổi sáng, báo cáo tuần, cân bằng kinh tế bằng mô phỏng 14 ngày
 
 ## Việc tiếp theo nếu làm tiếp
 - [ ] Cân bằng kinh tế bằng người chơi thật (hiện mới cân chỉnh bằng mô phỏng)

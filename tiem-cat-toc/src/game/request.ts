@@ -119,6 +119,16 @@ export function requestSheet(s: RoundState): RequestSheet {
     items.push(noBald);
     return { target: o.target, items };
   }
+  if (s.taste) {
+    const t = s.taste;
+    return {
+      target: null,
+      items: [
+        ...t.likes.map((r) => ({ id: `t-${r.id}`, label: `Thích: ${r.label}`, check: (m: HairMetrics, rs: RoundState) => r.check(m, rs.hair) })),
+        ...t.dislikes.map((r) => ({ id: `t-no-${r.id}`, label: `Ghét: ${r.label}`, check: (m: HairMetrics, rs: RoundState) => !r.check(m, rs.hair) })),
+      ],
+    };
+  }
   if (c.stages?.length) {
     const st = c.stages;
     return {

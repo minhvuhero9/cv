@@ -79,6 +79,7 @@ async function playDay(page) {
   await page.screenshot({ path: `${OUT}/K1-morning.png` });
   check('Cấp tiệm: the morning shows the shop level and what comes next', (await page.locator('[data-testid=level-card]').count()) === 1 && (await page.getAttribute('[data-testid=hud-level]', 'data-value')) === '1');
   check('Cuốn mẫu: no catalog orders before buying a creative tool', !c0.today.queue.some((q) => q.reason === 'design') && (await page.locator('[data-testid=catalog-tip]').count()) === 1);
+  check('Ngày đầu: the morning shows tips and the round is gentler', (await page.locator('[data-testid=day-tips] li').count()) === 3 && (await page.evaluate(() => window.__tctbo.state().ease)) === 1);
   check('Nhiệm vụ: the morning shows today\'s goals', (await page.locator('[data-testid=quests] li').count()) === 3 && c0.today.quests.length === 3);
   await page.click('[data-testid=open-day]');
   await playDay(page);
@@ -166,6 +167,120 @@ async function playDay(page) {
   const fresh = await career(page);
   check('Settings: confirmed reset starts again at day 1', fresh.day === 1 && fresh.owned.length === 0);
   check('Career: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+/* ---------------- Khách tùy thợ: no outline, taste checklist, loved cut goes to the catalog ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.evaluate(() => localStorage.setItem('tctbo-coach', '4'));
+  await page.waitForSelector('[data-testid=morning]');
+  await page.click('[data-testid=open-day]');
+  await serveOne(page);
+  await page.evaluate(() => {
+    window.__tctbo.career().today.queue[1] = { customer: 'tuan', reason: 'freestyle', note: 'Tùy thợ', tasteId: 'gon' };
+  });
+  await page.click('[data-testid=next]');
+  await page.waitForSelector('[data-testid=start]');
+  check('Tùy thợ: the request card names the taste', /Khách tùy thợ · Gu Gọn Gàng/.test(await page.textContent('[data-testid=request-card]')));
+  check('Tùy thợ: no outline toggle (no picture to follow)', (await page.locator('[data-testid=ghost-toggle]').count()) === 0);
+  await page.click('[data-testid=start]');
+  await page.waitForSelector('[data-testid=taste-score]');
+  const v0 = Number(await page.getAttribute('[data-testid=taste-score]', 'data-value'));
+  await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    const z = { left: 0.5, right: 0.5, top: 0.6, fringe: 0.5 };
+    for (const t of s.hair.tufts) if (!t.bald) t.len = t.origLen * z[t.zone];
+    s.nextTurnCheck = 1e9;
+    s.nextBehaviorAt = 1e9;
+  });
+  // One small snip so the round re-measures the hair.
+  await page.click('[data-testid=tool-scissors]');
+  const a = await toClient(page, 60, 120);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 5, a.y + 2, { steps: 2 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const v1 = Number(await page.getAttribute('[data-testid=taste-score]', 'data-value'));
+  check('Tùy thợ: live "Hợp gu" score rises with a fitting cut', v1 > v0 && v1 >= 80, `${v0} → ${v1}`);
+  await page.screenshot({ path: `${OUT}/K5-freestyle.png` });
+  await page.click('[data-testid=finish]');
+  await page.waitForSelector('[data-testid=mirror]');
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=next]');
+  check('Tùy thợ: a loved cut is saved into the catalog', (await page.locator('[data-testid=design-saved]').count()) === 1);
+  const book = await page.evaluate(() => JSON.parse(localStorage.getItem('tctbo-studio-book') ?? '[]'));
+  const c = await career(page);
+  check('Tùy thợ: the catalog has it and tomorrow orders it first', book.length === 1 && /Gọn Gàng/.test(book[0].name) && c.freshDesign === book[0].id, JSON.stringify(book.map((b) => b.name)));
+  check('Tùy thợ: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+/* ---------------- Tiệm của riêng bạn + thách bạn bè ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.evaluate(() => {
+    localStorage.setItem('tctbo-coach', '4');
+    const s = window.__tctbo.state();
+    const c = {
+      id: 'e2e-ch',
+      name: 'Mẫu Thách Đấu',
+      caption: '',
+      customer: s.baseCustomer.id,
+      persona: null,
+      tufts: s.hair.tufts.map((t, i) => [t.zone === 'top' ? t.len : t.len * 0.5, t.bald ? 1 : 0, 0, i % 3 === 0 ? '#ff3fa4' : null, 0, 0, 1, 0, 0, null, null]),
+      carvings: [],
+      photo: { mood: 'happy', bg: 'salon', frame: 'none', stickers: [] },
+      at: Date.now(),
+    };
+    localStorage.setItem('tctbo-studio-book', JSON.stringify([c]));
+    const car = window.__tctbo.career();
+    car.owned.push('plant', 'award');
+    car.trophies = [{ day: 4, theme: 'Mùa Hè Rực Rỡ', rank: 1, label: 'Giải Nhất' }];
+  });
+  await page.click('[data-testid=morning-look]');
+  await page.waitForSelector('[data-testid=look-panel]');
+  await page.fill('[data-testid=look-name]', 'Tiệm Tóc Cô Ba');
+  await page.click('[data-testid=look-name-save]');
+  await page.click('[data-testid=look-wall-pink]');
+  await page.click('[data-testid=look-sign-gold]');
+  // Tap-tap: move the plant to the first slot.
+  await page.click('[data-testid=look-slot-plant]');
+  await page.click('[data-testid=look-slot-trophies]');
+  const slots = await page.$$eval('[data-testid=look-wall] li', (els) => els.map((e) => e.getAttribute('data-testid')));
+  check('Trang trí: tap-tap moves a wall item', slots.indexOf('look-slot-plant') < slots.indexOf('look-slot-award'), slots.join(','));
+  await page.click('[data-testid=look-hide-award]');
+  await page.screenshot({ path: `${OUT}/K6-look-panel.png` });
+  await page.click('[data-testid=look-close]');
+  check('Trang trí: the sign shows the shop name', (await page.textContent('[data-testid=shop-name]')) === 'TIỆM TÓC CÔ BA' || (await page.textContent('[data-testid=shop-name]')) === 'Tiệm Tóc Cô Ba');
+  const wall = await page.evaluate(() => getComputedStyle(document.querySelector('.app')).getPropertyValue('--wall').trim());
+  check('Trang trí: wall paint applied', wall === '#f8d3e2', wall);
+  const look = (await career(page)).look;
+  check('Trang trí: saved with the career', look && look.wall === 'pink' && look.sign === 'gold' && look.hidden.includes('award'), JSON.stringify(look));
+  // Thách bạn bè: make a link from the catalog (open from the morning).
+  await page.click('[data-testid=morning-book]');
+  await page.waitForSelector('[data-testid=book-item]');
+  await page.click('[data-testid=book-challenge]');
+  const link = await page.inputValue('[data-testid=challenge-link] input');
+  check('Thách bạn bè: the catalog makes a link', /\?challenge=[A-Za-z0-9_-]+$/.test(link), link.slice(0, 80));
+  await page.click('[data-testid=book-close]');
+  await page.click('[data-testid=open-day]');
+  await page.waitForSelector('[data-testid=start]');
+  check('Trang trí: hidden item is off the wall, trophies are on it', (await page.locator('[data-decor=award]').count()) === 0 && (await page.locator('[data-decor=trophies]').count()) === 1);
+  check('Cấp tiệm: plaque on the wall', (await page.getAttribute('[data-testid=level-plaque]', 'data-level')) === '1');
+  await page.screenshot({ path: `${OUT}/K7-own-shop.png` });
+  await page.goto(link);
+  await page.waitForSelector('[data-testid=start]');
+  await page.click('[data-testid=start]');
+  await page.waitForSelector('[data-testid=challenge-banner]');
+  check('Thách bạn bè: the link opens the friend\'s design to copy', (await page.locator('[data-testid=design-score]').count()) === 1 && /Mẫu Thách Đấu/.test(await page.textContent('[data-testid=challenge-banner]')));
+  await page.click('[data-testid=finish]');
+  await page.waitForSelector('[data-testid=mirror]');
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=challenge-score]');
+  check('Thách bạn bè: the result shows how close you got', /Bạn đạt \d+%/.test(await page.textContent('[data-testid=challenge-score]')));
+  check('Trang trí & thách: no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }
 
