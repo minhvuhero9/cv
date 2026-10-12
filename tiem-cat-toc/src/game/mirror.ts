@@ -401,7 +401,7 @@ export function transformCustomer(base: CustomerDef, p: Persona, wantPersona: Pe
       const fit = personaFit(p, m, ctx);
       if (wantPersona) return wantPersona === p.id ? fit : clamp(fit * 0.4, 0, 100);
       const mood = aff === 'fan' ? 15 : aff === 'hater' ? -25 : 0;
-      return clamp(own(m, ctx) * 0.5 + fit * 0.5 + mood, 0, 100);
+      return clamp(own.call(base, m, ctx) * 0.5 + fit * 0.5 + mood, 0, 100);
     },
     special: (m, sat) => sat >= 88 && personaFit(p, m) >= 85,
   };

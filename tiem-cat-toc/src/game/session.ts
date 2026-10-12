@@ -328,6 +328,8 @@ export interface RoundContext {
   taste?: string | null;
   /** A chapter of a customer's story (stories.ts). */
   story?: { id: string; step: number } | null;
+  /** Thời tiết hôm nay (career). */
+  weather?: 'fair' | 'rain' | 'heat';
   /** Career Gương Thần: the mirror picks the persona at random (no picker). */
   mirrorRandom?: boolean;
   /** 0..1: the shop's first days are gentler (more patience, more time, fewer head turns). */
@@ -359,8 +361,21 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
   // Phòng Gội Đầu: washed and relaxed before the cut.
   const washed = !!opts.ctx?.items?.includes('washRoom');
   // First days: the same customer, just a little more patient.
-  const calm = (1 - 0.45 * ease) * (washed ? 0.85 : 1);
-  const customer = calm < 1 ? { ...picked, patience: Math.min(100, picked.patience + (washed ? 10 : 0)), patienceDecay: picked.patienceDecay * calm } : picked;
+  // Thời tiết: rain makes people sit it out; heat makes them restless (unless the shop has air-con) and want it short.
+  const weather = opts.ctx?.weather ?? 'fair';
+  const cool = !!opts.ctx?.items?.includes('aircon');
+  const calm = (1 - 0.45 * ease) * (washed ? 0.85 : 1) * (weather === 'rain' ? 0.85 : weather === 'heat' && !cool ? 1.15 : 1);
+  const own = picked.satisfaction;
+  const hot = weather === 'heat' && picked.look.species !== 'dog';
+  const customer: CustomerDef =
+    calm !== 1 || hot
+      ? {
+          ...picked,
+          patience: Math.min(100, picked.patience + (washed ? 10 : 0)),
+          patienceDecay: picked.patienceDecay * calm,
+          satisfaction: hot ? (m, c) => clamp(own.call(picked, m, c) + (m.avg <= 0.55 && m.baldFrac < 0.05 ? 6 : m.avg > 0.85 ? -5 : 0), 0, 100) : own,
+        }
+      : picked;
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
   const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };

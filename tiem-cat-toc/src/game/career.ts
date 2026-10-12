@@ -6,6 +6,7 @@ import { makeRng, pick } from './rng';
 import { CONTESTS, contestPrize, tasteById, tasteDesignName, tastesFor } from './freestyle';
 import { STORIES, StoryProgress, storyById } from './stories';
 import type { ShopLook } from './shopStyle';
+import { PROMO_CUSTOMERS, PROMO_DISCOUNT, RIVAL_DAY, Rival, WEATHER_TEXT, Weather, festivalName, isFestival, newRival, rivalOpen, settleRival, weatherFor } from './world';
 import { ACHIEVEMENTS, ACHIEVEMENT_XP, AchievementStats, newAchievements } from './achievements';
 import { ASSISTANT_WAGE, AssistantState, assistantLevel, assistantSlots } from './assistant';
 import type { RoundContext, RoundState } from './session';
@@ -116,6 +117,8 @@ export interface DaySummary {
   week?: WeekReport;
   /** Thành tựu reached at closing (days open, money in the till…). */
   achievements?: string[];
+  /** What happened with the rival shop tonight. */
+  rival?: string;
 }
 
 export interface WeekReport {
@@ -212,7 +215,12 @@ export interface CareerState {
   weekDays?: DaySummary[];
   /** Cúp từ Cuộc thi tóc của phường. */
   trophies?: { day: number; theme: string; rank: number; label: string }[];
+  /** Tiệm đối thủ across the street (from day 9). */
+  rival?: Rival;
   today: {
+    /** Today's weather, and whether a promotion (khuyến mãi) is running. */
+    weather?: Weather;
+    promo?: boolean;
     phase: 'morning' | 'open' | 'closed';
     queue: QueueEntry[];
     index: number;
@@ -302,6 +310,24 @@ export function dayEvents(c: CareerState): DayEvent[] {
   if (c.rep < 30) {
     ev.push({ id: 'badReview', title: 'Bị đánh giá 1 sao trên bản đồ', cause: `Uy tín thấp (${Math.round(c.rep)}).`, effect: 'Bớt 1 khách hôm nay.' });
   }
+  const w = weatherFor(c.seed ?? 0, c.day);
+  if (w !== 'fair') {
+    const t = WEATHER_TEXT[w];
+    const heatOk = w === 'heat' && c.owned.includes('aircon');
+    ev.push({ id: w, title: t.title, cause: t.cause, effect: heatOk ? `${t.effect} Tiệm có điều hòa: khách không nóng ruột.` : t.effect });
+  }
+  if (rivalOpen(c.rival, c.day)) {
+    const r = c.rival!;
+    ev.push({
+      id: 'rival',
+      title: `${r.name} khai trương`,
+      cause: `Một salon mới mở ngay đối diện, giảm giá ầm ĩ (đến hết ngày ${r.until}).`,
+      effect: c.rep >= 70 ? 'Uy tín tiệm cao: khách quen vẫn ở lại. Giữ khách hài lòng trung bình từ 70% để đối thủ dẹp tiệm.' : 'Bớt 1 khách mỗi ngày (chạy khuyến mãi để kéo khách lại). Giữ khách hài lòng trung bình từ 70% để đối thủ dẹp tiệm.',
+    });
+  }
+  if (isFestival(c.day)) {
+    ev.push({ id: 'festival', title: festivalName(), cause: 'Hai tuần một lần, phố tổ chức lễ hội: người đi chơi đông nghịt.', effect: 'Thêm 2 khách, giá cắt ×1,25, nhiều khách tùy thợ muốn tóc thật rực rỡ.' });
+  }
   if (c.owned.includes('neon')) {
     ev.push({ id: 'neon', title: 'Biển neon nhấp nháy', cause: 'Tiệm có biển hiệu neon.', effect: '+2 Viral mỗi ngày.' });
   }
@@ -327,7 +353,10 @@ export function customersPerDay(c: CareerState, events: string[]): number {
   if (events.includes('badReview')) n--;
   if (c.viral >= 50) n++;
   if (c.owned.includes('vipRoom')) n++;
+  if (events.includes('rain')) n--;
+  if (events.includes('rival') && c.rep < 70) n--;
   n += shopLevel(c).extraCustomers;
+  if (events.includes('festival')) return clamp(n + 2, 2, 9);
   return clamp(n, 2, 7);
 }
 
@@ -341,6 +370,7 @@ export interface CatalogEntry {
 /** Builds today's events and customer queue. Deterministic per day. */
 export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   const rng = makeRng(c.day * 7919 + c.stats.served * 13 + 1 + (c.seed ?? 0));
+  if (!c.rival && c.day >= RIVAL_DAY) c.rival = newRival(c.day);
   const events = dayEvents(c);
   const ids = events.map((e) => e.id);
   const queue: QueueEntry[] = [];
@@ -407,7 +437,9 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   // 2c) Khách tùy thợ: from day 2, most days someone just says "làm gì cũng được, miễn
   //     hợp gu em". Tastes that need colours or patterns only come once the shop has them.
   const tastes = tastesFor(careerTools(c));
-  if (c.day >= 2 && tastes.length && rng() < 0.75) {
+  const festival = ids.includes('festival');
+  for (let k = 0; k < (festival ? 2 : 1); k++) {
+    if (!(c.day >= 2 && tastes.length && (festival || rng() < 0.75))) break;
     const w = tastes.map((t) => (t.needs.length ? 2 : 1));
     let r = rng() * w.reduce((a, b) => a + b, 0);
     let taste = tastes[0];
@@ -422,7 +454,7 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
     const pool = CUSTOMERS.filter((d) => ok(d) && !d.behaviors.includes('transform') && !d.stages?.length);
     const cands = pool.filter(notRecent).length ? pool.filter(notRecent) : pool;
     const who = cands.length ? cands[Math.floor(rng() * cands.length) % cands.length] : null;
-    if (who) queue.push({ customer: who.id, reason: 'freestyle', note: `Tùy thợ: “${taste.name}”`, tasteId: taste.id });
+    if (who) queue.push({ customer: who.id, reason: 'freestyle', note: festival ? `Đi lễ hội, tùy thợ: “${taste.name}”` : `Tùy thợ: “${taste.name}”`, tasteId: taste.id });
   }
 
   // 2d) Cuộc thi tóc của phường: every week (day 4, 11, 18…) a model sits down for the contest.
@@ -478,6 +510,8 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
     viralStart: c.viral,
     quests: [],
     newStyles: [],
+    weather: weatherFor(c.seed ?? 0, c.day),
+    promo: false,
   };
   c.today.quests = planQuests(c, rng);
 }
@@ -514,7 +548,8 @@ export function roundContext(c: CareerState): Partial<RoundContext> {
     condition: { ...c.condition },
     stock: { ...c.stock },
     blocked: ids.includes('powerCut') && !c.owned.includes('generator') ? [...ELECTRIC] : [],
-    payMultiplier: repMultiplier(c),
+    payMultiplier: repMultiplier(c) * (ids.includes('festival') ? 1.25 : 1) * (c.today.promo ? PROMO_DISCOUNT : 1),
+    weather: c.today.weather ?? 'fair',
     wantStyle: q?.wantStyle ?? null,
     returnHair: snap ? unsnap(snap, q.customer) : null,
     taste: q?.tasteId ?? null,
@@ -605,6 +640,7 @@ export function applyRound(c: CareerState, s: RoundState): Served {
 
   // Returns: a disaster comes back tomorrow to get it fixed, a fan comes back in two days.
   c.history[d.id] = { day: c.day, styleId: r.style.id, sat: r.sat, tier: r.tier };
+  if (rivalOpen(c.rival, c.day)) c.rival!.sats.push(r.walkedOut ? 0 : r.sat);
   const already = c.pending.some((p) => p.customer === d.id);
   // Someone who already came back to get it fixed and is still unhappy gives up on the shop.
   // Story visits come back through their story, not as returns or regulars.
@@ -740,6 +776,10 @@ export function endDay(c: CareerState): DaySummary {
   for (const p of c.pending.filter((p) => p.day === next)) tomorrow.push(`${customerById(p.customer).name}: ${p.note}`);
   if (next % 3 === 0) tomorrow.push('Ngày mai có chợ phiên trước cửa tiệm.');
   if (next % 7 === 0) tomorrow.push(`Ngày mai có khách trùm cuối tuần: ${customerById(BOSSES[(next / 7 - 1) % BOSSES.length]).name}!`);
+  if (next === RIVAL_DAY && !c.rival) tomorrow.push('Nghe đồn ngày mai có salon mới khai trương ngay đối diện…');
+  if (isFestival(next) && !isFestival(c.day)) tomorrow.push(`Ngày mai bắt đầu ${festivalName()}: thêm khách, giá cao hơn!`);
+  const wt = weatherFor(c.seed ?? 0, next);
+  if (wt !== 'fair') tomorrow.push(`Dự báo ngày mai: ${WEATHER_TEXT[wt].title.toLowerCase()}.`);
   if (next % 7 === 4) tomorrow.push('Ngày mai có Cuộc thi tóc của phường: một người mẫu sẽ đến, giải Nhất 200.000đ!');
   for (const st of STORIES) {
     const pr = c.stories?.[st.id];
@@ -765,6 +805,16 @@ export function endDay(c: CareerState): DaySummary {
     questMoney,
     bonusMoney,
   };
+  // Tiệm đối thủ: its last day decides.
+  if (c.rival && c.rival.state === 'open' && c.day === c.rival.until) {
+    const out = settleRival(c.rival);
+    if (out === 'beaten') {
+      c.viral = clamp(c.viral + 8, 0, 100);
+      c.rep = clamp(c.rep + 3, 0, 100);
+      summary.rival = `${c.rival.name} dẹp tiệm! Khách cả phố quay về: Viral +8, Uy tín +3.`;
+    } else if (out === 'extended') summary.rival = `${c.rival.name} vẫn trụ thêm 4 ngày (khách của bạn chưa đủ hài lòng, cần trung bình từ 70%).`;
+    else summary.rival = `${c.rival.name} chuyển đi chỗ khác. Tiệm sống sót, nhưng chưa thắng hẳn.`;
+  }
   // Báo cáo tuần: every seventh evening, the week in review.
   c.weekDays = [...(c.weekDays ?? []), { ...summary, week: undefined }].slice(-7);
   if (c.day % 7 === 0) {
@@ -963,3 +1013,19 @@ export function checkAchievements(c: CareerState): string[] {
 }
 
 export { ACHIEVEMENTS };
+
+/* ------------------------------------------------------------------ khuyến mãi */
+
+/** Khuyến mãi (morning only, once a day): 20% off today, two more walk-ins come in. */
+export function runPromo(c: CareerState): boolean {
+  if (c.today.phase !== 'morning' || c.today.promo) return false;
+  c.today.promo = true;
+  const ids = c.today.events.map((e) => e.id);
+  const rng = makeRng(c.day * 131 + c.stats.served + 7 + (c.seed ?? 0));
+  const pool = CUSTOMERS.filter((d) => eligible(c, d, ids) && d.id !== 'vip' && !c.today.queue.some((q) => q.customer === d.id));
+  for (let i = 0; i < PROMO_CUSTOMERS && pool.length; i++) {
+    const d = pool.splice(Math.floor(rng() * pool.length) % pool.length, 1)[0];
+    c.today.queue.push({ customer: d.id, reason: 'walkin', note: 'Thấy biển khuyến mãi nên ghé' });
+  }
+  return true;
+}

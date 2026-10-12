@@ -73,6 +73,8 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
       </span>
       <span className="chip-stat" data-testid="hud-day">
         Ngày <b>{c.day}</b>
+        {c.today.weather === 'rain' ? ' 🌧️' : c.today.weather === 'heat' ? ' 🔥' : ''}
+        {c.today.events.some((e) => e.id === 'festival') ? ' 🏮' : ''}
       </span>
       <span className="chip-stat money" data-testid="hud-money" data-value={c.money}>
         💰 <b>{vnd(c.money)}</b>
@@ -104,7 +106,7 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
 const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu', freestyle: 'Khách tùy thợ', story: 'Khách có câu chuyện', contest: 'Cuộc thi tóc của phường' } as const;
 
 /** Morning: what happens today (with causes) and who is coming. */
-export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook, onAchievements }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void; onLook?(): void; onBook?(): void; onAchievements?(): void }) {
+export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook, onAchievements, onPromo }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void; onLook?(): void; onBook?(): void; onAchievements?(): void; onPromo?(): void }) {
   return (
     <div className="overlay" data-testid="morning">
       <div className="panel">
@@ -151,6 +153,17 @@ export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook, onAchi
           <p className="panel-note" data-testid="catalog-tip">
             💡 Cắt xong một kiểu ưng ý, ở màn kết quả bấm “📷 Chụp ảnh &amp; lưu mẫu”: các ngày chẵn sẽ có khách chọn mẫu <b>của bạn</b>.
           </p>
+        )}
+        {onPromo && (
+          <div className="promo-box">
+            {c.today.promo ? (
+              <span data-testid="promo-on">📣 Đang khuyến mãi hôm nay: giảm 20%, thêm khách ghé.</span>
+            ) : (
+              <button className="secondary-btn" onClick={onPromo} data-testid="promo">
+                📣 Chạy khuyến mãi hôm nay (giảm 20% giá, +2 khách)
+              </button>
+            )}
+          </div>
         )}
         <div className="queue-list" data-testid="queue">
           <div className="intro-label">Khách hôm nay</div>
@@ -311,6 +324,11 @@ export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerStat
           </tbody>
         </table>
         {sum.week && <WeekBox w={sum.week} />}
+        {sum.rival && (
+          <div className="quest-done rival-result" data-testid="rival-result">
+            🏪 {sum.rival}
+          </div>
+        )}
         {sum.achievements?.map((a) => (
           <div key={a} className="quest-done achievement-done" data-testid="achievement-done">
             🏅 Thành tựu mới: <b>{a}</b>

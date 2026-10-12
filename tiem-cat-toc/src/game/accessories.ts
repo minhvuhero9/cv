@@ -74,7 +74,7 @@ export function withAccessory(def: CustomerDef, base: CustomerDef, acc: Accessor
   return {
     ...def,
     look: applyLook(def.look, acc.layer),
-    satisfaction: (m, ctx) => clamp(own(m, ctx) + pts, 0, 100),
+    satisfaction: (m, ctx) => clamp(own.call(def, m, ctx) + pts, 0, 100),
   };
 }
 

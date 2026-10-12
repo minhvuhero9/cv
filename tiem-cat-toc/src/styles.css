@@ -2869,3 +2869,28 @@ button {
   gap: 6px;
   padding: 8px 4px 4px;
 }
+
+/* ---------------- Thời tiết, đối thủ, khuyến mãi ---------------- */
+.promo-box {
+  margin: 6px 0;
+}
+.promo-box span {
+  font-weight: 800;
+  color: #b5161b;
+}
+.rival-result {
+  background: #f1ecff;
+  border-color: #6b2fb3;
+}
+.event-card[data-event='rain'] {
+  background: #e6f0fb;
+}
+.event-card[data-event='heat'] {
+  background: #fff0dc;
+}
+.event-card[data-event='festival'] {
+  background: #fff6d6;
+}
+.event-card[data-event='rival'] {
+  background: #f1ecff;
+}

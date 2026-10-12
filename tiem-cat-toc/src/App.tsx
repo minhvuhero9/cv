@@ -35,6 +35,7 @@ import {
   saveCareer,
   shopLevel,
   canAssist,
+  runPromo,
   takeAssistant,
   assistantLeft,
 } from './game/career';
@@ -638,6 +639,11 @@ export default function App() {
           onLook={() => setOverlay('look')}
           onBook={() => setOverlay('book')}
           onAchievements={() => setOverlay('achievements')}
+          onPromo={() => {
+            runPromo(c);
+            saveCareer(c);
+            rerender();
+          }}
         />
       )}
       {showSummary && c.lastSummary && (

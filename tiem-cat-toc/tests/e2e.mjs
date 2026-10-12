@@ -583,7 +583,13 @@ async function finishAndWait(page) {
   await page.click('[data-testid=art-stencil-bolt]');
   const sp = await toClient(page, 200, 175);
   await page.mouse.click(sp.x, sp.y);
-  check('Khuôn Cạo Hình: carves a pattern', (await st()).carv === 1 && (await page.locator('[data-testid=stage] [data-carvings]').count()) === 1);
+  const carved = await st();
+  const carvDom = await page.locator('[data-testid=stage] [data-carvings]').count();
+  const why = await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    return { phase: s.phase, tool: s.tool, off: s.headOffset, motion: s.motion?.kind ?? null, jam: !!s.jam, persona: s.persona };
+  });
+  check('Khuôn Cạo Hình: carves a pattern', carved.carv === 1 && carvDom === 1, JSON.stringify({ ...carved, carvDom, ...why }));
   await page.screenshot({ path: `${OUT}/X1-art-tools.png` });
   await finishAndWait(page);
   await page.click('[data-testid=result-photo]');

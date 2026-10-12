@@ -294,6 +294,19 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
   - Noel: Tuần Lộc Tuyết.
   - Trong mùa, cứ 3 ngày có một khách đặt mẫu mùa (khi tiệm đủ đồ nghề).
 
+## Thời tiết, tiệm đối thủ, lễ hội (`world.ts`)
+
+- **Thời tiết** mỗi ngày (từ ngày 3; hiện trong sự kiện buổi sáng và trên thanh trạng thái):
+  - 🌧️ Mưa: bớt 1 khách, khách ngồi thong thả chờ tạnh.
+  - 🔥 Nắng nóng: khách thích cắt ngắn (+6 điểm khi tóc ngắn, −5 khi để dài) và nóng ruột hơn, trừ khi tiệm có Điều Hòa.
+  - Tối hôm trước có dự báo cho ngày mai.
+- **Tiệm đối thủ** (từ ngày 9): Salon Sang Chảnh mở đối diện, bớt 1 khách mỗi ngày (uy tín từ 70 thì không mất khách).
+  - Trong những ngày đó, giữ khách hài lòng trung bình từ 70% thì đối thủ dẹp tiệm: Viral +8, Uy tín +3.
+  - Không đạt thì đối thủ trụ thêm 4 ngày, sau đó tự chuyển đi.
+- **📣 Khuyến mãi** (nút ở màn sáng sớm, mỗi ngày một lần): giảm 20% giá cả ngày, đổi lại có thêm 2 khách ghé.
+- **🏮 Lễ hội Phố Tóc** (ngày 12–13, 26–27, …; mang tên mùa thật, ví dụ “mùa Halloween”): thêm 2 khách, giá ×1,25, hai khách tùy thợ.
+- Sửa lỗi: Anh Tuấn (khách dùng `this.target`) bị lỗi điểm khi cắt trong ngày nắng, đeo phụ kiện hoặc soi Gương Thần; nay các lớp bọc gọi đúng.
+
 ## Cảm giác chơi và cân bằng
 
 - **Ngày đầu dễ thở:** ngày 1 khách kiên nhẫn lâu hơn (mất kiên nhẫn chậm hơn 45%), có thêm 15 giây và ít quay đầu hẳn; ngày 2 dễ bằng một nửa; từ ngày 3 là thật.
