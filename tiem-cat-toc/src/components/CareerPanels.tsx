@@ -1,6 +1,6 @@
 import { DEFAULT_NAME } from '../game/shopStyle';
 import { useState } from 'react';
-import { CareerState, DaySummary, WeekReport, canBuy, repairCost, shopLevel, vnd } from '../game/career';
+import { ACHIEVEMENTS, CareerState, DaySummary, WeekReport, achievementStats, canBuy, repairCost, shopLevel, vnd } from '../game/career';
 import { customerById } from '../game/customers';
 import { CATEGORY_LABEL, MACHINES, SHOP, ShopCategory } from '../game/shop';
 import { TOOLS } from '../game/tools';
@@ -104,7 +104,7 @@ export function CareerHud({ c, onSettings, onShop }: { c: CareerState; onSetting
 const REASON_LABEL = { walkin: 'Khách vãng lai', return: 'Quay lại đòi sửa', loyal: 'Khách quen', copycat: 'Fan kiểu tóc viral', vip: 'Khách VIP', boss: 'Khách trùm cuối tuần', design: 'Khách đặt theo cuốn mẫu', freestyle: 'Khách tùy thợ', story: 'Khách có câu chuyện', contest: 'Cuộc thi tóc của phường' } as const;
 
 /** Morning: what happens today (with causes) and who is coming. */
-export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void; onLook?(): void; onBook?(): void }) {
+export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook, onAchievements }: { c: CareerState; onOpen(): void; onShop(): void; onFree(): void; onLook?(): void; onBook?(): void; onAchievements?(): void }) {
   return (
     <div className="overlay" data-testid="morning">
       <div className="panel">
@@ -183,10 +183,56 @@ export function MorningPanel({ c, onOpen, onShop, onFree, onLook, onBook }: { c:
               📒 Cuốn mẫu
             </button>
           )}
+          {onAchievements && (
+            <button className="secondary-btn" onClick={onAchievements} data-testid="morning-achievements">
+              🏅 Thành tựu ({c.achievements?.length ?? 0}/{ACHIEVEMENTS.length})
+            </button>
+          )}
         </div>
         <button className="link-btn" onClick={onFree} data-testid="to-free">
           Chơi chế độ cắt tự do (không tính tiền)
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** Thành tựu & danh hiệu: progress on every goal; pick the title shown under the sign. */
+export function AchievementsPanel({ c, onTitle, onClose }: { c: CareerState; onTitle(id: string | null): void; onClose(): void }) {
+  const st = achievementStats(c);
+  const have = c.achievements ?? [];
+  return (
+    <div className="overlay" data-testid="achievements-panel">
+      <div className="panel">
+        <div className="shop-head">
+          <h2>🏅 Thành tựu &amp; danh hiệu</h2>
+          <button className="secondary-btn" onClick={onClose} data-testid="achievements-close">
+            Đóng
+          </button>
+        </div>
+        <p className="panel-note">Mỗi thành tựu cho +10 kinh nghiệm và một danh hiệu. Chọn danh hiệu để treo dưới biển hiệu tiệm.</p>
+        <ul className="ach-list">
+          {ACHIEVEMENTS.map((a) => {
+            const done = have.includes(a.id);
+            const [n, of] = a.progress(st);
+            return (
+              <li key={a.id} className={done ? 'is-done' : ''} data-testid={`ach-${a.id}`} data-done={done}>
+                <span className="ach-mark">{done ? '🏅' : '○'}</span>
+                <span className="ach-body">
+                  <b>{a.name}</b>
+                  <small>
+                    {a.goal} · {done ? `Danh hiệu “${a.title}”` : `${n.toLocaleString('vi-VN')}/${of.toLocaleString('vi-VN')}`}
+                  </small>
+                </span>
+                {done && (
+                  <button className={`chip ${c.title === a.id ? 'is-active' : ''}`} onClick={() => onTitle(c.title === a.id ? null : a.id)} data-testid={`title-${a.id}`}>
+                    {c.title === a.id ? 'Đang treo' : 'Treo'}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   );
@@ -265,6 +311,11 @@ export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerStat
           </tbody>
         </table>
         {sum.week && <WeekBox w={sum.week} />}
+        {sum.achievements?.map((a) => (
+          <div key={a} className="quest-done achievement-done" data-testid="achievement-done">
+            🏅 Thành tựu mới: <b>{a}</b>
+          </div>
+        ))}
         {sum.served.some((x) => x.story || x.contest) && (
           <ul className="story-log" data-testid="story-log">
             {sum.served.map((x, i) =>
@@ -358,7 +409,7 @@ export function SummaryPanel({ c, sum, onShop, onNext, onBook }: { c: CareerStat
   );
 }
 
-const CATS: ShopCategory[] = ['tool', 'machine', 'chaos', 'upgrade', 'decor', 'special'];
+const CATS: ShopCategory[] = ['tool', 'machine', 'chaos', 'upgrade', 'decor', 'special', 'room', 'staff'];
 
 /** The shop: every item shows price, unlock condition, real effect and owned/stock state. */
 export function ShopPanel({ c, onBuy, onRepair, onClose }: { c: CareerState; onBuy(id: string): string | null; onRepair(): string | null; onClose(): void }) {

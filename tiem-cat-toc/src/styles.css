@@ -2779,3 +2779,78 @@ button {
   background: #fff6d6;
   border-color: #c9952b;
 }
+
+/* ---------------- Mở rộng tiệm, thợ phụ, thành tựu ---------------- */
+.room-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.room-door {
+  flex: 1 1 60px;
+  display: grid;
+  justify-items: center;
+  background: #fffaf0;
+  border: 3px solid var(--wood);
+  border-radius: 12px 12px 4px 4px;
+  padding: 4px 2px;
+  font-size: 20px;
+  line-height: 1.1;
+}
+.room-door small {
+  font-size: 10px;
+  font-weight: 800;
+}
+.assistant-btn {
+  margin-top: 8px;
+  width: 100%;
+}
+.assistant-result {
+  background: #eef7ff;
+  border-color: #3d6fd8;
+}
+.achievement-done {
+  background: #fff1d6;
+  border-color: #d4a53a;
+}
+.shop-title {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--yellow);
+  text-shadow: none;
+}
+.ach-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.ach-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 2px solid #e2d6bd;
+  border-radius: 10px;
+  background: #fffdf6;
+}
+.ach-list li.is-done {
+  border-color: #d4a53a;
+  background: #fff6d6;
+}
+.ach-mark {
+  font-size: 20px;
+  width: 24px;
+  text-align: center;
+}
+.ach-body {
+  flex: 1;
+  display: grid;
+}
+.ach-body small {
+  font-size: 12px;
+  color: #6b5a3a;
+}

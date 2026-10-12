@@ -4,7 +4,7 @@ import type { ToolId } from './tools';
  * Cửa hàng: everything the shop can buy, as data. `effect` is shown to the player and
  * implemented by the system named in the comment (all effects change gameplay).
  */
-export type ShopCategory = 'tool' | 'machine' | 'chaos' | 'upgrade' | 'decor' | 'special';
+export type ShopCategory = 'tool' | 'machine' | 'chaos' | 'upgrade' | 'decor' | 'special' | 'room' | 'staff';
 
 export const CATEGORY_LABEL: Record<ShopCategory, string> = {
   tool: 'Đồ nghề phép',
@@ -13,6 +13,8 @@ export const CATEGORY_LABEL: Record<ShopCategory, string> = {
   upgrade: 'Nâng cấp',
   decor: 'Trang trí',
   special: 'Đặc biệt',
+  room: 'Mở rộng tiệm',
+  staff: 'Nhân viên',
 };
 
 export interface ShopUnlock {
@@ -72,6 +74,13 @@ export const SHOP: ShopItem[] = [
   // ---- special: unlocks customers/events
   { id: 'petSign', name: 'Biển “Cho Phép Thú Cưng”', category: 'special', price: 100000, desc: 'Chào mừng các khách bốn chân.', effect: 'Cậu Vàng bắt đầu đến tiệm.', unlock: { day: 2 } },
   { id: 'mirror', name: 'Gương Thần Biến Hình', category: 'special', price: 280000, desc: 'Gương khung gỗ chạm hoa sen, soi vào là hóa thân.', effect: 'Mỗi khách được biến hình 1 lần (6 phong cách). Bé Ba Hóa Thân bắt đầu đến tiệm.', unlock: { level: 3 } },
+  // ---- mở rộng tiệm: big, late purchases (where the money goes once the basics are bought)
+  { id: 'washRoom', name: 'Phòng Gội Đầu Thư Giãn', category: 'room', price: 900000, desc: 'Ghế ngả, nước ấm, nhạc nhẹ. Khách vào cắt đã dịu hẳn.', effect: 'Khách được gội trước: kiên nhẫn +10 và giảm chậm hơn 15%. Khách không bỏ về trả thêm 20.000đ tiền gội.', unlock: { level: 2 } },
+  { id: 'dyeRoom', name: 'Phòng Nhuộm Chuyên Nghiệp', category: 'room', price: 1200000, desc: 'Đèn sấy màu, bồn pha màu, bảng màu treo tường.', effect: 'Kiểu có nhuộm (từ 10% tóc) được trả thêm 20%.', unlock: { level: 3 } },
+  { id: 'photoCorner', name: 'Góc Chụp Ảnh Check-in', category: 'room', price: 800000, desc: 'Phông hoa giấy, đèn vòng, khung “Tôi vừa cắt ở đây”.', effect: 'Khách ưng (từ 60%) chụp ảnh đăng mạng: +1,5 Viral mỗi người.', unlock: { level: 3 } },
+  { id: 'vipRoom', name: 'Phòng VIP Rèm Nhung', category: 'room', price: 2000000, desc: 'Sofa da, trà sen, rèm nhung đỏ.', effect: '+1 khách mỗi ngày. Khách VIP đến thường hơn và chỉ cần Uy tín 50.', unlock: { level: 5 } },
+  // ---- nhân viên
+  { id: 'assistant', name: 'Thuê Thợ Phụ Bé Tư', category: 'staff', price: 500000, desc: 'Nhiệt tình, hơi run tay. Học nhanh.', effect: 'Mỗi ngày giao được 1 khách vãng lai cho thợ phụ (2 khách khi tay nghề từ 5). Lương 40.000đ/ngày. Tay nghề tăng sau mỗi lượt cắt, lúc đầu hay làm hỏng.', unlock: { level: 2 } },
   { id: 'neon', name: 'Biển Hiệu Neon Nhấp Nháy', category: 'special', price: 500000, desc: 'Sáng đến mức nhìn thấy từ ngoài vũ trụ.', effect: '+2 Viral mỗi ngày; khách mới thấy tiệm từ xa.', unlock: { viral: 30 } },
 ];
 

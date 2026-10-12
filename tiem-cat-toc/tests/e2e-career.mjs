@@ -284,6 +284,59 @@ async function playDay(page) {
   await ctx.close();
 }
 
+/* ---------------- Mở rộng tiệm, thợ phụ, thành tựu ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.evaluate(() => {
+    localStorage.setItem('tctbo-coach', '4');
+    const c = window.__tctbo.career();
+    c.xp = 450;
+    c.money = 5000000;
+  });
+  await page.click('[data-testid=morning-shop]');
+  await page.click('[data-testid=shop-tab-room]');
+  await page.click('[data-testid=buy-washRoom]');
+  await page.click('[data-testid=shop-tab-staff]');
+  await page.click('[data-testid=buy-assistant]');
+  await page.click('[data-testid=close-shop]');
+  const c0 = await career(page);
+  check('Mở rộng: rooms and the thợ phụ can be bought', c0.owned.includes('washRoom') && c0.owned.includes('assistant'));
+  await page.evaluate(() => {
+    window.__tctbo.career().today.queue[0] = { customer: 'linh', reason: 'walkin', note: 'Khách vãng lai' };
+  });
+  await page.click('[data-testid=open-day]');
+  await page.waitForSelector('[data-testid=assistant]');
+  check('Thợ phụ: the intro offers to hand a walk-in over', /Bé Tư/.test(await page.textContent('[data-testid=assistant]')));
+  check('Mở rộng: the rooms show in the shop', (await page.locator('[data-room=washRoom]').count()) === 1);
+  await page.click('[data-testid=assistant]');
+  await page.waitForSelector('[data-testid=mirror]');
+  await page.click('[data-testid=mirror]');
+  await page.waitForSelector('[data-testid=assistant-result]');
+  const c1 = await career(page);
+  check('Thợ phụ: she cut the customer and learned from it', c1.assistant && c1.assistant.jobs === 1 && c1.today.served[0].byAssistant === true);
+  await page.click('[data-testid=next]');
+  await page.waitForSelector('[data-testid=start]');
+  check('Thợ phụ: only one hand-over a day at first', (await page.locator('[data-testid=assistant]').count()) === 0);
+  check('Mở rộng & thợ phụ: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.evaluate(() => {
+    localStorage.setItem('tctbo-coach', '4');
+    window.__tctbo.career().achievements = ['first10', 'week'];
+  });
+  await page.click('[data-testid=morning-achievements]');
+  await page.waitForSelector('[data-testid=achievements-panel]');
+  check('Thành tựu: the list shows done and pending goals', (await page.getAttribute('[data-testid=ach-first10]', 'data-done')) === 'true' && (await page.getAttribute('[data-testid=ach-served50]', 'data-done')) === 'false');
+  await page.click('[data-testid=title-week]');
+  await page.click('[data-testid=achievements-close]');
+  check('Thành tựu: the chosen title hangs under the sign', (await page.textContent('[data-testid=shop-title]')) === 'Chủ Tiệm Kiên Cường');
+  await page.screenshot({ path: `${OUT}/K8-title.png` });
+  check('Thành tựu: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 /* ---------------- Sound settings: volume and mute persist ---------------- */
 {
   const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);

@@ -1,9 +1,10 @@
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playSfx, setMuted, setMusicState, setMusicVolume, setSfxVolume, setToolLoop, unlockAudio } from './audio/sfx';
-import { AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
+import { AchievementsPanel, AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
+import { achievementById } from './game/achievements';
 import { MirrorButton, MirrorPicker } from './components/MirrorPicker';
 import { Coach } from './components/Coach';
-import { AirCon, Chandelier, LevelPlaque, StageDecor, WallDecor } from './components/Decor';
+import { AirCon, Chandelier, LevelPlaque, RoomStrip, StageDecor, WallDecor } from './components/Decor';
 import { ShopLookPanel } from './components/ShopLookPanel';
 import { DEFAULT_NAME, SIGNS, WALLS, arrange, decorIds, defaultLook, unpackChallenge } from './game/shopStyle';
 import { AlbumPanel } from './components/AlbumPanel';
@@ -32,7 +33,11 @@ import {
   roundContext,
   saveCareer,
   shopLevel,
+  canAssist,
+  takeAssistant,
+  assistantLeft,
 } from './game/career';
+import { assistantCut, assistantLevel } from './game/assistant';
 import { CUSTOMERS, CustomerId } from './game/customers';
 import {
   RoundState,
@@ -54,7 +59,7 @@ import { loadProgress, recordRound, saveProgress } from './game/progress';
 import { Progress, TOOLS, ToolId, unlockedTools } from './game/tools';
 
 type Mode = 'career' | 'free';
-type Overlay = 'shop' | 'settings' | 'album' | 'photo' | 'book' | 'look' | null;
+type Overlay = 'shop' | 'settings' | 'album' | 'photo' | 'book' | 'look' | 'achievements' | null;
 
 const params = new URLSearchParams(location.search);
 /** `?unlock=all` opens the whole Bộ Đồ Nghề without earning it (for trying things out). */
@@ -365,7 +370,14 @@ export default function App() {
       <header className="sign" ref={headerRef}>
         <div className="sign-board">
           <span className="sign-pole" aria-hidden />
-          <h1 data-testid="shop-name">{career ? shopLook.name : DEFAULT_NAME}</h1>
+          <h1 data-testid="shop-name">
+            {career ? shopLook.name : DEFAULT_NAME}
+            {career && achievementById(c.title) && (
+              <small className="shop-title" data-testid="shop-title">
+                {achievementById(c.title)!.title}
+              </small>
+            )}
+          </h1>
           <span className="sign-pole" aria-hidden />
         </div>
         {career ? (
@@ -493,6 +505,7 @@ export default function App() {
           </div>
           {career && <WallDecor owned={c.owned} works={wallWorks} trophies={c.trophies ?? []} order={wallOrder} />}
           {career && <LevelPlaque level={shopLevel(c).level} name={shopLevel(c).name} />}
+          {career && <RoomStrip owned={c.owned} />}
           {career && c.owned.includes('aircon') ? (
             <AirCon />
           ) : (
@@ -559,6 +572,23 @@ export default function App() {
           onPick={career ? undefined : (o) => newFreeRound(o.id)}
           daily={career ? undefined : daily}
           onDaily={career ? undefined : () => startDaily()}
+          extra={
+            career && canAssist(c) ? (
+              <button
+                className="secondary-btn assistant-btn"
+                onClick={() => {
+                  unlockAudio();
+                  if (c.today.phase === 'morning') c.today.phase = 'open';
+                  assistantCut(roundRef.current, takeAssistant(c));
+                  saveCareer(c);
+                  rerender();
+                }}
+                data-testid="assistant"
+              >
+                🧑‍🔧 Giao cho thợ phụ Bé Tư · tay nghề {assistantLevel(c.assistant?.jobs ?? 0)}/10 · còn {assistantLeft(c)} lượt hôm nay
+              </button>
+            ) : undefined
+          }
         />
       )}
       {s.phase === 'result' && s.result && !showSummary && !overlay && (
@@ -586,6 +616,7 @@ export default function App() {
           onFree={() => switchMode('free')}
           onLook={() => setOverlay('look')}
           onBook={() => setOverlay('book')}
+          onAchievements={() => setOverlay('achievements')}
         />
       )}
       {showSummary && c.lastSummary && (
@@ -599,6 +630,17 @@ export default function App() {
             saveCareer(c);
             replaceRound(careerRound(c));
           }}
+        />
+      )}
+      {overlay === 'achievements' && (
+        <AchievementsPanel
+          c={c}
+          onTitle={(id) => {
+            c.title = id;
+            saveCareer(c);
+            rerender();
+          }}
+          onClose={() => setOverlay(null)}
         />
       )}
       {overlay === 'look' && (

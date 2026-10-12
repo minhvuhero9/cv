@@ -259,6 +259,22 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
   - Người mở link được ngồi đúng khách đó, có đủ đồ nghề, cắt theo mẫu với “📐 Giống mẫu N%”.
   - Xong thì thấy “Bạn đạt N%” và có thể thử lại.
 
+## Mở rộng tiệm, thợ phụ, thành tựu
+
+- **Mở rộng tiệm** (tab “Mở rộng tiệm” trong Cửa hàng, chỗ tiêu tiền khi đã mua đủ đồ nghề):
+  - **Phòng Gội Đầu Thư Giãn** (900k, cấp 2): khách được gội trước, kiên nhẫn +10 và giảm chậm hơn 15%; khách không bỏ về trả thêm 20k tiền gội.
+  - **Phòng Nhuộm Chuyên Nghiệp** (1,2 triệu, cấp 3): kiểu có nhuộm (từ 10% tóc) được trả thêm 20%.
+  - **Góc Chụp Ảnh Check-in** (800k, cấp 3): khách ưng (từ 60%) đăng ảnh, mỗi người +1,5 Viral.
+  - **Phòng VIP Rèm Nhung** (2 triệu, cấp 5): +1 khách mỗi ngày; VIP đến thường hơn và chỉ cần Uy tín 50.
+  - Các phòng đã mở hiện thành dãy cửa trên tường tiệm.
+- **Thợ phụ Bé Tư** (tab “Nhân viên”, 500k, cấp 2, lương 40k/ngày):
+  - Ở màn mời khách vãng lai có nút “Giao cho thợ phụ”: Bé Tư tự cắt theo yêu cầu.
+  - Tay nghề 1→10 tăng sau mỗi 3 lượt cắt. Lúc đầu cắt lệch nhiều và hay lỡ tay cạo trọc một mảng.
+  - Mỗi ngày giao được 1 khách, từ tay nghề 5 được 2 khách. Lượt do thợ phụ cắt chỉ cho một nửa kinh nghiệm.
+- **🏅 Thành tựu & danh hiệu** (`achievements.ts`, nút ở màn sáng sớm):
+  - Có 16 mục tiêu dài hạn, ví dụ 10/50/150 khách, 20 khách mê, cấp 5, 2 triệu trong két, cúp, 3 Giải Nhất, câu chuyện, bộ sưu tập kiểu tóc, khách tùy thợ, cuốn mẫu, phòng mở rộng, thợ phụ cắt 15 khách.
+  - Mỗi mục +10 kinh nghiệm và mở một danh hiệu để treo dưới biển hiệu tiệm.
+
 ## Cảm giác chơi và cân bằng
 
 - **Ngày đầu dễ thở:** ngày 1 khách kiên nhẫn lâu hơn (mất kiên nhẫn chậm hơn 45%), có thêm 15 giây và ít quay đầu hẳn; ngày 2 dễ bằng một nửa; từ ngày 3 là thật.
@@ -306,6 +322,7 @@ src/game/level.ts      cấp tiệm, kinh nghiệm, mở khóa
 src/game/freestyle.ts  khách tùy thợ (9 gu) và đề Cuộc thi tóc của phường
 src/game/stories.ts    khách có câu chuyện nhiều ngày
 src/game/shopStyle.ts  tiệm của riêng bạn (tên, màu, sắp xếp tường) và link thách bạn bè
+src/game/assistant.ts  thợ phụ Bé Tư; achievements.ts thành tựu & danh hiệu
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
                        MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, PhotoBook, PhotoComposition, ArtBar,

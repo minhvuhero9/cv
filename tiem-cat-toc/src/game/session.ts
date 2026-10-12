@@ -156,6 +156,8 @@ export interface RoundState {
   taste: Taste | null;
   /** 0..1: first-days easing (see RoundContext.ease). */
   ease: number;
+  /** Cut by the thợ phụ (career), not the player. */
+  byAssistant?: boolean;
   /** Khách có câu chuyện: which story and chapter. */
   story: { id: string; step: number; title: string; chapters: number } | null;
   /** Đồ nghề sáng tạo: current colours / stencil, and what the barber owns. */
@@ -344,8 +346,11 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
   const taste = design ? null : story ? tasteById(story.chapters[step].taste) : tasteById(opts.ctx?.taste);
   const picked = design ? designCustomer(baseDef, design) : story ? storyCustomer(baseDef, story, step) : taste ? tasteCustomer(baseDef, taste) : baseDef;
   const ease = clamp(opts.ctx?.ease ?? 0, 0, 1);
+  // Phòng Gội Đầu: washed and relaxed before the cut.
+  const washed = !!opts.ctx?.items?.includes('washRoom');
   // First days: the same customer, just a little more patient.
-  const customer = ease > 0 ? { ...picked, patienceDecay: picked.patienceDecay * (1 - 0.45 * ease) } : picked;
+  const calm = (1 - 0.45 * ease) * (washed ? 0.85 : 1);
+  const customer = calm < 1 ? { ...picked, patience: Math.min(100, picked.patience + (washed ? 10 : 0)), patienceDecay: picked.patienceDecay * calm } : picked;
   const hair = opts.ctx?.returnHair ? cloneHair(opts.ctx.returnHair) : createHair(customer.hair);
   const metrics = measureHair(hair);
   const ctx: RoundContext = { items: [], dayEvents: [], ...opts.ctx };

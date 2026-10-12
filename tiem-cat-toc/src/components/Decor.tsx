@@ -203,3 +203,27 @@ export function Chandelier() {
     </svg>
   );
 }
+
+const ROOMS: { id: string; icon: string; label: string }[] = [
+  { id: 'washRoom', icon: '🛁', label: 'Phòng gội' },
+  { id: 'dyeRoom', icon: '🎨', label: 'Phòng nhuộm' },
+  { id: 'photoCorner', icon: '📸', label: 'Góc check-in' },
+  { id: 'vipRoom', icon: '🛋️', label: 'Phòng VIP' },
+  { id: 'assistant', icon: '🧑‍🔧', label: 'Thợ phụ' },
+];
+
+/** Mở rộng tiệm: doors to the rooms (and the thợ phụ) the shop has. */
+export function RoomStrip({ owned }: { owned: string[] }) {
+  const rooms = ROOMS.filter((r) => owned.includes(r.id));
+  if (!rooms.length) return null;
+  return (
+    <div className="room-strip" data-testid="room-strip">
+      {rooms.map((r) => (
+        <div key={r.id} className="room-door" data-room={r.id} title={r.label}>
+          <span aria-hidden>{r.icon}</span>
+          <small>{r.label}</small>
+        </div>
+      ))}
+    </div>
+  );
+}

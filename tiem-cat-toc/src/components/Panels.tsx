@@ -188,7 +188,9 @@ export function IntroCard({
   note,
   daily,
   onDaily,
+  extra,
 }: {
+  extra?: React.ReactNode;
   s: RoundState;
   onStart(): void;
   onPick?(c: CustomerDef): void;
@@ -230,6 +232,7 @@ export function IntroCard({
         <button className="primary-btn" onClick={onStart} data-testid="start" autoFocus>
           Mời ngồi — Bắt đầu cắt ✂
         </button>
+        {extra}
         {onDaily && !daily && (
           <button className="daily-btn" onClick={onDaily} data-testid="daily">
             🗓 Thử thách hôm nay — cùng khách, cùng luật với mọi người

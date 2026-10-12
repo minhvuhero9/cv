@@ -156,6 +156,16 @@ export function ResultPanel({ s, unlocked, newTools, onReplay, onNext, career, d
               +{career.served.xp} kinh nghiệm cho tiệm
             </div>
           )}
+          {career?.served.byAssistant && (
+            <div className="quest-done assistant-result" data-testid="assistant-result">
+              🧑‍🔧 Thợ phụ Bé Tư cắt khách này (kinh nghiệm cho tiệm chỉ được một nửa).
+            </div>
+          )}
+          {career?.served.achievements?.map((a) => (
+            <div key={a} className="quest-done achievement-done" data-testid="achievement-done">
+              🏅 Thành tựu mới: <b>{a}</b> (+10 kinh nghiệm, có danh hiệu mới)
+            </div>
+          ))}
           {career?.served.contest && (
             <div className={`quest-done contest-result ${career.served.contest.money > 0 ? '' : 'no-prize'}`} data-testid="contest-result">
               🏆 Cuộc thi “{career.served.contest.theme}”: <b>{career.served.contest.label}</b>

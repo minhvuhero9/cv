@@ -6,6 +6,8 @@ import { makeRng, pick } from './rng';
 import { CONTESTS, contestPrize, tasteById, tasteDesignName, tastesFor } from './freestyle';
 import { STORIES, StoryProgress, storyById } from './stories';
 import type { ShopLook } from './shopStyle';
+import { ACHIEVEMENTS, ACHIEVEMENT_XP, AchievementStats, newAchievements } from './achievements';
+import { ASSISTANT_WAGE, AssistantState, assistantLevel, assistantSlots } from './assistant';
 import type { RoundContext, RoundState } from './session';
 import { ELECTRIC, MACHINES, SHOP, ShopItem, shopItem } from './shop';
 import { TOOLS, ToolId } from './tools';
@@ -73,6 +75,11 @@ export interface Served {
   saveDesign?: { name: string; caption: string };
   /** …and it was saved. */
   savedDesign?: boolean;
+  /** Cut by the thợ phụ. */
+  byAssistant?: boolean;
+  /** Thành tựu reached by this round (names). */
+  achievements?: string[];
+
   /** Prize or story reward money (counted in the day's takings). */
   bonus?: number;
   story?: { title: string; text: string; passed: boolean; finished?: boolean };
@@ -107,6 +114,8 @@ export interface DaySummary {
   bonusMoney?: number;
   /** Every seventh evening: the week in review. */
   week?: WeekReport;
+  /** Thành tựu reached at closing (days open, money in the till…). */
+  achievements?: string[];
 }
 
 export interface WeekReport {
@@ -179,7 +188,12 @@ export interface CareerState {
   viralStyle: { id: string; name: string; day: number; gain: number } | null;
   events: string[];
   styles: string[];
-  stats: { served: number; walkouts: number; earned: number; days: number };
+  stats: { served: number; walkouts: number; earned: number; days: number; loved?: number; freestyleLoved?: number; catalogOrders?: number };
+  /** Thợ phụ Bé Tư (once hired). */
+  assistant?: AssistantState;
+  /** Thành tựu reached, and the title hung under the sign. */
+  achievements?: string[];
+  title?: string | null;
   /** Kinh nghiệm của tiệm (Cấp tiệm). Older saves start at 0. */
   xp?: number;
   /** 2 = XP on the current level thresholds (older saves are scaled up once on load). */
@@ -298,7 +312,8 @@ function eligible(c: CareerState, d: CustomerDef, events: string[]): boolean {
   const a = d.appear;
   if (a.weight <= 0) return false;
   if (c.day < a.minDay) return false;
-  if (a.minRep !== undefined && c.rep < a.minRep && !(d.id === 'vip' && events.includes('newspaper'))) return false;
+  const minRep = a.minRep !== undefined && d.id === 'vip' && c.owned.includes('vipRoom') ? Math.min(a.minRep, 50) : a.minRep;
+  if (minRep !== undefined && c.rep < minRep && !(d.id === 'vip' && events.includes('newspaper'))) return false;
   if (a.minViral !== undefined && c.viral < a.minViral) return false;
   if (a.needsItem && !c.owned.includes(a.needsItem)) return false;
   if (a.minLevel && shopLevel(c).level < a.minLevel) return false;
@@ -311,6 +326,7 @@ export function customersPerDay(c: CareerState, events: string[]): number {
   if (events.includes('foodStall')) n++;
   if (events.includes('badReview')) n--;
   if (c.viral >= 50) n++;
+  if (c.owned.includes('vipRoom')) n++;
   n += shopLevel(c).extraCustomers;
   return clamp(n, 2, 7);
 }
@@ -427,7 +443,7 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
     if (!cands.length) break;
     // Customers from the last two days rarely walk in again.
     const recent = (d: CustomerDef) => (c.history[d.id] && c.history[d.id].day >= c.day - 2 ? 0.12 : 1);
-    const w = cands.map((d) => d.appear.weight * recent(d) * (ids.includes('viralClip') ? d.viralWeight : 1) * (d.id === 'vip' && ids.includes('newspaper') ? 3 : 1));
+    const w = cands.map((d) => d.appear.weight * recent(d) * (ids.includes('viralClip') ? d.viralWeight : 1) * (d.id === 'vip' && ids.includes('newspaper') ? 3 : 1) * (d.id === 'vip' && c.owned.includes('vipRoom') ? 3 : 1));
     let r = rng() * w.reduce((a, b) => a + b, 0);
     let chosen = cands[0];
     for (let i = 0; i < cands.length; i++) {
@@ -547,12 +563,24 @@ export function applyRound(c: CareerState, s: RoundState): Served {
   const d = s.customer;
   const q = c.today.queue[c.today.index];
   const repDelta = repDeltaFor(c, d, r.sat, r.walkedOut);
-  const viralDelta = viralDeltaFor(c, d, s);
-  c.money += r.paid + r.tip;
+  // Phòng mở rộng: the wash is paid on top; dyed work pays more in the dye room; the photo corner spreads the word.
+  let extra = 0;
+  if (!r.walkedOut && c.owned.includes('washRoom')) extra += 20000;
+  if (!r.walkedOut && c.owned.includes('dyeRoom') && s.metrics.tintedFrac >= 0.1) extra += Math.round((r.paid * 0.2) / 1000) * 1000;
+  const viralDelta = Math.round((viralDeltaFor(c, d, s) + (!r.walkedOut && r.sat >= 60 && c.owned.includes('photoCorner') ? 1.5 : 0)) * 10) / 10;
+  const paid = r.paid + extra;
+  c.money += paid + r.tip;
   c.rep = clamp(c.rep + repDelta, 0, 100);
   c.viral = clamp(c.viral + viralDelta, 0, 100);
   c.stats.served++;
-  c.stats.earned += r.paid + r.tip;
+  c.stats.earned += paid + r.tip;
+  if (!r.walkedOut && r.tier === 'love') c.stats.loved = (c.stats.loved ?? 0) + 1;
+  if (q?.reason === 'freestyle' && !r.walkedOut && r.sat >= 75) c.stats.freestyleLoved = (c.stats.freestyleLoved ?? 0) + 1;
+  if (q?.reason === 'design' && !r.walkedOut) c.stats.catalogOrders = (c.stats.catalogOrders ?? 0) + 1;
+  if (s.byAssistant) {
+    const a = (c.assistant ??= { jobs: 0, used: 0, day: c.day });
+    a.jobs++;
+  }
   if (r.walkedOut) c.stats.walkouts++;
   if (!c.styles.includes(r.style.id)) {
     c.styles.push(r.style.id);
@@ -597,7 +625,7 @@ export function applyRound(c: CareerState, s: RoundState): Served {
     styleName: r.style.name,
     sat: r.sat,
     tier: r.tier,
-    paid: r.paid,
+    paid,
     tip: r.tip,
     repDelta,
     viralDelta,
@@ -655,9 +683,14 @@ export function applyRound(c: CareerState, s: RoundState): Served {
   if (done.length) served.quests = done.map((q) => q.label);
   // Cấp tiệm.
   const before = shopLevel(c).level;
-  const gained = xpFor(r, { design: q?.reason === 'design' || q?.reason === 'freestyle' || q?.reason === 'story' || q?.reason === 'contest', art: s.metrics.carvingCount > 0 || s.metrics.tintedFrac > 0.1, boss: q?.reason === 'boss', quests: done.length });
+  const gained0 = xpFor(r, { design: q?.reason === 'design' || q?.reason === 'freestyle' || q?.reason === 'story' || q?.reason === 'contest', art: s.metrics.carvingCount > 0 || s.metrics.tintedFrac > 0.1, boss: q?.reason === 'boss', quests: done.length });
+  // The thợ phụ's cuts teach the shop less.
+  const gained = s.byAssistant ? Math.round(gained0 / 2) : gained0;
   c.xp = (c.xp ?? 0) + gained;
   served.xp = gained;
+  if (s.byAssistant) served.byAssistant = true;
+  const ach = checkAchievements(c);
+  if (ach.length) served.achievements = ach;
   if (shopLevel(c).level > before) served.levelUp = shopLevel(c).level;
   c.today.served.push(served);
   c.today.index++;
@@ -678,6 +711,7 @@ export function dayCosts(c: CareerState): CostLine[] {
   const magicSec = TOOLS.filter((t) => t.group === 'magic' && !ELECTRIC.includes(t.id)).reduce((a, t) => a + (c.today.usage[t.id] ?? 0), 0);
   const power = Math.round((8000 + powerSec * 400 + magicSec * 600) / 1000) * 1000;
   costs.push({ label: 'Tiền điện (và phép thuật)', amount: power });
+  if (c.owned.includes('assistant')) costs.push({ label: 'Lương thợ phụ Bé Tư', amount: ASSISTANT_WAGE });
   if (c.today.events.some((e) => e.id === 'inspection') && !c.owned.includes('vacuum')) costs.push({ label: 'Phạt vệ sinh', amount: 100000 });
   if (c.today.mess >= 20) costs.push({ label: 'Dọn dẹp tóc, lông vương vãi', amount: Math.round(c.today.mess * 500 / 1000) * 1000 });
   return costs;
@@ -733,8 +767,10 @@ export function endDay(c: CareerState): DaySummary {
     summary.week = weekReport(c.weekDays);
     c.weekDays = [];
   }
-  c.lastSummary = summary;
   c.stats.days++;
+  const ach = checkAchievements(c);
+  if (ach.length) summary.achievements = ach;
+  c.lastSummary = summary;
   c.today.phase = 'closed';
   return summary;
 }
@@ -864,3 +900,62 @@ export function resetCareer(store: Storage | undefined = globalThis.localStorage
 
 /** All hairstyle names (for the collection). */
 export const ALL_STYLES = STYLE_RULES.map((r) => r.id);
+
+/* ------------------------------------------------------------------ thợ phụ, thành tựu */
+
+/** Can the thợ phụ take the current customer? (walk-ins only, a few a day) */
+export function canAssist(c: CareerState): boolean {
+  const q = c.today.queue[c.today.index];
+  if (!c.owned.includes('assistant') || !q || q.reason !== 'walkin') return false;
+  const d = customerById(q.customer);
+  if (d.look.species === 'dog' || d.boss || d.stages?.length) return false;
+  return assistantLeft(c) > 0;
+}
+
+export function assistantLeft(c: CareerState): number {
+  const a = c.assistant ?? { jobs: 0, used: 0, day: c.day };
+  return assistantSlots(a.jobs) - (a.day === c.day ? a.used : 0);
+}
+
+/** Marks a hand-over (the round itself is cut by assistantCut). Returns her tay nghề. */
+export function takeAssistant(c: CareerState): number {
+  const a = (c.assistant ??= { jobs: 0, used: 0, day: c.day });
+  if (a.day !== c.day) {
+    a.day = c.day;
+    a.used = 0;
+  }
+  a.used++;
+  return assistantLevel(a.jobs);
+}
+
+export function achievementStats(c: CareerState): AchievementStats {
+  return {
+    served: c.stats.served,
+    days: c.stats.days,
+    level: shopLevel(c).level,
+    money: c.money,
+    trophies: c.trophies?.length ?? 0,
+    gold: (c.trophies ?? []).filter((t) => t.rank === 1).length,
+    stories: Object.values(c.stories ?? {}).filter((p) => p.state === 'done').length,
+    styles: c.styles.length,
+    freestyleLoved: c.stats.freestyleLoved ?? 0,
+    catalogOrders: c.stats.catalogOrders ?? 0,
+    rooms: ['washRoom', 'dyeRoom', 'photoCorner', 'vipRoom'].filter((x) => c.owned.includes(x)).length,
+    assistantJobs: c.assistant?.jobs ?? 0,
+    walkouts: c.stats.walkouts,
+    loved: c.stats.loved ?? 0,
+  };
+}
+
+/** Records newly reached achievements (+10 kinh nghiệm each); returns their names. */
+export function checkAchievements(c: CareerState): string[] {
+  const have = (c.achievements ??= []);
+  const got = newAchievements(achievementStats(c), have);
+  for (const a of got) {
+    have.push(a.id);
+    c.xp = (c.xp ?? 0) + ACHIEVEMENT_XP;
+  }
+  return got.map((a) => a.name);
+}
+
+export { ACHIEVEMENTS };
