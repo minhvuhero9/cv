@@ -31,6 +31,10 @@ export interface Template {
   zones: Record<Zone, number>;
   /** Dye: one colour, or a fade a → b; only on the listed zones (default all). */
   color?: { a: string; b?: string; zones?: Zone[] };
+  /** A second colour on other zones (two-tone without the fade). */
+  color2?: { a: string; zones: Zone[] };
+  /** Mẫu theo mùa: only offered in that season (real calendar month). */
+  season?: SeasonId;
   carvings?: TemplateCarving[];
   /** How to do it, in short steps. */
   steps: string[];
@@ -144,7 +148,94 @@ export const TEMPLATES: Template[] = [
   },
 ];
 
-export const templateById = (id: string | null | undefined) => TEMPLATES.find((t) => t.id === id) ?? null;
+export type SeasonId = 'tet' | 'he' | 'trungthu' | 'halloween' | 'noel';
+
+export const SEASONS: { id: SeasonId; name: string; months: number[] }[] = [
+  { id: 'tet', name: 'Tết', months: [0, 1] },
+  { id: 'he', name: 'Mùa hè', months: [5, 6, 7] },
+  { id: 'trungthu', name: 'Trung Thu', months: [8] },
+  { id: 'halloween', name: 'Halloween', months: [9] },
+  { id: 'noel', name: 'Noel', months: [11] },
+];
+
+/** The calendar the game reads (tests can set a fixed date). */
+export const seasonClock = { now: () => new Date() };
+
+/** The season right now (real calendar), if any. */
+export function seasonFor(date: Date = new Date()) {
+  return SEASONS.find((x) => x.months.includes(date.getMonth())) ?? null;
+}
+
+export const SEASONAL: Template[] = [
+  {
+    id: 'tet-lixi',
+    name: 'Lì Xì Đỏ Vàng',
+    season: 'tet',
+    level: 3,
+    stars: 2,
+    tools: ['brush', 'stencil'],
+    items: [],
+    zones: { left: 0.45, right: 0.45, top: 0.85, fringe: 0.6 },
+    color: { a: '#ffd400', zones: ['top'] },
+    color2: { a: '#ff3fa4', zones: ['fringe'] },
+    carvings: [{ kind: 'star', u: -0.7, v: -0.2, s: 0.75 }],
+    steps: ['Hai bên ngắn', 'Vàng phía trên, hồng phần mái', 'Khuôn ngôi sao bên trái: sao may mắn'],
+  },
+  {
+    id: 'he-duahau',
+    name: 'Kem Dưa Hấu',
+    season: 'he',
+    level: 2,
+    stars: 1,
+    tools: ['brush'],
+    items: [],
+    zones: { left: 0.4, right: 0.4, top: 0.8, fringe: 0.6 },
+    color: { a: '#ff3fa4', zones: ['top'] },
+    color2: { a: '#2ee86a', zones: ['fringe'] },
+    steps: ['Hai bên ngắn cho mát', 'Hồng phía trên, xanh lá phần mái'],
+  },
+  {
+    id: 'trungthu-ongsao',
+    name: 'Đèn Ông Sao',
+    season: 'trungthu',
+    level: 3,
+    stars: 2,
+    tools: ['brush', 'stencil'],
+    items: [],
+    zones: { left: 0.5, right: 0.5, top: 0.85, fringe: 0.65 },
+    color: { a: '#ffd400', zones: ['fringe'] },
+    carvings: [{ kind: 'star', u: 0.7, v: -0.2, s: 0.8 }],
+    steps: ['Tỉa hai bên vừa', 'Mái vàng như đèn lồng', 'Ngôi sao bên phải'],
+  },
+  {
+    id: 'halloween-ma',
+    name: 'Ma Bí Ngô',
+    season: 'halloween',
+    level: 3,
+    stars: 2,
+    tools: ['brush', 'stencil'],
+    items: [],
+    zones: { left: 0.35, right: 0.35, top: 0.9, fringe: 0.55 },
+    color: { a: '#2ee86a', zones: ['top'] },
+    carvings: [{ kind: 'stripes', u: -0.7, v: -0.1, s: 0.75 }],
+    steps: ['Hai bên ngắn', 'Xanh lá ma quái phía trên', 'Sọc cào bên trái'],
+  },
+  {
+    id: 'noel-tuyet',
+    name: 'Tuần Lộc Tuyết',
+    season: 'noel',
+    level: 3,
+    stars: 2,
+    tools: ['brush', 'stencil'],
+    items: [],
+    zones: { left: 0.5, right: 0.5, top: 0.85, fringe: 0.6 },
+    color: { a: '#18c8ff', zones: ['fringe', 'top'] },
+    carvings: [{ kind: 'star', u: -0.7, v: -0.2, s: 0.7 }],
+    steps: ['Tỉa hai bên vừa', 'Xanh băng tuyết phía trên và mái', 'Ngôi sao Noel bên trái'],
+  },
+];
+
+export const templateById = (id: string | null | undefined) => TEMPLATES.find((t) => t.id === id) ?? SEASONAL.find((t) => t.id === id) ?? null;
 
 /** The recipe on this customer's head. */
 export function templateHair(t: Template, customerId: string): HairState {
@@ -158,6 +249,7 @@ export function templateHair(t: Template, customerId: string): HairState {
       const k = Math.min(1, Math.max(0, (tf.root.y - top) / (h.head.ry * 1.25)));
       tf.tint = t.color.b ? mixColor(t.color.a, t.color.b, k) : t.color.a;
     }
+    if (t.color2?.zones.includes(tf.zone)) tf.tint = t.color2.a;
   }
   for (const c of t.carvings ?? []) {
     const art: ArtSettings = { colorA: '#000000', colorB: '#000000', blend: false, stencil: c.kind, text: c.text ?? '', size: c.s };

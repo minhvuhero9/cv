@@ -26,6 +26,7 @@ import type { Creation } from './creation';
 import { DesignOrder, designCustomer, designOrder, templateOrder } from './design';
 import { Taste, tasteById, tasteCustomer } from './freestyle';
 import { storyById, storyCustomer } from './stories';
+import { AccessoryId, accessoryById, accessoryPoints, accessoryReaction, withAccessory } from './accessories';
 import { templateById } from './templates';
 import { ArtKit, ArtSettings, brushHair, carveHair, fullKit, newArt } from './art';
 import { PERSONA_IDS, PersonaId, affinity, personaById, transformCustomer } from './mirror';
@@ -158,6 +159,13 @@ export interface RoundState {
   ease: number;
   /** Cut by the thợ phụ (career), not the player. */
   byAssistant?: boolean;
+  /** Random Gương Thần (career): spins left for this customer, and how they took the last one. */
+  mirrorRandom: boolean;
+  mirrorSpins: number;
+  /** Phụ kiện tóc on the head (one at a time), and whether the box is in the shop. */
+  accessory: AccessoryId | null;
+  accessoriesReady: boolean;
+  personaMood: 'fan' | 'hater' | 'neutral' | null;
   /** Khách có câu chuyện: which story and chapter. */
   story: { id: string; step: number; title: string; chapters: number } | null;
   /** Đồ nghề sáng tạo: current colours / stencil, and what the barber owns. */
@@ -320,6 +328,8 @@ export interface RoundContext {
   taste?: string | null;
   /** A chapter of a customer's story (stories.ts). */
   story?: { id: string; step: number } | null;
+  /** Career Gương Thần: the mirror picks the persona at random (no picker). */
+  mirrorRandom?: boolean;
   /** 0..1: the shop's first days are gentler (more patience, more time, fewer head turns). */
   ease?: number;
 }
@@ -367,6 +377,12 @@ export function createRound(customerId: CustomerId, seed = Date.now() & 0xffff, 
     persona: null,
     wantPersona,
     mirrorReady: (opts.mirror ?? false) || ctx.items.includes('mirror'),
+    mirrorRandom: !!ctx.mirrorRandom,
+    // Bé Ba Hóa Thân came for the mirror: she may look three times.
+    mirrorSpins: customer.behaviors.includes('transform') ? 3 : 1,
+    personaMood: null,
+    accessory: null,
+    accessoriesReady: (opts.mirror ?? false) || ctx.items.includes('accessoryBox'),
     requestText: request,
     shakeUntil: 0,
     shakeAmp: 0,
@@ -860,29 +876,52 @@ export function toolReaction(s: RoundState, tool: Tool) {
 
 /** Gương Thần can be used once per customer, while cutting, on humans. */
 export function canTransform(s: RoundState): boolean {
-  return s.mirrorReady && s.phase === 'cutting' && !s.persona && s.customer.look.species !== 'dog';
+  const left = s.mirrorRandom ? s.mirrorSpins > 0 : !s.persona;
+  return s.mirrorReady && s.phase === 'cutting' && left && s.customer.look.species !== 'dog';
+}
+
+/**
+ * Gương Thần ngẫu nhiên (career): the mirror decides. A customer who already loves or hates
+ * that persona keeps their feelings; anyone else may love it — or not.
+ */
+export function spinMirror(s: RoundState): PersonaId | null {
+  if (!canTransform(s)) {
+    transform(s, PERSONA_IDS[0]); // refusal path: says why, plays the deny sound
+    return null;
+  }
+  const pool = PERSONA_IDS.filter((x) => x !== s.persona);
+  const id = pool[Math.floor(s.rng() * pool.length) % pool.length];
+  s.mirrorSpins--;
+  transform(s, id, true);
+  return id;
 }
 
 /** Gương Thần Biến Hình: dress the customer up as a persona (look, signature hair, lines, verdict). */
-export function transform(s: RoundState, id: PersonaId): boolean {
+export function transform(s: RoundState, id: PersonaId, random = false): boolean {
   const p = personaById(id);
   if (!p) return false;
-  if (!canTransform(s)) {
+  if (!random && !canTransform(s)) {
     if (s.customer.look.species === 'dog' && s.phase === 'cutting') say(s, 'Gâu? (Gương Thần không soi được lông chó.)', 'suspicious');
     s.deniedAt = s.time;
     s.sfx.push('deny');
     return false;
   }
+  const base = affinity(p, s.baseCustomer.id);
+  // Random mirror: no fixed taste for this persona → they either love it or they don't.
+  const aff = random && base === 'neutral' && !s.wantPersona ? (s.rng() < 0.5 ? 'fan' : 'hater') : base;
   s.persona = id;
-  s.customer = transformCustomer(s.baseCustomer, p, s.wantPersona);
+  s.personaMood = aff;
+  s.customer = transformCustomer(s.baseCustomer, p, s.wantPersona, aff);
+  const acc = accessoryById(s.accessory);
+  if (acc) s.customer = withAccessory(s.customer, s.baseCustomer, acc, s.taste);
   p.treat(s.hair);
   s.viewers += p.viewers;
   s.flashUntil = s.time + 0.3;
   s.sfx.push('sparkle');
   incident(s, 'transform', p.chaos);
   refreshMetrics(s);
-  const aff = affinity(p, s.baseCustomer.id);
   const asked = s.wantPersona;
+  if (random) s.toasts.push({ id: s.toastSeq++, title: `Gương Thần quay ra: ${p.name}!`, until: s.time + 2.5 });
   if (asked && asked !== id) {
     s.patience = clamp(s.patience - 18, 0, 100);
     say(s, `Ơ! Em xin ${personaById(asked)?.name}, sao lại thành ${p.name}?!`, 'shocked', { shout: true });
@@ -891,10 +930,28 @@ export function transform(s: RoundState, id: PersonaId): boolean {
     say(s, p.entrance[Math.floor(s.rng() * p.entrance.length) % p.entrance.length], 'ecstatic');
   } else if (aff === 'hater') {
     s.patience = clamp(s.patience - 15, 0, 100);
-    say(s, `${s.baseCustomer.name} nhìn gương: “Cái gì đây?! Trả lại mặt cho tôi!”`, 'angry', { shout: true });
+    say(s, random && base === 'neutral' ? `${s.baseCustomer.name}: “${p.name}?! Không hợp với tôi chút nào!”` : `${s.baseCustomer.name} nhìn gương: “Cái gì đây?! Trả lại mặt cho tôi!”`, 'angry', { shout: true });
   } else {
     say(s, p.entrance[0], 'shocked');
   }
+  return true;
+}
+
+/** Phụ kiện tóc: put one on (or null to take it off). The customer says what they think. */
+export function setAccessory(s: RoundState, id: AccessoryId | null): boolean {
+  if (!s.accessoriesReady || s.phase !== 'cutting' || s.customer.look.species === 'dog') return false;
+  // Rebuild from the customer as they are without accessories (the persona stays).
+  const p = personaById(s.persona);
+  const clean = p ? transformCustomer(s.baseCustomer, p, s.wantPersona, s.personaMood ?? undefined) : s.baseCustomer;
+  s.accessory = id;
+  const acc = accessoryById(id);
+  s.customer = acc ? withAccessory(clean, s.baseCustomer, acc, s.taste) : clean;
+  if (acc) {
+    const r = accessoryReaction(accessoryPoints(s.baseCustomer, acc, s.taste));
+    say(s, r.line, r.mood);
+    s.sfx.push('sparkle');
+  }
+  refreshMetrics(s);
   return true;
 }
 

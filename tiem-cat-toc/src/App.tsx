@@ -3,6 +3,7 @@ import { playSfx, setMuted, setMusicState, setMusicVolume, setSfxVolume, setTool
 import { AchievementsPanel, AudioSettings, CareerHud, MorningPanel, SettingsPanel, ShopPanel, SummaryPanel } from './components/CareerPanels';
 import { achievementById } from './game/achievements';
 import { MirrorButton, MirrorPicker } from './components/MirrorPicker';
+import { AccessoryButton, AccessoryPicker } from './components/AccessoryPicker';
 import { Coach } from './components/Coach';
 import { AirCon, Chandelier, LevelPlaque, RoomStrip, StageDecor, WallDecor } from './components/Decor';
 import { ShopLookPanel } from './components/ShopLookPanel';
@@ -45,6 +46,8 @@ import {
   beg,
   createRound,
   transform,
+  spinMirror,
+  setAccessory,
   finish,
   pointerDown,
   pointerLeave,
@@ -144,6 +147,7 @@ export default function App() {
   const [served, setServed] = useState<Served | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [mirrorOpen, setMirrorOpen] = useState(false);
+  const [accOpen, setAccOpen] = useState(false);
   const [newAlbum, setNewAlbum] = useState(false);
   /** Bumped whenever the Sổ kiểu tóc changes (it lives in localStorage). */
   const [bookVer, setBookVer] = useState(0);
@@ -291,6 +295,7 @@ export default function App() {
     if (start) startCutting(r);
     roundRef.current = r;
     setMirrorOpen(false);
+    setAccOpen(false);
     setServed(null);
     setNewTools([]);
     rerender();
@@ -526,8 +531,24 @@ export default function App() {
         </aside>
       </main>
 
-      <Toolbar s={s} onTool={onTool} onFinish={onFinish} extra={<MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} />} />
-      {!overlay && !mirrorOpen && <Coach s={s} />}
+      <Toolbar s={s} onTool={onTool} onFinish={onFinish} extra={
+          <>
+            <MirrorButton s={s} open={mirrorOpen && s.phase === 'cutting'} onToggle={() => setMirrorOpen((o) => !o)} onSpin={() => spinMirror(roundRef.current)} />
+            <AccessoryButton s={s} open={accOpen && s.phase === 'cutting'} onToggle={() => setAccOpen((o) => !o)} />
+          </>
+        }
+      />
+      {!overlay && !mirrorOpen && !accOpen && <Coach s={s} />}
+      {accOpen && s.phase === 'cutting' && (
+        <AccessoryPicker
+          s={s}
+          onClose={() => setAccOpen(false)}
+          onPick={(id) => {
+            setAccessory(roundRef.current, id);
+            setAccOpen(false);
+          }}
+        />
+      )}
       {overlay === 'photo' && s.result && (
         <PhotoPanel
           s={s}

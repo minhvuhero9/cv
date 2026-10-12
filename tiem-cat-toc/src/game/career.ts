@@ -13,7 +13,7 @@ import { ELECTRIC, MACHINES, SHOP, ShopItem, shopItem } from './shop';
 import { TOOLS, ToolId } from './tools';
 import { Quest, planQuests, settleQuests, updateQuests } from './quests';
 import { LEVELS, levelFor, xpFor } from './level';
-import { TEMPLATES, templateReady } from './templates';
+import { SEASONAL, TEMPLATES, seasonClock, seasonFor, templateReady } from './templates';
 
 /**
  * Chế độ Mở Tiệm: the multi-day shop simulation. Pure functions over CareerState so the
@@ -392,13 +392,16 @@ export function planDay(c: CareerState, catalog: CatalogEntry[] = []) {
   c.freshDesign = null;
   const own = fresh ?? (artShop && catalog.length > 0 && c.day % 2 === 0 ? catalog[(c.day / 2) % catalog.length] : null);
   const ready = artShop ? TEMPLATES.filter((t) => templateReady(t, shopLevel(c).level, careerTools(c), c.owned)) : [];
-  const tpl = !own && ready.length ? ready[(c.day * 7 + c.stats.served) % ready.length] : null;
+  // Mẫu theo mùa: in season, every third day someone wants the seasonal look.
+  const season = seasonFor(seasonClock.now());
+  const seasonal = artShop && season ? SEASONAL.filter((t) => t.season === season.id && templateReady(t, shopLevel(c).level, careerTools(c), c.owned)) : [];
+  const tpl = !own && seasonal.length && c.day % 3 === 1 ? seasonal[0] : !own && ready.length ? ready[(c.day * 7 + c.stats.served) % ready.length] : null;
   if (own || tpl) {
     const model = own ? CUSTOMERS.find((x) => x.id === own.customer) : null;
     const others = CUSTOMERS.filter(ok);
     const who = model && ok(model) ? model : others.length ? others[Math.floor(rng() * others.length) % others.length] : null;
     if (who && own) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu “${own.name}” (do bạn tạo) trong cuốn mẫu`, designId: own.id });
-    else if (who && tpl) queue.push({ customer: who.id, reason: 'design', note: `Chọn mẫu có sẵn “${tpl.name}” ${'★'.repeat(tpl.stars)}`, templateId: tpl.id });
+    else if (who && tpl) queue.push({ customer: who.id, reason: 'design', note: tpl.season ? `Mẫu theo mùa ${season?.name}: “${tpl.name}” ${'★'.repeat(tpl.stars)}` : `Chọn mẫu có sẵn “${tpl.name}” ${'★'.repeat(tpl.stars)}`, templateId: tpl.id });
   }
 
   // 2c) Khách tùy thợ: from day 2, most days someone just says "làm gì cũng được, miễn
@@ -517,6 +520,7 @@ export function roundContext(c: CareerState): Partial<RoundContext> {
     taste: q?.tasteId ?? null,
     story: q?.storyId ? { id: q.storyId, step: q.storyStep ?? 0 } : null,
     ease: easeFor(c.day),
+    mirrorRandom: true,
   };
 }
 

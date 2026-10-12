@@ -337,6 +337,44 @@ async function playDay(page) {
   await ctx.close();
 }
 
+/* ---------------- Gương Thần ngẫu nhiên + phụ kiện tóc ---------------- */
+{
+  const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);
+  await page.evaluate(() => {
+    localStorage.setItem('tctbo-coach', '4');
+    const c = window.__tctbo.career();
+    c.owned.push('mirror', 'accessoryBox');
+    c.today.queue[0] = { customer: 'tuan', reason: 'walkin', note: 'Khách vãng lai' };
+  });
+  await page.click('[data-testid=open-day]');
+  await page.click('[data-testid=start]');
+  await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    s.nextTurnCheck = 1e9;
+    s.nextBehaviorAt = 1e9;
+  });
+  await page.click('[data-testid=guong-than]');
+  await page.waitForTimeout(200);
+  const r = await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    return { persona: s.persona, mood: s.personaMood, spins: s.mirrorSpins };
+  });
+  check('Gương Thần ở tiệm: one tap, random persona, no picker', !!r.persona && (await page.locator('[data-testid=mirror-picker]').count()) === 0, JSON.stringify(r));
+  check('Gương Thần ở tiệm: the customer loves it or hates it', r.mood === 'fan' || r.mood === 'hater', r.mood);
+  check('Gương Thần ở tiệm: used up for this customer', await page.isDisabled('[data-testid=guong-than]'));
+  await page.click('[data-testid=accessories]');
+  await page.waitForSelector('[data-testid=accessory-picker]');
+  await page.click('[data-testid=acc-crown]');
+  const acc = await page.evaluate(() => {
+    const s = window.__tctbo.state();
+    return { acc: s.accessory, hat: s.customer.look.hat, persona: s.persona };
+  });
+  check('Phụ kiện: the crown sits on the (transformed) customer', acc.acc === 'crown' && acc.hat === 'crown' && acc.persona === r.persona, JSON.stringify(acc));
+  await page.screenshot({ path: `${OUT}/K9-mirror-acc.png` });
+  check('Gương Thần & phụ kiện: no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 /* ---------------- Sound settings: volume and mute persist ---------------- */
 {
   const { ctx, page, errors } = await open(`${BASE}?fresh=1&seed=4`);

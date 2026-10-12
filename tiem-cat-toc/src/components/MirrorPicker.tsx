@@ -21,21 +21,28 @@ export function MirrorFrame({ size = 64 }: { size?: number }) {
   );
 }
 
-export function MirrorButton({ s, open, onToggle }: { s: RoundState; open: boolean; onToggle(): void }) {
+export function MirrorButton({ s, open, onToggle, onSpin }: { s: RoundState; open: boolean; onToggle(): void; onSpin?(): void }) {
   if (!s.mirrorReady) return null;
   const used = !!s.persona;
   const can = canTransform(s);
+  // Ở tiệm: the mirror picks at random — one tap, no picker.
+  const random = s.mirrorRandom && onSpin;
+  const mood = s.personaMood === 'fan' ? ' 😍' : s.personaMood === 'hater' ? ' 😠' : '';
   return (
     <button
       className={`mirror-btn ${open ? 'is-open' : ''} ${used ? 'is-used' : ''}`}
-      onClick={onToggle}
+      onClick={random ? onSpin : onToggle}
       disabled={!can && !open}
       data-testid="guong-than"
-      aria-label={used ? `Gương Thần: đã biến hình thành ${personaById(s.persona)?.name}` : 'Gương Thần Biến Hình'}
-      title="Gương Thần Biến Hình (1 lần mỗi khách)"
+      data-spins={s.mirrorSpins}
+      aria-label={used ? `Gương Thần: đã biến hình thành ${personaById(s.persona)?.name}` : random ? 'Gương Thần: soi ra phong cách ngẫu nhiên' : 'Gương Thần Biến Hình'}
+      title={random ? `Gương Thần: soi ra phong cách ngẫu nhiên (còn ${s.mirrorSpins} lần)` : 'Gương Thần Biến Hình (1 lần mỗi khách)'}
     >
       <MirrorFrame size={30} />
-      <span className="mirror-btn-text">{used ? personaById(s.persona)?.tag : 'Gương Thần'}</span>
+      <span className="mirror-btn-text">
+        {used ? `${personaById(s.persona)?.tag}${mood}` : random ? 'Soi ngẫu nhiên' : 'Gương Thần'}
+        {random && s.mirrorSpins > 0 && used ? ` · còn ${s.mirrorSpins}` : ''}
+      </span>
     </button>
   );
 }

@@ -73,7 +73,8 @@ export const SHOP: ShopItem[] = [
   { id: 'plant', name: 'Chậu Cây Phong Thủy', category: 'decor', price: 90000, desc: 'Cân bằng âm dương, giảm hỗn loạn.', effect: 'Chaos từ sự cố giảm 15%.', unlock: { day: 1 } },
   // ---- special: unlocks customers/events
   { id: 'petSign', name: 'Biển “Cho Phép Thú Cưng”', category: 'special', price: 100000, desc: 'Chào mừng các khách bốn chân.', effect: 'Cậu Vàng bắt đầu đến tiệm.', unlock: { day: 2 } },
-  { id: 'mirror', name: 'Gương Thần Biến Hình', category: 'special', price: 280000, desc: 'Gương khung gỗ chạm hoa sen, soi vào là hóa thân.', effect: 'Mỗi khách được biến hình 1 lần (6 phong cách). Bé Ba Hóa Thân bắt đầu đến tiệm.', unlock: { level: 3 } },
+  { id: 'mirror', name: 'Gương Thần Biến Hình', category: 'special', price: 280000, desc: 'Gương khung gỗ chạm hoa sen, soi vào là hóa thân.', effect: 'Mỗi khách soi 1 lần: gương quay ra ngẫu nhiên 1 trong 6 phong cách, khách có thể mê hoặc ghét. Bé Ba Hóa Thân bắt đầu đến tiệm (được soi 3 lần để ra đúng phong cách mình xin).', unlock: { level: 3 } },
+  { id: 'accessoryBox', name: 'Hộp Phụ Kiện Tóc', category: 'decor', price: 220000, desc: 'Nơ, bờm tai mèo, băng đô, kính râm, vương miện giấy.', effect: 'Cài phụ kiện lên đầu khách khi cắt. Khách hợp gu thì thích thêm (tới +15%), khách ghét thì bớt điểm.', unlock: { level: 2 } },
   // ---- mở rộng tiệm: big, late purchases (where the money goes once the basics are bought)
   { id: 'washRoom', name: 'Phòng Gội Đầu Thư Giãn', category: 'room', price: 900000, desc: 'Ghế ngả, nước ấm, nhạc nhẹ. Khách vào cắt đã dịu hẳn.', effect: 'Khách được gội trước: kiên nhẫn +10 và giảm chậm hơn 15%. Khách không bỏ về trả thêm 20.000đ tiền gội.', unlock: { level: 2 } },
   { id: 'dyeRoom', name: 'Phòng Nhuộm Chuyên Nghiệp', category: 'room', price: 1200000, desc: 'Đèn sấy màu, bồn pha màu, bảng màu treo tường.', effect: 'Kiểu có nhuộm (từ 10% tóc) được trả thêm 20%.', unlock: { level: 3 } },

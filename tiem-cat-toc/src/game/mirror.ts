@@ -387,8 +387,8 @@ export function personaFit(p: Persona, m: HairMetrics, ctx?: SatisfactionCtx): n
  * persona lines and a verdict that mixes their own taste with the persona's.
  * A customer who came in asking for a persona (wantPersona) judges only by that.
  */
-export function transformCustomer(base: CustomerDef, p: Persona, wantPersona: PersonaId | null): CustomerDef {
-  const aff = affinity(p, base.id);
+export function transformCustomer(base: CustomerDef, p: Persona, wantPersona: PersonaId | null, mood?: 'fan' | 'hater' | 'neutral'): CustomerDef {
+  const aff = mood ?? affinity(p, base.id);
   const own = base.satisfaction;
   return {
     ...base,

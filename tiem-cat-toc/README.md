@@ -275,6 +275,25 @@ Nút **Gương Thần** cạnh nút “Xong!” (chế độ tự do: luôn có;
   - Có 16 mục tiêu dài hạn, ví dụ 10/50/150 khách, 20 khách mê, cấp 5, 2 triệu trong két, cúp, 3 Giải Nhất, câu chuyện, bộ sưu tập kiểu tóc, khách tùy thợ, cuốn mẫu, phòng mở rộng, thợ phụ cắt 15 khách.
   - Mỗi mục +10 kinh nghiệm và mở một danh hiệu để treo dưới biển hiệu tiệm.
 
+## Gương Thần ngẫu nhiên, phụ kiện tóc, mẫu theo mùa
+
+- **Gương Thần ở tiệm** (mua trong Cửa hàng, cấp 3):
+  - Bấm “Soi ngẫu nhiên”: gương quay ra 1 trong 6 phong cách, không được chọn.
+  - Khách vốn mê hoặc ghét phong cách đó thì giữ nguyên; khách khác ngẫu nhiên mê (😍, kiên nhẫn tăng, điểm +15) hoặc ghét (😠, kiên nhẫn giảm, điểm −25).
+  - Mỗi khách soi 1 lần; riêng Bé Ba Hóa Thân được soi 3 lần để ra đúng phong cách mình xin.
+  - Chế độ cắt tự do vẫn chọn phong cách như cũ.
+- **🎀 Hộp Phụ Kiện Tóc** (220k, cấp 2; có sẵn khi chơi tự do):
+  - Gồm nơ to, bờm tai mèo, băng đô, kính râm cài đầu, vương miện giấy. Cài lên đầu khách khi cắt, gỡ ra được.
+  - Khách nói ngay họ nghĩ gì, và điểm thay đổi: Bé Ngân mê nơ, Long Rốc mê kính râm, Anh Đạt và Chú Bảy ghét đồ cài đầu.
+  - Gu tùy thợ cũng có ý kiến: Dễ Thương thích đồ dễ thương, Ngầu thích kính, Gọn Gàng ghét mọi phụ kiện.
+- **Mẫu theo mùa** (theo tháng thật):
+  - Tết: Lì Xì Đỏ Vàng.
+  - Hè: Kem Dưa Hấu (mẫu hai màu).
+  - Trung Thu: Đèn Ông Sao.
+  - Halloween: Ma Bí Ngô.
+  - Noel: Tuần Lộc Tuyết.
+  - Trong mùa, cứ 3 ngày có một khách đặt mẫu mùa (khi tiệm đủ đồ nghề).
+
 ## Cảm giác chơi và cân bằng
 
 - **Ngày đầu dễ thở:** ngày 1 khách kiên nhẫn lâu hơn (mất kiên nhẫn chậm hơn 45%), có thêm 15 giây và ít quay đầu hẳn; ngày 2 dễ bằng một nửa; từ ngày 3 là thật.
@@ -322,7 +341,7 @@ src/game/level.ts      cấp tiệm, kinh nghiệm, mở khóa
 src/game/freestyle.ts  khách tùy thợ (9 gu) và đề Cuộc thi tóc của phường
 src/game/stories.ts    khách có câu chuyện nhiều ngày
 src/game/shopStyle.ts  tiệm của riêng bạn (tên, màu, sắp xếp tường) và link thách bạn bè
-src/game/assistant.ts  thợ phụ Bé Tư; achievements.ts thành tựu & danh hiệu
+src/game/assistant.ts  thợ phụ Bé Tư; achievements.ts thành tựu & danh hiệu; accessories.ts phụ kiện tóc
 src/game/replay.ts     chọn khung hình xem lại; replayVideo.ts quay video bằng MediaRecorder
 src/components/        Character (+ character/: đầu, mặt, thân), Stage, Panels, ResultPanel, RequestSheet,
                        MirrorPicker, Coach, Decor, AlbumPanel, ReplayPlayer, PhotoBook, PhotoComposition, ArtBar,

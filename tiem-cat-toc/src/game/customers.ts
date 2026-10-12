@@ -774,7 +774,7 @@ export const CUSTOMERS: CustomerDef[] = [
     trait: 'Đội vương miện giấy, mặc đồ bộ ở nhà. Nghe đồn tiệm có Gương Thần nên đến xin “biến hình”.',
     request: 'Cho em soi Gương Thần! Em muốn thành {persona}!',
     catch: 'Mà tóc cũng phải chuẩn kiểu đó nhé, không là em không chịu đâu.',
-    hint: 'Bấm Gương Thần, chọn ĐÚNG phong cách khách xin, rồi cắt theo đường viền xanh.',
+    hint: 'Soi Gương Thần cho ra ĐÚNG phong cách khách xin (ở tiệm gương quay ngẫu nhiên, Bé Ba được soi 3 lần), rồi cắt theo đường viền xanh.',
     look: { skin: '#f6cfae', skinShade: '#d9a382', hairColor: '#4a2a18', hairShade: '#24130a', shirt: '#ffb3c7', trim: '#e5322d', hat: 'crown',
       face: { eyes: 'narrow', brows: 'arched', nose: 'snub', jaw: 'round', chin: 0.96, rest: 'grin', cheeks: 'chubby', sticker: 'star', eyeGap: 33 },
       body: { collar: 'pajama', shoulders: 1.05, belly: 0.3, idle: 'sway' } },
